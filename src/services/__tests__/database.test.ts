@@ -205,7 +205,16 @@ describe("DatabaseService", () => {
     });
 
     it("should handle update errors", async () => {
-      mockDb.runAsync.mockRejectedValueOnce(new Error("Update failed"));
+      // Mock successful initialization but failing update
+      mockDb.runAsync
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockRejectedValueOnce(new Error("Update failed")); // for actual update
 
       await expect(
         databaseService.updateCustomer("cust_1", updateData)
@@ -248,7 +257,16 @@ describe("DatabaseService", () => {
     });
 
     it("should handle transaction creation errors", async () => {
-      mockDb.runAsync.mockRejectedValueOnce(new Error("Transaction failed"));
+      // Mock successful initialization but failing transaction creation
+      mockDb.runAsync
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
+        .mockRejectedValueOnce(new Error("Transaction failed")); // for actual transaction
 
       await expect(
         databaseService.createTransaction(transactionInput)

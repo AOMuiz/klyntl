@@ -3,7 +3,7 @@ import {
   useSQLiteContext,
   type SQLiteDatabase,
 } from "expo-sqlite";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useCallback } from "react";
 import { Analytics } from "../../types/analytics";
 import {
   CreateCustomerInput,
@@ -112,22 +112,25 @@ interface DatabaseProviderProps {
   databaseName?: string;
 }
 
-export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({
-  children,
-  databaseName = "klyntl.db",
-}) => {
-  return (
-    <SQLiteProvider
-      databaseName={databaseName}
-      onInit={migrateDbIfNeeded}
-      onError={(error) => {
-        console.error("SQLiteProvider error:", error);
-      }}
-    >
-      {children}
-    </SQLiteProvider>
-  );
-};
+export const DatabaseProvider: React.FC<DatabaseProviderProps> = React.memo(
+  ({ children, databaseName = "klyntl.db" }) => {
+    const handleError = useCallback((error: Error) => {
+      console.error("SQLiteProvider error:", error);
+    }, []);
+
+    return (
+      <SQLiteProvider
+        databaseName={databaseName}
+        onInit={migrateDbIfNeeded}
+        onError={handleError}
+      >
+        {children}
+      </SQLiteProvider>
+    );
+  }
+);
+
+DatabaseProvider.displayName = "DatabaseProvider";
 
 // Custom hooks for database operations
 export const useDatabase = () => {
@@ -137,111 +140,123 @@ export const useDatabase = () => {
 export const useCustomers = () => {
   const db = useSQLiteContext();
 
-  const createCustomer = async (
-    customerInput: CreateCustomerInput
-  ): Promise<Customer> => {
-    const id = `cust_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
+  const createCustomer = useCallback(
+    async (customerInput: CreateCustomerInput): Promise<Customer> => {
+      const id = `cust_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const now = new Date().toISOString();
 
-    const customer: Customer = {
-      ...customerInput,
-      id,
-      totalSpent: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
+      const customer: Customer = {
+        ...customerInput,
+        id,
+        totalSpent: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    try {
-      await db.runAsync(
-        `INSERT INTO customers (id, name, phone, email, address, totalSpent, lastPurchase, createdAt, updatedAt) 
+      try {
+        await db.runAsync(
+          `INSERT INTO customers (id, name, phone, email, address, totalSpent, lastPurchase, createdAt, updatedAt) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          customer.id,
-          customer.name,
-          customer.phone,
-          customer.email || null,
-          customer.address || null,
-          customer.totalSpent,
-          customer.lastPurchase || null,
-          customer.createdAt,
-          customer.updatedAt,
-        ]
-      );
-      return customer;
-    } catch (error) {
-      console.error("Error creating customer:", error);
-      throw error;
-    }
-  };
-
-  const getCustomers = async (searchQuery?: string): Promise<Customer[]> => {
-    try {
-      let sql = "SELECT * FROM customers ORDER BY name ASC";
-      let params: any[] = [];
-
-      if (searchQuery) {
-        sql =
-          "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC";
-        params = [`%${searchQuery}%`, `%${searchQuery}%`];
+          [
+            customer.id,
+            customer.name,
+            customer.phone,
+            customer.email || null,
+            customer.address || null,
+            customer.totalSpent,
+            customer.lastPurchase || null,
+            customer.createdAt,
+            customer.updatedAt,
+          ]
+        );
+        return customer;
+      } catch (error) {
+        console.error("Error creating customer:", error);
+        throw error;
       }
+    },
+    [db]
+  );
 
-      const rows = (await db.getAllAsync(sql, params)) as Customer[];
-      return rows;
-    } catch (error) {
-      console.error("Error getting customers:", error);
-      throw error;
-    }
-  };
+  const getCustomers = useCallback(
+    async (searchQuery?: string): Promise<Customer[]> => {
+      try {
+        let sql = "SELECT * FROM customers ORDER BY name ASC";
+        let params: any[] = [];
 
-  const getCustomerById = async (id: string): Promise<Customer | null> => {
-    try {
-      const row = (await db.getFirstAsync(
-        "SELECT * FROM customers WHERE id = ?",
-        [id]
-      )) as Customer | null;
-      return row;
-    } catch (error) {
-      console.error("Error getting customer by ID:", error);
-      throw error;
-    }
-  };
+        if (searchQuery) {
+          sql =
+            "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC";
+          params = [`%${searchQuery}%`, `%${searchQuery}%`];
+        }
 
-  const updateCustomer = async (
-    id: string,
-    updates: UpdateCustomerInput
-  ): Promise<void> => {
-    const updatedAt = new Date().toISOString();
-    const setClause = Object.keys(updates)
-      .map((key) => `${key} = ?`)
-      .join(", ");
-    const values = [...Object.values(updates), updatedAt, id];
+        const rows = (await db.getAllAsync(sql, params)) as Customer[];
+        return rows;
+      } catch (error) {
+        console.error("Error getting customers:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
 
-    try {
-      await db.runAsync(
-        `UPDATE customers SET ${setClause}, updatedAt = ? WHERE id = ?`,
-        values
-      );
-    } catch (error) {
-      console.error("Error updating customer:", error);
-      throw error;
-    }
-  };
+  const getCustomerById = useCallback(
+    async (id: string): Promise<Customer | null> => {
+      try {
+        const row = (await db.getFirstAsync(
+          "SELECT * FROM customers WHERE id = ?",
+          [id]
+        )) as Customer | null;
+        return row;
+      } catch (error) {
+        console.error("Error getting customer by ID:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
 
-  const deleteCustomer = async (id: string): Promise<void> => {
-    try {
-      await db.withTransactionAsync(async () => {
-        // First delete all transactions for this customer
-        await db.runAsync("DELETE FROM transactions WHERE customerId = ?", [
-          id,
-        ]);
-        // Then delete the customer
-        await db.runAsync("DELETE FROM customers WHERE id = ?", [id]);
-      });
-    } catch (error) {
-      console.error("Error deleting customer:", error);
-      throw error;
-    }
-  };
+  const updateCustomer = useCallback(
+    async (id: string, updates: UpdateCustomerInput): Promise<void> => {
+      const updatedAt = new Date().toISOString();
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+      const values = [...Object.values(updates), updatedAt, id];
+
+      try {
+        await db.runAsync(
+          `UPDATE customers SET ${setClause}, updatedAt = ? WHERE id = ?`,
+          values
+        );
+      } catch (error) {
+        console.error("Error updating customer:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
+
+  const deleteCustomer = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await db.withTransactionAsync(async () => {
+          // First delete all transactions for this customer
+          await db.runAsync("DELETE FROM transactions WHERE customerId = ?", [
+            id,
+          ]);
+          // Then delete the customer
+          await db.runAsync("DELETE FROM customers WHERE id = ?", [id]);
+        });
+      } catch (error) {
+        console.error("Error deleting customer:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
 
   return {
     createCustomer,
@@ -255,64 +270,66 @@ export const useCustomers = () => {
 export const useTransactions = () => {
   const db = useSQLiteContext();
 
-  const createTransaction = async (
-    transactionInput: CreateTransactionInput
-  ): Promise<Transaction> => {
-    const id = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const transaction: Transaction = { ...transactionInput, id };
+  const createTransaction = useCallback(
+    async (transactionInput: CreateTransactionInput): Promise<Transaction> => {
+      const id = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const transaction: Transaction = { ...transactionInput, id };
 
-    try {
-      await db.withTransactionAsync(async () => {
-        // Insert transaction
-        await db.runAsync(
-          `INSERT INTO transactions (id, customerId, amount, description, date, type) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            transaction.id,
-            transaction.customerId,
-            transaction.amount,
-            transaction.description || null,
-            transaction.date,
-            transaction.type,
-          ]
-        );
-
-        // Update customer total spent if it's a sale
-        if (transaction.type === "sale") {
+      try {
+        await db.withTransactionAsync(async () => {
+          // Insert transaction
           await db.runAsync(
-            "UPDATE customers SET totalSpent = totalSpent + ?, lastPurchase = ? WHERE id = ?",
-            [transaction.amount, transaction.date, transaction.customerId]
+            `INSERT INTO transactions (id, customerId, amount, description, date, type) 
+           VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              transaction.id,
+              transaction.customerId,
+              transaction.amount,
+              transaction.description || null,
+              transaction.date,
+              transaction.type,
+            ]
           );
-        }
-      });
 
-      return transaction;
-    } catch (error) {
-      console.error("Error creating transaction:", error);
-      throw error;
-    }
-  };
+          // Update customer total spent if it's a sale
+          if (transaction.type === "sale") {
+            await db.runAsync(
+              "UPDATE customers SET totalSpent = totalSpent + ?, lastPurchase = ? WHERE id = ?",
+              [transaction.amount, transaction.date, transaction.customerId]
+            );
+          }
+        });
 
-  const getTransactions = async (
-    customerId?: string
-  ): Promise<Transaction[]> => {
-    try {
-      let sql = "SELECT * FROM transactions ORDER BY date DESC";
-      let params: any[] = [];
-
-      if (customerId) {
-        sql =
-          "SELECT * FROM transactions WHERE customerId = ? ORDER BY date DESC";
-        params = [customerId];
+        return transaction;
+      } catch (error) {
+        console.error("Error creating transaction:", error);
+        throw error;
       }
+    },
+    [db]
+  );
 
-      const rows = (await db.getAllAsync(sql, params)) as Transaction[];
-      return rows;
-    } catch (error) {
-      console.error("Error getting transactions:", error);
-      throw error;
-    }
-  };
+  const getTransactions = useCallback(
+    async (customerId?: string): Promise<Transaction[]> => {
+      try {
+        let sql = "SELECT * FROM transactions ORDER BY date DESC";
+        let params: any[] = [];
+
+        if (customerId) {
+          sql =
+            "SELECT * FROM transactions WHERE customerId = ? ORDER BY date DESC";
+          params = [customerId];
+        }
+
+        const rows = (await db.getAllAsync(sql, params)) as Transaction[];
+        return rows;
+      } catch (error) {
+        console.error("Error getting transactions:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
 
   return { createTransaction, getTransactions };
 };
@@ -320,7 +337,7 @@ export const useTransactions = () => {
 export const useAnalytics = () => {
   const db = useSQLiteContext();
 
-  const getAnalytics = async (): Promise<Analytics> => {
+  const getAnalytics = useCallback(async (): Promise<Analytics> => {
     try {
       // Get total customers
       const customerCount = (await db.getFirstAsync(
@@ -347,7 +364,7 @@ export const useAnalytics = () => {
       console.error("Error getting analytics:", error);
       throw error;
     }
-  };
+  }, [db]);
 
   return { getAnalytics };
 };

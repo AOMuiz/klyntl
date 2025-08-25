@@ -1,5 +1,6 @@
 import { KlyntlThemeProvider } from "@/components/ThemeProvider";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { DatabaseProvider } from "@/services/database/context";
 import {
   DarkTheme,
   DefaultTheme,
@@ -21,13 +22,37 @@ export default function RootLayout() {
   }
 
   return (
-    <KlyntlThemeProvider>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </ThemeProvider>
-    </KlyntlThemeProvider>
+    <DatabaseProvider databaseName="klyntl.db">
+      <KlyntlThemeProvider>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="customer/add"
+              options={{
+                title: "Add Customer",
+                presentation: "modal",
+              }}
+            />
+            <Stack.Screen
+              name="customer/[id]"
+              options={{
+                title: "Customer Details",
+              }}
+            />
+            <Stack.Screen
+              name="transaction/add"
+              options={{
+                title: "Add Transaction",
+                presentation: "modal",
+              }}
+            />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        </ThemeProvider>
+      </KlyntlThemeProvider>
+    </DatabaseProvider>
   );
 }
