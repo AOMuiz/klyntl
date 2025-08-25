@@ -1,3 +1,4 @@
+import { ContactImportButton } from "@/components/ContactImportButton";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -286,6 +287,29 @@ export default function AddCustomerScreen() {
                 Customer information will be stored securely and can be updated
                 later.
               </ThemedText>
+
+              <View style={styles.divider} />
+
+              <View style={styles.importSection}>
+                <ThemedText style={styles.importLabel}>
+                  Need to add multiple customers?
+                </ThemedText>
+                <ContactImportButton
+                  variant="text"
+                  onImportComplete={() => {
+                    Alert.alert(
+                      "Import Complete",
+                      "Contacts have been imported. You can view them in the customer list.",
+                      [
+                        {
+                          text: "OK",
+                          onPress: () => router.dismiss(),
+                        },
+                      ]
+                    );
+                  }}
+                />
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -402,5 +426,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     opacity: 0.8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginVertical: 16,
+  },
+  importSection: {
+    alignItems: "center",
+    gap: 8,
+  },
+  importLabel: {
+    fontSize: 14,
+    opacity: 0.8,
+    textAlign: "center",
   },
 });

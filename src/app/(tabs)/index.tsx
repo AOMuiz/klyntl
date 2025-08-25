@@ -1,3 +1,4 @@
+import { ContactImportButton } from "@/components/ContactImportButton";
 import { CustomerCard } from "@/components/CustomerCard";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -81,6 +82,13 @@ export default function CustomerListScreen() {
     router.push("/customer/add");
   };
 
+  const handleImportComplete = async (result: {
+    imported: number;
+    skipped: number;
+  }) => {
+    await loadCustomers(); // Reload the customer list
+  };
+
   const renderCustomerItem = ({ item }: { item: Customer }) => (
     <CustomerCard customer={item} onPress={() => handleCustomerPress(item)} />
   );
@@ -98,9 +106,16 @@ export default function CustomerListScreen() {
       <ThemedText style={styles.emptySubtitle}>
         Add your first customer to get started
       </ThemedText>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddCustomer}>
-        <ThemedText style={styles.addButtonText}>Add Customer</ThemedText>
-      </TouchableOpacity>
+      <View style={styles.emptyActions}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddCustomer}>
+          <ThemedText style={styles.addButtonText}>Add Customer</ThemedText>
+        </TouchableOpacity>
+        <ContactImportButton
+          variant="button"
+          size="medium"
+          onImportComplete={handleImportComplete}
+        />
+      </View>
     </View>
   );
 
@@ -145,6 +160,14 @@ export default function CustomerListScreen() {
         <TouchableOpacity style={styles.fab} onPress={handleAddCustomer}>
           <IconSymbol name="plus" size={24} color="white" />
         </TouchableOpacity>
+
+        {/* Import FAB - positioned above main FAB */}
+        <ContactImportButton
+          variant="fab"
+          size="small"
+          onImportComplete={handleImportComplete}
+          style={styles.importFab}
+        />
       </ThemedView>
     </SafeAreaView>
   );
@@ -191,6 +214,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 24,
   },
+  emptyActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
   addButton: {
     backgroundColor: "#007AFF",
     paddingHorizontal: 24,
@@ -216,5 +243,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  importFab: {
+    position: "absolute",
+    right: 16,
+    bottom: 140, // Position above main FAB
   },
 });
