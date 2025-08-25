@@ -1,6 +1,4 @@
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useAppTheme } from "@/components/ThemeProvider";
 import { useCustomers, useTransactions } from "@/services/database/context";
 import { Customer } from "@/types/customer";
 import { Transaction } from "@/types/transaction";
@@ -12,15 +10,24 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   View,
 } from "react-native";
+import {
+  Button,
+  Card,
+  Divider,
+  List,
+  SegmentedButtons,
+  Surface,
+  Text,
+} from "react-native-paper";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getCustomerById, deleteCustomer } = useCustomers();
   const { getTransactions } = useTransactions();
+  const { colors } = useAppTheme();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -120,227 +127,455 @@ export default function CustomerDetailScreen() {
     router.push(`/transaction/add?customerId=${id}`);
   };
 
-  const renderTransactionItem = (transaction: Transaction) => (
-    <View key={transaction.id} style={styles.transactionItem}>
-      <View style={styles.transactionInfo}>
-        <ThemedText style={styles.transactionDate}>
-          {formatDate(transaction.date)}
-        </ThemedText>
-        {transaction.description && (
-          <ThemedText style={styles.transactionDescription}>
-            {transaction.description}
-          </ThemedText>
-        )}
-        <ThemedText style={styles.transactionType}>
-          {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-        </ThemedText>
-      </View>
-      <ThemedText
-        style={[
-          styles.transactionAmount,
-          { color: transaction.type === "refund" ? "#FF3B30" : "#34C759" },
-        ]}
-      >
-        {transaction.type === "refund" ? "-" : "+"}
-        {formatCurrency(transaction.amount)}
-      </ThemedText>
-    </View>
-  );
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ThemedView style={styles.loadingContainer}>
-          <ThemedText>Loading customer details...</ThemedText>
-        </ThemedView>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <Surface style={styles.loadingContainer} elevation={0}>
+          <Text variant="bodyLarge" style={{ color: colors.text }}>
+            Loading customer details...
+          </Text>
+        </Surface>
       </SafeAreaView>
     );
   }
 
   if (!customer) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ThemedView style={styles.errorContainer}>
-          <ThemedText>Customer not found</ThemedText>
-          <TouchableOpacity
-            style={styles.backButton}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <Surface style={styles.errorContainer} elevation={0}>
+          <Text variant="bodyLarge" style={{ color: colors.text }}>
+            Customer not found
+          </Text>
+          <Button
+            mode="contained"
             onPress={() => router.back()}
+            style={styles.backButton}
+            contentStyle={styles.backButtonContent}
           >
-            <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
+            Go Back
+          </Button>
+        </Surface>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <Surface style={styles.content} elevation={0}>
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
         >
           {/* Customer Header */}
-          <View style={styles.customerHeader}>
-            <View style={styles.customerAvatar}>
-              <ThemedText style={styles.avatarText}>
-                {customer.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
-              </ThemedText>
-            </View>
-            <View style={styles.customerInfo}>
-              <ThemedText type="title">{customer.name}</ThemedText>
-              <ThemedText style={styles.customerPhone}>
-                {customer.phone}
-              </ThemedText>
-              {customer.email && (
-                <ThemedText style={styles.customerEmail}>
-                  {customer.email}
-                </ThemedText>
-              )}
-              {customer.address && (
-                <ThemedText style={styles.customerAddress}>
-                  {customer.address}
-                </ThemedText>
-              )}
-            </View>
-          </View>
+          <Card
+            style={[styles.customerHeader, { backgroundColor: colors.surface }]}
+            elevation={3}
+            mode="elevated"
+          >
+            <Card.Content style={styles.customerContent}>
+              <Surface
+                style={[
+                  styles.customerAvatar,
+                  { backgroundColor: colors.primary },
+                ]}
+                elevation={4}
+              >
+                <Text
+                  variant="headlineMedium"
+                  style={[styles.avatarText, { color: "#FFFFFF" }]}
+                >
+                  {customer.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </Text>
+              </Surface>
+              <View style={styles.customerInfo}>
+                <Text
+                  variant="headlineSmall"
+                  style={{ color: colors.text, fontWeight: "700" }}
+                >
+                  {customer.name}
+                </Text>
+                <Text
+                  variant="bodyLarge"
+                  style={[
+                    styles.customerPhone,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {customer.phone}
+                </Text>
+                {customer.email && (
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.customerEmail,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {customer.email}
+                  </Text>
+                )}
+                {customer.address && (
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.customerAddress,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {customer.address}
+                  </Text>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
 
           {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleCall}>
-              <IconSymbol name="phone.fill" size={20} color="white" />
-              <ThemedText style={styles.actionButtonText}>Call</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleSMS}>
-              <IconSymbol name="message.fill" size={20} color="white" />
-              <ThemedText style={styles.actionButtonText}>SMS</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleWhatsApp}
+          <View style={styles.actionButtonsContainer}>
+            <Surface
+              style={{ borderRadius: 20, overflow: "hidden" }}
+              elevation={2}
             >
-              <IconSymbol name="bubble.left.fill" size={20} color="white" />
-              <ThemedText style={styles.actionButtonText}>WhatsApp</ThemedText>
-            </TouchableOpacity>
+              <SegmentedButtons
+                value=""
+                onValueChange={() => {}}
+                buttons={[
+                  {
+                    value: "call",
+                    label: "Call",
+                    icon: "phone",
+                    onPress: handleCall,
+                  },
+                  {
+                    value: "sms",
+                    label: "SMS",
+                    icon: "message",
+                    onPress: handleSMS,
+                  },
+                  {
+                    value: "whatsapp",
+                    label: "WhatsApp",
+                    icon: "whatsapp",
+                    onPress: handleWhatsApp,
+                  },
+                ]}
+                style={styles.segmentedButtons}
+              />
+            </Surface>
           </View>
 
           {/* Customer Stats */}
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <ThemedText style={styles.statValue}>
-                {formatCurrency(customer.totalSpent)}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Total Spent</ThemedText>
-            </View>
-            <View style={styles.statCard}>
-              <ThemedText style={styles.statValue}>
-                {transactions.length}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Transactions</ThemedText>
-            </View>
-            <View style={styles.statCard}>
-              <ThemedText style={styles.statValue}>
-                {customer.lastPurchase
-                  ? formatDate(customer.lastPurchase)
-                  : "Never"}
-              </ThemedText>
-              <ThemedText style={styles.statLabel}>Last Purchase</ThemedText>
-            </View>
+            <Card
+              style={[styles.statCard, { backgroundColor: colors.surface }]}
+              elevation={3}
+              mode="elevated"
+            >
+              <Card.Content style={styles.statCardContent}>
+                <Text
+                  variant="headlineSmall"
+                  style={[styles.statValue, { color: colors.primary }]}
+                >
+                  {formatCurrency(customer.totalSpent)}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
+                  Total Spent
+                </Text>
+              </Card.Content>
+            </Card>
+            <Card
+              style={[styles.statCard, { backgroundColor: colors.surface }]}
+              elevation={3}
+              mode="elevated"
+            >
+              <Card.Content style={styles.statCardContent}>
+                <Text
+                  variant="headlineSmall"
+                  style={[styles.statValue, { color: colors.primary }]}
+                >
+                  {transactions.length}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
+                  Transactions
+                </Text>
+              </Card.Content>
+            </Card>
+            <Card
+              style={[styles.statCard, { backgroundColor: colors.surface }]}
+              elevation={3}
+              mode="elevated"
+            >
+              <Card.Content style={styles.statCardContent}>
+                <Text
+                  variant="titleMedium"
+                  style={[styles.statValue, { color: colors.primary }]}
+                >
+                  {customer.lastPurchase
+                    ? formatDate(customer.lastPurchase)
+                    : "Never"}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
+                  Last Purchase
+                </Text>
+              </Card.Content>
+            </Card>
           </View>
 
           {/* Recent Transactions */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle">Recent Transactions</ThemedText>
-              <TouchableOpacity
-                style={styles.addTransactionButton}
-                onPress={handleAddTransaction}
+              <Text
+                variant="headlineSmall"
+                style={[styles.sectionTitle, { color: colors.text }]}
               >
-                <IconSymbol name="plus" size={16} color="white" />
-                <ThemedText style={styles.addTransactionText}>Add</ThemedText>
-              </TouchableOpacity>
+                Recent Transactions
+              </Text>
+              <Button
+                mode="contained"
+                icon="plus"
+                onPress={handleAddTransaction}
+                compact
+                style={styles.addTransactionButton}
+              >
+                Add
+              </Button>
             </View>
 
             {transactions.length === 0 ? (
-              <View style={styles.emptyTransactions}>
-                <ThemedText style={styles.emptyText}>
-                  No transactions yet
-                </ThemedText>
-                <TouchableOpacity
-                  style={styles.firstTransactionButton}
-                  onPress={handleAddTransaction}
-                >
-                  <ThemedText style={styles.firstTransactionText}>
+              <Card
+                style={[
+                  styles.emptyTransactions,
+                  { backgroundColor: colors.surface },
+                ]}
+                elevation={3}
+                mode="elevated"
+              >
+                <Card.Content style={styles.emptyTransactionsContent}>
+                  <Text
+                    variant="titleMedium"
+                    style={[styles.emptyText, { color: colors.textSecondary }]}
+                  >
+                    No transactions yet
+                  </Text>
+                  <Button
+                    mode="contained"
+                    onPress={handleAddTransaction}
+                    style={styles.firstTransactionButton}
+                    contentStyle={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 32,
+                    }}
+                  >
                     Add First Transaction
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
+                  </Button>
+                </Card.Content>
+              </Card>
             ) : (
-              <View style={styles.transactionsList}>
-                {transactions.slice(0, 5).map(renderTransactionItem)}
+              <Card
+                style={[
+                  styles.transactionsList,
+                  { backgroundColor: colors.surface },
+                ]}
+                elevation={3}
+                mode="elevated"
+              >
+                {transactions.slice(0, 5).map((transaction, index) => (
+                  <View key={transaction.id}>
+                    <List.Item
+                      title={formatDate(transaction.date)}
+                      description={
+                        transaction.description ||
+                        transaction.type.charAt(0).toUpperCase() +
+                          transaction.type.slice(1)
+                      }
+                      right={() => (
+                        <Text
+                          variant="titleMedium"
+                          style={[
+                            styles.transactionAmount,
+                            {
+                              color:
+                                transaction.type === "refund"
+                                  ? colors.error
+                                  : "#34C759",
+                            },
+                          ]}
+                        >
+                          {transaction.type === "refund" ? "-" : "+"}
+                          {formatCurrency(transaction.amount)}
+                        </Text>
+                      )}
+                      titleStyle={{
+                        color: colors.text,
+                        fontWeight: "600",
+                        fontSize: 16,
+                      }}
+                      descriptionStyle={{
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                      }}
+                      style={{ paddingVertical: 16, paddingHorizontal: 20 }}
+                    />
+                    {index < transactions.slice(0, 5).length - 1 && (
+                      <Divider style={{ backgroundColor: colors.divider }} />
+                    )}
+                  </View>
+                ))}
                 {transactions.length > 5 && (
-                  <TouchableOpacity style={styles.viewAllButton}>
-                    <ThemedText style={styles.viewAllText}>
+                  <>
+                    <Divider style={{ backgroundColor: colors.divider }} />
+                    <Button
+                      mode="text"
+                      onPress={() => {}} // TODO: Navigate to all transactions
+                      style={styles.viewAllButton}
+                      contentStyle={{ paddingVertical: 12 }}
+                    >
                       View All Transactions
-                    </ThemedText>
-                  </TouchableOpacity>
+                    </Button>
+                  </>
                 )}
-              </View>
+              </Card>
             )}
           </View>
 
           {/* Customer Details */}
           <View style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <Text
+              variant="headlineSmall"
+              style={[styles.sectionTitle, { color: colors.text }]}
+            >
               Customer Details
-            </ThemedText>
-            <View style={styles.detailsCard}>
-              <View style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>Customer ID:</ThemedText>
-                <ThemedText style={styles.detailValue}>
-                  {customer.id}
-                </ThemedText>
-              </View>
-              <View style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>Created:</ThemedText>
-                <ThemedText style={styles.detailValue}>
-                  {formatDate(customer.createdAt)}
-                </ThemedText>
-              </View>
-              <View style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>
-                  Last Updated:
-                </ThemedText>
-                <ThemedText style={styles.detailValue}>
-                  {formatDate(customer.updatedAt)}
-                </ThemedText>
-              </View>
-            </View>
+            </Text>
+            <Card
+              style={[styles.detailsCard, { backgroundColor: colors.surface }]}
+              elevation={3}
+              mode="elevated"
+            >
+              <Card.Content style={{ padding: 20 }}>
+                <View style={styles.detailRow}>
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.detailLabel,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Customer ID:
+                  </Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={[styles.detailValue, { color: colors.text }]}
+                  >
+                    {customer.id}
+                  </Text>
+                </View>
+                <Divider
+                  style={{
+                    backgroundColor: colors.divider,
+                    marginVertical: 12,
+                  }}
+                />
+                <View style={styles.detailRow}>
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.detailLabel,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Created:
+                  </Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={[styles.detailValue, { color: colors.text }]}
+                  >
+                    {formatDate(customer.createdAt)}
+                  </Text>
+                </View>
+                <Divider
+                  style={{
+                    backgroundColor: colors.divider,
+                    marginVertical: 12,
+                  }}
+                />
+                <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.detailLabel,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Last Updated:
+                  </Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={[styles.detailValue, { color: colors.text }]}
+                  >
+                    {formatDate(customer.updatedAt)}
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
           </View>
 
           {/* Action Buttons */}
           <View style={styles.bottomActions}>
-            <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-              <IconSymbol name="pencil" size={16} color="white" />
-              <ThemedText style={styles.editButtonText}>
-                Edit Customer
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDelete}
+            <Button
+              mode="contained"
+              icon="pencil"
+              onPress={handleEdit}
+              style={[
+                styles.editButton,
+                { backgroundColor: colors.primary },
+                // getResponsiveFontSize
+              ]}
+              contentStyle={styles.bottomButtonContent}
             >
-              <IconSymbol name="trash.fill" size={16} color="white" />
-              <ThemedText style={styles.deleteButtonText}>Delete</ThemedText>
-            </TouchableOpacity>
+              Edit Customer
+            </Button>
+            <Button
+              mode="contained"
+              icon="trash-can"
+              onPress={handleDelete}
+              style={[styles.deleteButton, { backgroundColor: colors.error }]}
+              contentStyle={styles.bottomButtonContent}
+            >
+              Delete
+            </Button>
           </View>
         </ScrollView>
-      </ThemedView>
+
+        {/* FAB for adding transactions */}
+        {/* <Portal>
+          <FAB
+            icon="plus"
+            label="Add Transaction"
+            onPress={handleAddTransaction}
+            style={[styles.fab, { backgroundColor: colors.secondary, }]}
+            mode="elevated"
+          />
+        </Portal> */}
+      </Surface>
     </SafeAreaView>
   );
 }
@@ -364,99 +599,97 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   backButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
+    marginTop: 24,
+    borderRadius: 12,
   },
-  backButtonText: {
-    color: "white",
-    fontWeight: "600",
+  backButtonContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
   scrollView: {
     flex: 1,
   },
   customerHeader: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  customerContent: {
     flexDirection: "row",
-    padding: 16,
     alignItems: "center",
+    padding: 24,
   },
   customerAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#007AFF",
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 20,
   },
   avatarText: {
-    color: "white",
+    fontWeight: "700",
+    letterSpacing: 0.5,
     fontSize: 24,
-    fontWeight: "bold",
   },
   customerInfo: {
     flex: 1,
+    justifyContent: "center",
   },
   customerPhone: {
-    marginTop: 4,
-    opacity: 0.8,
+    marginTop: 6,
+    fontWeight: "500",
+    fontSize: 16,
   },
   customerEmail: {
-    marginTop: 2,
-    opacity: 0.7,
+    marginTop: 4,
+    fontSize: 14,
   },
   customerAddress: {
-    marginTop: 2,
-    opacity: 0.7,
+    marginTop: 4,
+    lineHeight: 20,
+    fontSize: 14,
   },
-  actionButtons: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 16,
+  actionButtonsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 6,
-  },
-  actionButtonText: {
-    color: "white",
-    fontWeight: "600",
+  segmentedButtons: {
+    borderRadius: 12,
   },
   statsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   statCard: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  statCardContent: {
     alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 12,
   },
   statValue: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: "#007AFF",
+    fontWeight: "700",
+    marginBottom: 6,
+    fontSize: 18,
   },
   statLabel: {
-    marginTop: 4,
-    opacity: 0.7,
     textAlign: "center",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    marginBottom: 32,
+    gap: 10,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -465,131 +698,86 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    marginBottom: 16,
+    fontWeight: "700",
+    fontSize: 22,
   },
   addTransactionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#34C759",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    gap: 4,
-  },
-  addTransactionText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
+    borderRadius: 20,
+    minWidth: 80,
   },
   emptyTransactions: {
-    alignItems: "center",
-    padding: 32,
-  },
-  emptyText: {
-    opacity: 0.7,
-    marginBottom: 16,
-  },
-  firstTransactionButton: {
-    backgroundColor: "#34C759",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  firstTransactionText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  transactionsList: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
   },
-  transactionItem: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  emptyTransactionsContent: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 24,
   },
-  transactionInfo: {
-    flex: 1,
+  emptyText: {
+    marginBottom: 20,
+    textAlign: "center",
+    fontSize: 16,
   },
-  transactionDate: {
-    fontWeight: "600",
+  firstTransactionButton: {
+    borderRadius: 12,
+    paddingHorizontal: 32,
   },
-  transactionDescription: {
-    opacity: 0.7,
-    marginTop: 2,
-  },
-  transactionType: {
-    opacity: 0.6,
-    marginTop: 4,
-    fontSize: 12,
-    textTransform: "uppercase",
+  transactionsList: {
+    borderRadius: 16,
+    overflow: "hidden",
   },
   transactionAmount: {
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 16,
   },
   viewAllButton: {
-    padding: 16,
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-  },
-  viewAllText: {
-    color: "#007AFF",
-    fontWeight: "600",
+    marginVertical: 8,
+    borderRadius: 0,
   },
   detailsCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    overflow: "hidden",
   },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    paddingVertical: 12,
   },
   detailLabel: {
-    opacity: 0.7,
+    fontSize: 15,
+    fontWeight: "500",
   },
   detailValue: {
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 15,
+    textAlign: "right",
+    flex: 1,
+    marginLeft: 20,
   },
   bottomActions: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 120, // Space for FAB
+    gap: 16,
   },
   editButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 6,
-  },
-  editButtonText: {
-    color: "white",
-    fontWeight: "600",
+    flex: 2,
+    borderRadius: 50,
   },
   deleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FF3B30",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 6,
+    flex: 1,
+    borderRadius: 50,
   },
-  deleteButtonText: {
-    color: "white",
-    fontWeight: "600",
+  bottomButtonContent: {
+    paddingVertical: 10,
+  },
+  fab: {
+    position: "absolute",
+    margin: 20,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
   },
 });
