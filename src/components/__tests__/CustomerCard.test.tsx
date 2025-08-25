@@ -1,5 +1,4 @@
 import { fireEvent, render } from "@testing-library/react-native";
-import React from "react";
 import { mockCustomer } from "../../__tests__/test-utils";
 import { CustomerCard } from "../CustomerCard";
 

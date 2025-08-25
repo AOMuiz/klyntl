@@ -1,16 +1,12 @@
 // database/helper.ts
-import {Platform} from 'react-native';
+import { Platform } from "react-native";
 
-import * as FileSystem from 'expo-file-system';
-import * as SQLite from 'expo-sqlite';
-
-import {AudioDatabase} from './last-played-repo';
-import {MutoonDownloadRepository} from './mutoonDownloadRepository';
-import QuranDownloadRepository from './quranDownloadRepository';
+import * as FileSystem from "expo-file-system";
+import * as SQLite from "expo-sqlite";
 
 // Helper to open a database connection
 export const getDatabaseInstance = async (
-  dbName: string,
+  dbName: string
 ): Promise<SQLite.SQLiteDatabase> => {
   return await SQLite.openDatabaseAsync(dbName);
 };
@@ -19,7 +15,7 @@ export const getDatabaseInstance = async (
 export const executeQuery = async (
   db: SQLite.SQLiteDatabase,
   query: string,
-  params: any[] = [],
+  params: any[] = []
 ): Promise<SQLite.SQLiteRunResult> => {
   try {
     const result = await db.runAsync(query, params);
@@ -34,7 +30,7 @@ export const executeQuery = async (
 export const executeQueryForResults = async <T = any>(
   db: SQLite.SQLiteDatabase,
   query: string,
-  params: any[] = [],
+  params: any[] = []
 ): Promise<T[]> => {
   try {
     const result = (await db.getAllAsync(query, params)) as T[];
@@ -49,7 +45,7 @@ export const executeQueryForResults = async <T = any>(
 export const executeQueryForFirstResult = async <T = any>(
   db: SQLite.SQLiteDatabase,
   query: string,
-  params: any[] = [],
+  params: any[] = []
 ): Promise<T | null> => {
   try {
     const result = (await db.getFirstAsync(query, params)) as T | null;
@@ -63,10 +59,10 @@ export const executeQueryForFirstResult = async <T = any>(
 // Check if a table exists
 export const checkTableExists = async (
   db: SQLite.SQLiteDatabase,
-  tableName: string,
+  tableName: string
 ): Promise<boolean> => {
   const query =
-    Platform.OS === 'ios'
+    Platform.OS === "ios"
       ? `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
       : `SELECT name FROM sqlite_master WHERE type='table' AND name=? COLLATE NOCASE`;
 
@@ -84,7 +80,7 @@ export const initializeTable = async (
   db: SQLite.SQLiteDatabase,
   tableName: string,
   createTableQuery: string,
-  createIndexQuery?: string,
+  createIndexQuery?: string
 ): Promise<boolean> => {
   try {
     // Check if the table already exists
@@ -118,13 +114,13 @@ export const initializeTable = async (
 
 // Validate database connection
 export const validateDatabaseConnection = async (
-  db: SQLite.SQLiteDatabase,
+  db: SQLite.SQLiteDatabase
 ): Promise<boolean> => {
   try {
-    await executeQuery(db, 'SELECT 1');
+    await executeQuery(db, "SELECT 1");
     return true;
   } catch (error) {
-    console.error('Database connection validation failed:', error);
+    console.error("Database connection validation failed:", error);
     return false;
   }
 };
@@ -132,7 +128,7 @@ export const validateDatabaseConnection = async (
 // Reset all databases
 export const resetAllDatabases = async (): Promise<void> => {
   try {
-    const dbDirectory = FileSystem.documentDirectory || '';
+    const dbDirectory = FileSystem.documentDirectory || "";
     const dbFilePaths = [
       `${dbDirectory}mutoons.db`,
       `${dbDirectory}quran.db`,
@@ -150,36 +146,36 @@ export const resetAllDatabases = async (): Promise<void> => {
       }
     }
 
-    console.log('All databases reset successfully.');
+    console.log("All databases reset successfully.");
   } catch (error) {
-    console.error('Error resetting databases:', error);
+    console.error("Error resetting databases:", error);
   }
 };
 
 // Drop old tables
 export const dropOldTable = async (
-  db: SQLite.SQLiteDatabase,
+  db: SQLite.SQLiteDatabase
 ): Promise<void> => {
   try {
-    await executeQuery(db, 'DROP TABLE IF EXISTS mutoons');
-    await executeQuery(db, 'DROP TABLE IF EXISTS recitations');
-    console.log('Database tables dropped');
+    await executeQuery(db, "DROP TABLE IF EXISTS mutoons");
+    await executeQuery(db, "DROP TABLE IF EXISTS recitations");
+    console.log("Database tables dropped");
   } catch (error) {
-    console.error('Error dropping tables:', error);
+    console.error("Error dropping tables:", error);
     throw error;
   }
 };
 
 // Enable WAL mode
 export const enableWALMode = async (
-  db: SQLite.SQLiteDatabase,
+  db: SQLite.SQLiteDatabase
 ): Promise<boolean> => {
   try {
-    await executeQuery(db, 'PRAGMA journal_mode=WAL');
-    console.log('WAL mode enabled successfully.');
+    await executeQuery(db, "PRAGMA journal_mode=WAL");
+    console.log("WAL mode enabled successfully.");
     return true;
   } catch (error) {
-    console.error('Failed to enable WAL mode:', error);
+    console.error("Failed to enable WAL mode:", error);
     throw error;
   }
 };
@@ -192,9 +188,10 @@ export const executeWithRetryBackoff = async (
   query: string,
   args: any[] = [],
   retries: number = 3,
-  delayTime: number = 1000,
+  delayTime: number = 1000
 ): Promise<SQLite.SQLiteRunResult> => {
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   let lastError: Error | null = null;
 
@@ -205,14 +202,16 @@ export const executeWithRetryBackoff = async (
       lastError = error as Error;
 
       if (attempt === retries) {
-        console.error('SQL query failed after all retries:', lastError.message);
+        console.error("SQL query failed after all retries:", lastError.message);
         throw lastError;
       }
 
-      if (lastError.message.includes('database is locked')) {
+      if (lastError.message.includes("database is locked")) {
         const waitTime = delayTime * Math.pow(2, attempt);
         console.warn(
-          `Database locked. Retrying query in ${waitTime}ms... (${retries - attempt} retries left)`,
+          `Database locked. Retrying query in ${waitTime}ms... (${
+            retries - attempt
+          } retries left)`
         );
         await delay(waitTime);
       } else {
@@ -222,7 +221,7 @@ export const executeWithRetryBackoff = async (
     }
   }
 
-  throw lastError || new Error('Unknown error occurred');
+  throw lastError || new Error("Unknown error occurred");
 };
 
 /**
@@ -230,92 +229,92 @@ export const executeWithRetryBackoff = async (
  */
 export const executeTransaction = async (
   db: SQLite.SQLiteDatabase,
-  queries: {query: string; params?: any[]}[],
+  queries: { query: string; params?: any[] }[]
 ): Promise<void> => {
   try {
     await db.withTransactionAsync(async () => {
-      for (const {query, params = []} of queries) {
+      for (const { query, params = [] } of queries) {
         await db.runAsync(query, params);
       }
     });
   } catch (error) {
-    console.error('Transaction failed:', error);
+    console.error("Transaction failed:", error);
     throw error;
   }
 };
 
 // Database health check function for better monitoring
-export const performDatabaseHealthCheck = async () => {
-  try {
-    console.log('Performing database health check...');
+// export const performDatabaseHealthCheck = async () => {
+//   try {
+//     console.log('Performing database health check...');
 
-    // Test basic database operations
-    const healthChecks = [
-      async () => {
-        // Test if we can get last played items (should not throw)
-        try {
-          await AudioDatabase.getLastPlayedMutoon(1);
-          return {service: 'AudioDatabase', status: 'healthy' as const};
-        } catch (error) {
-          return {
-            service: 'AudioDatabase',
-            status: 'error' as const,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          };
-        }
-      },
-      async () => {
-        // Test if we can get downloads (should not throw)
-        try {
-          await MutoonDownloadRepository.getAllDownloads();
-          return {
-            service: 'MutoonDownloadRepository',
-            status: 'healthy' as const,
-          };
-        } catch (error) {
-          return {
-            service: 'MutoonDownloadRepository',
-            status: 'error' as const,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          };
-        }
-      },
-      async () => {
-        // Test if we can get recitations (should not throw)
-        try {
-          await QuranDownloadRepository.getDownloadedRecitations();
-          return {
-            service: 'QuranDownloadRepository',
-            status: 'healthy' as const,
-          };
-        } catch (error) {
-          return {
-            service: 'QuranDownloadRepository',
-            status: 'error' as const,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          };
-        }
-      },
-    ];
+//     // Test basic database operations
+//     const healthChecks = [
+//       async () => {
+//         // Test if we can get last played items (should not throw)
+//         try {
+//           await AudioDatabase.getLastPlayedMutoon(1);
+//           return {service: 'AudioDatabase', status: 'healthy' as const};
+//         } catch (error) {
+//           return {
+//             service: 'AudioDatabase',
+//             status: 'error' as const,
+//             error: error instanceof Error ? error.message : 'Unknown error',
+//           };
+//         }
+//       },
+//       async () => {
+//         // Test if we can get downloads (should not throw)
+//         try {
+//           await MutoonDownloadRepository.getAllDownloads();
+//           return {
+//             service: 'MutoonDownloadRepository',
+//             status: 'healthy' as const,
+//           };
+//         } catch (error) {
+//           return {
+//             service: 'MutoonDownloadRepository',
+//             status: 'error' as const,
+//             error: error instanceof Error ? error.message : 'Unknown error',
+//           };
+//         }
+//       },
+//       async () => {
+//         // Test if we can get recitations (should not throw)
+//         try {
+//           await QuranDownloadRepository.getDownloadedRecitations();
+//           return {
+//             service: 'QuranDownloadRepository',
+//             status: 'healthy' as const,
+//           };
+//         } catch (error) {
+//           return {
+//             service: 'QuranDownloadRepository',
+//             status: 'error' as const,
+//             error: error instanceof Error ? error.message : 'Unknown error',
+//           };
+//         }
+//       },
+//     ];
 
-    const results = await Promise.all(healthChecks.map(check => check()));
+//     const results = await Promise.all(healthChecks.map(check => check()));
 
-    const healthyServices = results.filter(
-      result => result.status === 'healthy',
-    );
-    const errorServices = results.filter(result => result.status === 'error');
+//     const healthyServices = results.filter(
+//       result => result.status === 'healthy',
+//     );
+//     const errorServices = results.filter(result => result.status === 'error');
 
-    console.log(
-      `Database health check: ${healthyServices.length}/${results.length} services healthy`,
-    );
+//     console.log(
+//       `Database health check: ${healthyServices.length}/${results.length} services healthy`,
+//     );
 
-    if (errorServices.length > 0) {
-      console.warn('Database services with errors:', errorServices);
-    }
+//     if (errorServices.length > 0) {
+//       console.warn('Database services with errors:', errorServices);
+//     }
 
-    return healthyServices.length > 0; // Return true if at least one service is working
-  } catch (error) {
-    console.error('Database health check failed:', error);
-    return false;
-  }
-};
+//     return healthyServices.length > 0; // Return true if at least one service is working
+//   } catch (error) {
+//     console.error('Database health check failed:', error);
+//     return false;
+//   }
+// };

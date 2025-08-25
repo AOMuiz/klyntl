@@ -19,8 +19,20 @@ jest.mock("react-native-reanimated", () => {
 // Silence the warning: Animated: `useNativeDriver` is not supported because the native animated module is missing
 // jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
 
-// Mock expo-sqlite
+// Mock expo-sqlite with the new async API
 jest.mock("expo-sqlite", () => ({
+  openDatabaseAsync: jest.fn(() =>
+    Promise.resolve({
+      runAsync: jest.fn(() =>
+        Promise.resolve({ changes: 1, lastInsertRowId: 1 })
+      ),
+      getAllAsync: jest.fn(() => Promise.resolve([])),
+      getFirstAsync: jest.fn(() => Promise.resolve(null)),
+      withTransactionAsync: jest.fn((callback) => Promise.resolve(callback())),
+      closeAsync: jest.fn(() => Promise.resolve()),
+    })
+  ),
+  // Keep the old openDatabase for backward compatibility
   openDatabase: jest.fn(() => ({
     transaction: jest.fn((callback) => {
       const tx = {

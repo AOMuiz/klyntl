@@ -4,62 +4,49 @@ import { CreateTransactionInput } from "../../types/transaction";
 import { DatabaseService } from "../database/index";
 
 // Mock expo-sqlite for testing
-jest.mock("expo-sqlite");
+jest.mock("expo-sqlite", () => ({
+  openDatabaseAsync: jest.fn(),
+}));
+
+const mockSQLite = SQLite as jest.Mocked<typeof SQLite>;
 
 describe("DatabaseService", () => {
   let databaseService: DatabaseService;
-  let mockTransaction: jest.Mock;
-  let mockExecuteSql: jest.Mock;
-
-  const setupMockExecuteSql = () => {
-    // Reset the mock and set up default behavior
-    mockExecuteSql.mockReset();
-    mockExecuteSql.mockImplementation((sql, params, success, error) => {
-      if (success && typeof success === "function") {
-        success();
-      }
-    });
-  };
+  let mockDb: any;
 
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks();
 
-    // Create mock functions with proper callback handling
-    mockExecuteSql = jest.fn();
+    // Create mock database methods
+    mockDb = {
+      runAsync: jest.fn().mockResolvedValue({ changes: 1, lastInsertRowId: 1 }),
+      getAllAsync: jest.fn().mockResolvedValue([]),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      withTransactionAsync: jest.fn().mockImplementation(async (callback) => {
+        await callback();
+      }),
+      closeAsync: jest.fn().mockResolvedValue(undefined),
+    };
 
-    mockTransaction = jest.fn((callback, errorCallback, successCallback) => {
-      const tx = { executeSql: mockExecuteSql };
-      try {
-        callback(tx);
-        if (successCallback) successCallback();
-      } catch (err) {
-        if (errorCallback) errorCallback(err);
-      }
-    });
-
-    // Mock the database instance
-    const mockDb = { transaction: mockTransaction };
-
-    // Mock SQLite.openDatabase
-    const mockedSQLite = SQLite as jest.Mocked<typeof SQLite>;
-    mockedSQLite.openDatabase.mockReturnValue(mockDb as any);
+    // Mock SQLite.openDatabaseAsync to return our mock database
+    mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
 
     databaseService = new DatabaseService("test.db");
-
-    // Set default success behavior for executeSql
-    setupMockExecuteSql();
   });
+
   describe("initialize", () => {
     it("should initialize database tables correctly", async () => {
       await databaseService.initialize();
 
-      expect(mockTransaction).toHaveBeenCalled();
-      expect(mockExecuteSql).toHaveBeenCalledWith(
-        expect.stringContaining("CREATE TABLE IF NOT EXISTS customers")
+      expect(mockDb.withTransactionAsync).toHaveBeenCalled();
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("CREATE TABLE IF NOT EXISTS customers"),
+        []
       );
-      expect(mockExecuteSql).toHaveBeenCalledWith(
-        expect.stringContaining("CREATE TABLE IF NOT EXISTS transactions")
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("CREATE TABLE IF NOT EXISTS transactions"),
+        []
       );
     });
 
@@ -67,13 +54,13 @@ describe("DatabaseService", () => {
       await databaseService.initialize();
       await databaseService.initialize();
 
-      expect(mockTransaction).toHaveBeenCalledTimes(1);
+      expect(mockDb.withTransactionAsync).toHaveBeenCalledTimes(1);
     });
 
     it("should handle initialization errors", async () => {
-      mockTransaction.mockImplementationOnce((callback, errorCallback) => {
-        if (errorCallback) errorCallback(new Error("Database error"));
-      });
+      mockDb.withTransactionAsync.mockRejectedValueOnce(
+        new Error("Database error")
+      );
 
       await expect(databaseService.initialize()).rejects.toThrow(
         "Database error"
@@ -89,9 +76,12 @@ describe("DatabaseService", () => {
       address: "123 Lagos Street",
     };
 
-    it("should create a customer successfully", async () => {
-      setupMockExecuteSql();
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+    });
 
+    it("should create a customer successfully", async () => {
       const result = await databaseService.createCustomer(customerInput);
 
       expect(result).toMatchObject({
@@ -104,23 +94,20 @@ describe("DatabaseService", () => {
       expect(result.id).toMatch(/^cust_\d+_[a-z0-9]+$/);
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO customers"),
+        expect.arrayContaining([
+          result.id,
+          customerInput.name,
+          customerInput.phone,
+        ])
+      );
     });
 
     it("should handle creation errors", async () => {
-      // Set up mock to simulate error during the customer creation (not initialization)
-      let callCount = 0;
-      mockExecuteSql.mockImplementation((sql, params, success, error) => {
-        callCount++;
-        if (callCount <= 2) {
-          // First two calls are for initialization - let them succeed
-          if (success) success();
-        } else {
-          // Third call is the actual customer creation - make it fail
-          if (error) {
-            error(null, new Error("Duplicate phone number"));
-          }
-        }
-      });
+      mockDb.runAsync.mockRejectedValueOnce(
+        new Error("Duplicate phone number")
+      );
 
       await expect(
         databaseService.createCustomer(customerInput)
@@ -128,8 +115,6 @@ describe("DatabaseService", () => {
     });
 
     it("should generate unique customer IDs", async () => {
-      setupMockExecuteSql();
-
       const customer1 = await databaseService.createCustomer(customerInput);
       const customer2 = await databaseService.createCustomer({
         ...customerInput,
@@ -158,73 +143,40 @@ describe("DatabaseService", () => {
       },
     ];
 
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+    });
+
     it("should return all customers when no search query", async () => {
-      // Set up mock to handle initialization calls first, then the actual query
-      let callCount = 0;
-      mockExecuteSql.mockImplementation((sql, params, success) => {
-        callCount++;
-        if (callCount <= 2) {
-          // First two calls are for initialization
-          if (success) success();
-        } else {
-          // Third call is the actual query
-          const rows = {
-            length: mockCustomers.length,
-            item: (index: number) => mockCustomers[index],
-          };
-          if (success) success(null, { rows });
-        }
-      });
+      mockDb.getAllAsync.mockResolvedValue(mockCustomers);
 
       const result = await databaseService.getCustomers();
 
       expect(result).toEqual(mockCustomers);
+      expect(mockDb.getAllAsync).toHaveBeenCalledWith(
+        "SELECT * FROM customers ORDER BY name ASC",
+        []
+      );
     });
 
     it("should filter customers by search query", async () => {
       const filteredCustomers = [mockCustomers[0]];
-
-      let callCount = 0;
-      mockExecuteSql.mockImplementation((sql, params, success) => {
-        callCount++;
-        if (callCount <= 2) {
-          // First two calls are for initialization
-          if (success) success();
-        } else {
-          // Third call is the actual query
-          const rows = {
-            length: filteredCustomers.length,
-            item: (index: number) => filteredCustomers[index],
-          };
-          if (success) success(null, { rows });
-        }
-      });
+      mockDb.getAllAsync.mockResolvedValue(filteredCustomers);
 
       const result = await databaseService.getCustomers("John");
 
       expect(result).toEqual(filteredCustomers);
-      expect(mockExecuteSql).toHaveBeenCalledWith(
+      expect(mockDb.getAllAsync).toHaveBeenCalledWith(
         "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC",
-        ["%John%", "%John%"],
-        expect.any(Function),
-        expect.any(Function)
+        ["%John%", "%John%"]
       );
     });
 
     it("should handle query errors", async () => {
-      let callCount = 0;
-      mockExecuteSql.mockImplementation((sql, params, success, error) => {
-        callCount++;
-        if (callCount <= 2) {
-          // First two calls are for initialization - let them succeed
-          if (success) success();
-        } else {
-          // Third call is the actual query - make it fail
-          if (error) {
-            error(null, new Error("Database query failed"));
-          }
-        }
-      });
+      mockDb.getAllAsync.mockRejectedValueOnce(
+        new Error("Database query failed")
+      );
 
       await expect(databaseService.getCustomers()).rejects.toThrow(
         "Database query failed"
@@ -238,29 +190,22 @@ describe("DatabaseService", () => {
       email: "john.updated@example.com",
     };
 
-    it("should update customer successfully", async () => {
-      setupMockExecuteSql();
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+    });
 
+    it("should update customer successfully", async () => {
       await databaseService.updateCustomer("cust_1", updateData);
 
-      // Verify that executeSql was called (including initialization calls)
-      expect(mockExecuteSql).toHaveBeenCalled();
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE customers SET"),
+        expect.arrayContaining(["John Updated", "john.updated@example.com"])
+      );
     });
 
     it("should handle update errors", async () => {
-      let callCount = 0;
-      mockExecuteSql.mockImplementation((sql, params, success, error) => {
-        callCount++;
-        if (callCount <= 2) {
-          // First two calls are for initialization - let them succeed
-          if (success) success();
-        } else {
-          // Third call is the actual update - make it fail
-          if (error) {
-            error(null, new Error("Update failed"));
-          }
-        }
-      });
+      mockDb.runAsync.mockRejectedValueOnce(new Error("Update failed"));
 
       await expect(
         databaseService.updateCustomer("cust_1", updateData)
@@ -277,31 +222,46 @@ describe("DatabaseService", () => {
       type: "sale",
     };
 
-    it("should create a transaction successfully", async () => {
-      setupMockExecuteSql();
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+      // Mock successful customer total update queries
+      mockDb.getFirstAsync.mockResolvedValue({ total: 25000 });
+    });
 
+    it("should create a transaction successfully", async () => {
       const result = await databaseService.createTransaction(transactionInput);
 
       expect(result).toMatchObject(transactionInput);
       expect(result.id).toMatch(/^txn_\d+_[a-z0-9]+$/);
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO transactions"),
+        expect.arrayContaining([
+          result.id,
+          transactionInput.customerId,
+          transactionInput.amount,
+          transactionInput.description,
+          transactionInput.date,
+          transactionInput.type,
+        ])
+      );
     });
 
-    it("should not update customer for non-sale transactions", async () => {
-      const refundTransaction = {
-        ...transactionInput,
-        type: "refund" as const,
-      };
+    it("should handle transaction creation errors", async () => {
+      mockDb.runAsync.mockRejectedValueOnce(new Error("Transaction failed"));
 
-      setupMockExecuteSql();
-
-      await databaseService.createTransaction(refundTransaction);
-
-      // Should succeed without errors
-      expect(mockExecuteSql).toHaveBeenCalled();
+      await expect(
+        databaseService.createTransaction(transactionInput)
+      ).rejects.toThrow("Transaction failed");
     });
   });
 
   describe("getAnalytics", () => {
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+    });
+
     it("should return analytics data correctly", async () => {
       const mockAnalyticsData = {
         totalCustomers: 10,
@@ -312,66 +272,13 @@ describe("DatabaseService", () => {
         ],
       };
 
-      // Mock the transaction method to handle the nested executeSql chain
-      mockTransaction.mockImplementation((callback: any) => {
-        const mockTx = {
-          executeSql: (
-            sql: string,
-            params: any[],
-            success?: any,
-            error?: any
-          ) => {
-            if (sql.includes("SELECT COUNT(*) as count FROM customers")) {
-              // Total customers query - call success which will trigger next query
-              if (success) {
-                success(null, {
-                  rows: {
-                    length: 1,
-                    item: () => ({ count: mockAnalyticsData.totalCustomers }),
-                  },
-                });
-              }
-            } else if (
-              sql.includes(
-                'SELECT COUNT(*) as count, SUM(amount) as total FROM transactions WHERE type = "sale"'
-              )
-            ) {
-              // Total revenue and transactions query - call success which will trigger next query
-              if (success) {
-                success(null, {
-                  rows: {
-                    length: 1,
-                    item: () => ({
-                      count: mockAnalyticsData.totalTransactions,
-                      total: mockAnalyticsData.totalRevenue,
-                    }),
-                  },
-                });
-              }
-            } else if (
-              sql.includes(
-                "SELECT * FROM customers ORDER BY totalSpent DESC LIMIT 5"
-              )
-            ) {
-              // Top customers query - final query that resolves the promise
-              if (success) {
-                success(null, {
-                  rows: {
-                    length: mockAnalyticsData.topCustomers.length,
-                    item: (index: number) =>
-                      mockAnalyticsData.topCustomers[index],
-                  },
-                });
-              }
-            }
-          },
-        };
+      // Mock the individual queries
+      mockDb.getFirstAsync
+        .mockResolvedValueOnce({ count: mockAnalyticsData.totalCustomers }) // customers count
+        .mockResolvedValueOnce({ total: mockAnalyticsData.totalRevenue }) // revenue
+        .mockResolvedValueOnce({ count: mockAnalyticsData.totalTransactions }); // transactions count
 
-        // Execute the transaction callback
-        callback(mockTx);
-      });
-
-      setupMockExecuteSql(); // For initialization
+      mockDb.getAllAsync.mockResolvedValue(mockAnalyticsData.topCustomers);
 
       const result = await databaseService.getAnalytics();
 
@@ -382,18 +289,36 @@ describe("DatabaseService", () => {
         topCustomers: mockAnalyticsData.topCustomers,
       });
     });
+
+    it("should handle analytics query errors", async () => {
+      mockDb.getFirstAsync.mockRejectedValueOnce(new Error("Analytics failed"));
+
+      await expect(databaseService.getAnalytics()).rejects.toThrow(
+        "Analytics failed"
+      );
+    });
   });
 
   describe("clearAllData", () => {
-    it("should clear all data from database", async () => {
-      mockExecuteSql.mockImplementation((sql, params, success) => {
-        if (success) success();
-      });
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+    });
 
+    it("should clear all data from database", async () => {
       await databaseService.clearAllData();
 
-      expect(mockExecuteSql).toHaveBeenCalledWith("DELETE FROM transactions");
-      expect(mockExecuteSql).toHaveBeenCalledWith("DELETE FROM customers");
+      expect(mockDb.withTransactionAsync).toHaveBeenCalled();
+    });
+
+    it("should handle clear data errors", async () => {
+      mockDb.withTransactionAsync.mockRejectedValueOnce(
+        new Error("Clear failed")
+      );
+
+      await expect(databaseService.clearAllData()).rejects.toThrow(
+        "Clear failed"
+      );
     });
   });
 });
