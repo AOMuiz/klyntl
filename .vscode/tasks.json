@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test"],
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"],
+      "isBackground": false
+    },
+    {
+      "label": "Run Tests (Watch Mode)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:watch"],
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"],
+      "isBackground": true
+    },
+    {
+      "label": "Run Tests with Coverage",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:coverage"],
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"],
+      "isBackground": false
+    },
+    {
+      "label": "Run Tests (CI Mode)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:ci"],
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"],
+      "isBackground": false
+    }
+  ]
+}
