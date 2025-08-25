@@ -556,6 +556,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontWeight: "600",
+    fontSize: 14,
   },
   bottomActions: {
     flexDirection: "row",
