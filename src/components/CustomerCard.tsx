@@ -1,7 +1,15 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, Text } from "react-native-paper";
+import {
+  BorderRadius,
+  Layout,
+  LayoutPatterns,
+  Spacing,
+} from "../constants/Layout";
+import { Typography } from "../constants/Typography";
 import { Customer } from "../types/customer";
+import { useAppTheme } from "./ThemeProvider";
 
 interface CustomerCardProps {
   customer: Customer;
@@ -16,6 +24,8 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   onLongPress,
   testID,
 }) => {
+  const { colors } = useAppTheme();
+
   const formatCurrency = (amount: number): string => {
     return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
   };
@@ -44,6 +54,8 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
+  const styles = createStyles(colors);
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -56,7 +68,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
         <Card.Content>
           <View style={styles.header}>
             <Avatar.Text
-              size={48}
+              size={Layout.avatarSizeMedium}
               label={getInitials(customer.name)}
               style={styles.avatar}
               testID={`${testID}-avatar`}
@@ -103,42 +115,47 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    marginVertical: 4,
-    marginHorizontal: 16,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatar: {
-    backgroundColor: "#2E7D32",
-  },
-  info: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  name: {
-    fontWeight: "bold",
-  },
-  phone: {
-    color: "#666",
-    marginTop: 2,
-  },
-  lastPurchase: {
-    color: "#999",
-    marginTop: 2,
-  },
-  amount: {
-    alignItems: "flex-end",
-  },
-  totalSpent: {
-    fontWeight: "bold",
-    color: "#2E7D32",
-  },
-  label: {
-    color: "#666",
-    marginTop: 2,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    card: {
+      marginVertical: Spacing.xs,
+      marginHorizontal: Spacing.md,
+      borderRadius: BorderRadius.lg,
+    },
+    header: {
+      ...LayoutPatterns.row,
+    },
+    avatar: {
+      backgroundColor: colors.primary,
+    },
+    info: {
+      flex: 1,
+      marginLeft: Spacing.sm,
+    },
+    name: {
+      ...Typography.cardTitle,
+      color: colors.text,
+    },
+    phone: {
+      ...Typography.listItemSecondary,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs / 2,
+    },
+    lastPurchase: {
+      ...Typography.caption,
+      color: colors.textTertiary,
+      marginTop: Spacing.xs / 2,
+    },
+    amount: {
+      alignItems: "flex-end",
+    },
+    totalSpent: {
+      ...Typography.currency,
+      color: colors.currencyPositive,
+    },
+    label: {
+      ...Typography.caption,
+      color: colors.textSecondary,
+      marginTop: Spacing.xs / 2,
+    },
+  });
