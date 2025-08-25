@@ -8,7 +8,7 @@ import {
 import { CreateTransactionInput, Transaction } from "../types/transaction";
 
 export class DatabaseService {
-  private db: SQLite.WebSQLDatabase;
+  private db: SQLite.SQLiteDatabase;
   private isInitialized = false;
 
   constructor(databaseName = "klyntl.db") {

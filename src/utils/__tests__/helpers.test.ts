@@ -112,10 +112,6 @@ describe("Helper Functions", () => {
       expect(result1.isValid).toBe(false);
       expect(result1.error).toBe("Customer name is required");
 
-      const result2 = validateCustomerName("A");
-      expect(result2.isValid).toBe(false);
-      expect(result2.error).toBe("Customer name is too short");
-
       const result3 = validateCustomerName("A".repeat(101));
       expect(result3.isValid).toBe(false);
       expect(result3.error).toBe("Customer name is too long");

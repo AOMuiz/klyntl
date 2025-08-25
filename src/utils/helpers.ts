@@ -18,7 +18,7 @@ const VALIDATION_RULES = {
     MAX_LENGTH: 14,
   },
   CUSTOMER_NAME: {
-    MIN_LENGTH: 2,
+    MIN_LENGTH: 1,
     MAX_LENGTH: 100,
   },
   SEARCH_QUERY: {
@@ -119,12 +119,22 @@ export const validateCustomerName = (
  * Generate customer initials for avatar
  */
 export const getCustomerInitials = (name: string): string => {
-  return name
+  const parts = name
+    .trim()
     .split(" ")
-    .map((part) => part.charAt(0))
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+    .filter((part) => part.length > 0);
+
+  if (parts.length === 1) {
+    // Single name: take first two letters
+    return parts[0].slice(0, 2).toUpperCase();
+  } else {
+    // Multiple names: take first letter of first two parts
+    return parts
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join("")
+      .toUpperCase();
+  }
 };
 
 /**
