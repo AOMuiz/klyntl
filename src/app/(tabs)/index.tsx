@@ -12,12 +12,12 @@ import {
   Alert,
   FlatList,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Searchbar } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CustomerListScreen() {
   const router = useRouter();
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     right: 16,
-    bottom: 16,
+    bottom: 70, // Increased from 16 to avoid tab bar
     backgroundColor: "#007AFF",
     borderRadius: 28,
     elevation: 8,

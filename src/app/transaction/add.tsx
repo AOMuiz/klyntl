@@ -31,6 +31,7 @@ export default function AddTransactionScreen() {
   const { getCustomers } = useCustomers();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     control,
@@ -38,6 +39,7 @@ export default function AddTransactionScreen() {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<TransactionFormData>({
     defaultValues: {
       customerId: customerId || "",
@@ -49,6 +51,7 @@ export default function AddTransactionScreen() {
   });
 
   const watchedType = watch("type");
+  const watchedAmount = watch("amount");
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -63,12 +66,33 @@ export default function AddTransactionScreen() {
     loadCustomers();
   }, [loadCustomers]);
 
+  const filteredCustomers = customers.filter((customer) =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const validateAmount = (amount: string) => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       return "Please enter a valid amount greater than 0";
     }
     return true;
+  };
+
+  const formatAmountInput = (text: string) => {
+    // Remove non-numeric characters except decimal point
+    const numericValue = text.replace(/[^0-9.]/g, "");
+    // Ensure only one decimal point
+    const parts = numericValue.split(".");
+    if (parts.length > 2) {
+      return parts[0] + "." + parts.slice(1).join("");
+    }
+    return numericValue;
+  };
+
+  const quickAmountPresets = [500, 1000, 2000, 5000, 10000];
+
+  const handleQuickAmount = (amount: number) => {
+    setValue("amount", amount.toString());
   };
 
   const onSubmit = async (data: TransactionFormData) => {
@@ -158,7 +182,9 @@ export default function AddTransactionScreen() {
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <ThemedText style={styles.cancelText}>Cancel</ThemedText>
           </TouchableOpacity>
-          <ThemedText type="title">Add Transaction</ThemedText>
+          <ThemedText type="title" style={styles.headerTitle}>
+            Add Transaction
+          </ThemedText>
           <View style={styles.placeholder} />
         </View>
 
@@ -167,7 +193,7 @@ export default function AddTransactionScreen() {
             <View style={styles.iconContainer}>
               <IconSymbol
                 name={getTypeIcon(watchedType)}
-                size={48}
+                size={32}
                 color={getTypeColor(watchedType)}
               />
               <ThemedText style={styles.subtitle}>
@@ -235,12 +261,23 @@ export default function AddTransactionScreen() {
                     <ThemedText style={styles.fieldLabel}>
                       Customer *
                     </ThemedText>
+
+                    {/* Search Input */}
+                    <TextInput
+                      mode="outlined"
+                      placeholder="Search customers..."
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      style={[styles.input, styles.searchInput]}
+                      left={<TextInput.Icon icon="magnify" />}
+                    />
+
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={styles.customerSelector}
                     >
-                      {customers.map((customer) => (
+                      {filteredCustomers.map((customer) => (
                         <TouchableOpacity
                           key={customer.id}
                           style={[
@@ -250,7 +287,14 @@ export default function AddTransactionScreen() {
                           ]}
                           onPress={() => onChange(customer.id)}
                         >
-                          <View style={styles.customerAvatar}>
+                          <View
+                            style={[
+                              styles.customerAvatar,
+                              value === customer.id && {
+                                backgroundColor: "#007AFF",
+                              },
+                            ]}
+                          >
                             <ThemedText style={styles.customerAvatarText}>
                               {customer.name
                                 .split(" ")
@@ -261,7 +305,11 @@ export default function AddTransactionScreen() {
                             </ThemedText>
                           </View>
                           <ThemedText
-                            style={styles.customerName}
+                            style={[
+                              styles.customerName,
+                              value === customer.id &&
+                                styles.customerNameSelected,
+                            ]}
                             numberOfLines={1}
                           >
                             {customer.name}
@@ -279,6 +327,42 @@ export default function AddTransactionScreen() {
 
             {/* Amount Field */}
             <View style={styles.fieldContainer}>
+              <ThemedText style={styles.fieldLabel}>Amount *</ThemedText>
+
+              {/* Quick Amount Presets */}
+              <View style={styles.quickAmountsContainer}>
+                <ThemedText style={styles.quickAmountsLabel}>
+                  Quick amounts:
+                </ThemedText>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.quickAmountsScroll}
+                >
+                  {quickAmountPresets.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[
+                        styles.quickAmountButton,
+                        watchedAmount === preset.toString() &&
+                          styles.quickAmountButtonSelected,
+                      ]}
+                      onPress={() => handleQuickAmount(preset)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.quickAmountText,
+                          watchedAmount === preset.toString() &&
+                            styles.quickAmountTextSelected,
+                        ]}
+                      >
+                        ₦{preset.toLocaleString()}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
               <Controller
                 control={control}
                 name="amount"
@@ -292,7 +376,7 @@ export default function AddTransactionScreen() {
                       label="Amount *"
                       mode="outlined"
                       value={value}
-                      onChangeText={onChange}
+                      onChangeText={(text) => onChange(formatAmountInput(text))}
                       onBlur={onBlur}
                       error={!!errors.amount}
                       style={styles.input}
@@ -301,9 +385,23 @@ export default function AddTransactionScreen() {
                       left={<TextInput.Icon icon="currency-ngn" />}
                     />
                     {value && !errors.amount && (
-                      <ThemedText style={styles.amountPreview}>
-                        {formatCurrency(value)}
-                      </ThemedText>
+                      <View style={styles.amountPreviewContainer}>
+                        <ThemedText
+                          style={[
+                            styles.amountPreview,
+                            { color: getTypeColor(watchedType) },
+                          ]}
+                        >
+                          {formatCurrency(value)}
+                        </ThemedText>
+                        <ThemedText style={styles.amountPreviewLabel}>
+                          {watchedType === "refund"
+                            ? "Refund Amount"
+                            : watchedType === "payment"
+                            ? "Payment Received"
+                            : "Sale Amount"}
+                        </ThemedText>
+                      </View>
                     )}
                   </View>
                 )}
@@ -315,22 +413,61 @@ export default function AddTransactionScreen() {
 
             {/* Date Field */}
             <View style={styles.fieldContainer}>
+              <ThemedText style={styles.fieldLabel}>Date *</ThemedText>
               <Controller
                 control={control}
                 name="date"
                 rules={{ required: "Date is required" }}
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    label="Date *"
-                    mode="outlined"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={!!errors.date}
-                    style={styles.input}
-                    placeholder="YYYY-MM-DD"
-                    left={<TextInput.Icon icon="calendar" />}
-                  />
+                  <View>
+                    <TextInput
+                      label="Transaction Date *"
+                      mode="outlined"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={!!errors.date}
+                      style={styles.input}
+                      placeholder="YYYY-MM-DD"
+                      left={<TextInput.Icon icon="calendar" />}
+                      right={
+                        <TextInput.Icon
+                          icon="calendar-today"
+                          onPress={() => {
+                            const today = new Date()
+                              .toISOString()
+                              .split("T")[0];
+                            onChange(today);
+                          }}
+                        />
+                      }
+                    />
+                    <View style={styles.datePresetContainer}>
+                      <TouchableOpacity
+                        style={styles.datePresetButton}
+                        onPress={() => {
+                          const today = new Date().toISOString().split("T")[0];
+                          onChange(today);
+                        }}
+                      >
+                        <ThemedText style={styles.datePresetText}>
+                          Today
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.datePresetButton}
+                        onPress={() => {
+                          const yesterday = new Date();
+                          yesterday.setDate(yesterday.getDate() - 1);
+                          onChange(yesterday.toISOString().split("T")[0]);
+                        }}
+                      >
+                        <ThemedText style={styles.datePresetText}>
+                          Yesterday
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 )}
               />
               <HelperText type="error" visible={!!errors.date}>
@@ -343,22 +480,89 @@ export default function AddTransactionScreen() {
 
             {/* Description Field */}
             <View style={styles.fieldContainer}>
+              <ThemedText style={styles.fieldLabel}>
+                Description (Optional)
+              </ThemedText>
               <Controller
                 control={control}
                 name="description"
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    label="Description"
-                    mode="outlined"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    style={styles.input}
-                    multiline
-                    numberOfLines={3}
-                    placeholder="Optional transaction notes..."
-                    left={<TextInput.Icon icon="note-text" />}
-                  />
+                  <View>
+                    <TextInput
+                      label="Transaction Notes"
+                      mode="outlined"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      style={styles.input}
+                      multiline
+                      numberOfLines={3}
+                      placeholder="Add details about this transaction..."
+                      left={<TextInput.Icon icon="note-text" />}
+                    />
+                    <View style={styles.descriptionPresets}>
+                      {watchedType === "sale" && (
+                        <>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Product sale")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Product sale
+                            </ThemedText>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Service provided")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Service provided
+                            </ThemedText>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      {watchedType === "payment" && (
+                        <>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Outstanding payment")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Outstanding payment
+                            </ThemedText>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Partial payment")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Partial payment
+                            </ThemedText>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      {watchedType === "refund" && (
+                        <>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Product return")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Product return
+                            </ThemedText>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.descriptionPresetButton}
+                            onPress={() => onChange("Service cancellation")}
+                          >
+                            <ThemedText style={styles.descriptionPresetText}>
+                              Service cancellation
+                            </ThemedText>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+                  </View>
                 )}
               />
             </View>
@@ -374,9 +578,11 @@ export default function AddTransactionScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ThemedText style={styles.submitButtonText}>
-                    Adding...
-                  </ThemedText>
+                  <View style={styles.loadingContainer}>
+                    <ThemedText style={styles.submitButtonText}>
+                      Adding...
+                    </ThemedText>
+                  </View>
                 ) : (
                   <>
                     <IconSymbol name="plus" size={20} color="white" />
@@ -433,6 +639,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+  },
   cancelButton: {
     padding: 8,
   },
@@ -451,8 +663,8 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     alignItems: "center",
-    marginBottom: 32,
-    paddingVertical: 16,
+    marginBottom: 20,
+    paddingVertical: 8,
   },
   subtitle: {
     marginTop: 12,
@@ -529,12 +741,105 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "transparent",
   },
+  searchInput: {
+    marginBottom: 12,
+  },
+  quickAmountsContainer: {
+    marginBottom: 16,
+  },
+  quickAmountsLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+    opacity: 0.8,
+  },
+  quickAmountsScroll: {
+    marginBottom: 8,
+  },
+  quickAmountButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  quickAmountButtonSelected: {
+    backgroundColor: "rgba(0, 122, 255, 0.2)",
+    borderColor: "#007AFF",
+  },
+  quickAmountText: {
+    fontSize: 14,
+    fontWeight: "600",
+    opacity: 0.8,
+  },
+  quickAmountTextSelected: {
+    color: "#007AFF",
+    opacity: 1,
+  },
+  customerNameSelected: {
+    fontWeight: "700",
+    color: "#007AFF",
+  },
+  amountPreviewContainer: {
+    alignItems: "center",
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+  },
   amountPreview: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#34C759",
     textAlign: "center",
+  },
+  amountPreviewLabel: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  datePresetContainer: {
+    flexDirection: "row",
     marginTop: 8,
+    gap: 8,
+  },
+  datePresetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  datePresetText: {
+    fontSize: 12,
+    fontWeight: "600",
+    opacity: 0.8,
+  },
+  descriptionPresets: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 8,
+  },
+  descriptionPresetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  descriptionPresetText: {
+    fontSize: 12,
+    fontWeight: "500",
+    opacity: 0.8,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   buttonContainer: {
     marginTop: 24,

@@ -34,12 +34,18 @@ export default function RootLayout() {
               options={{
                 title: "Add Customer",
                 presentation: "modal",
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="customer/[id]"
               options={{
                 title: "Customer Details",
+                headerBackTitle: "Customers",
+                headerTitleStyle: {
+                  fontSize: 18,
+                  fontWeight: "600",
+                },
               }}
             />
             <Stack.Screen
@@ -47,6 +53,7 @@ export default function RootLayout() {
               options={{
                 title: "Add Transaction",
                 presentation: "modal",
+                headerShown: false,
               }}
             />
             <Stack.Screen name="+not-found" />

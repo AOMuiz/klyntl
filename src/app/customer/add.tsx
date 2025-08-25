@@ -109,14 +109,16 @@ export default function AddCustomerScreen() {
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <ThemedText style={styles.cancelText}>Cancel</ThemedText>
           </TouchableOpacity>
-          <ThemedText type="title">Add Customer</ThemedText>
+          <ThemedText type="title" style={styles.headerTitle}>
+            Add Customer
+          </ThemedText>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
           <View style={styles.formContent}>
             <View style={styles.iconContainer}>
-              <IconSymbol name="person.badge.plus" size={48} color="#007AFF" />
+              <IconSymbol name="person.badge.plus" size={32} color="#007AFF" />
               <ThemedText style={styles.subtitle}>
                 Add a new customer to your database
               </ThemedText>
@@ -164,18 +166,38 @@ export default function AddCustomerScreen() {
                   validate: validatePhone,
                 }}
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    label="Phone Number *"
-                    mode="outlined"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={!!errors.phone}
-                    style={styles.input}
-                    keyboardType="phone-pad"
-                    autoCorrect={false}
-                    placeholder="+234 803 123 4567"
-                  />
+                  <View>
+                    <TextInput
+                      label="Phone Number *"
+                      mode="outlined"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={!!errors.phone}
+                      style={styles.input}
+                      keyboardType="phone-pad"
+                      autoCorrect={false}
+                      placeholder="+234 803 123 4567"
+                    />
+                    <View style={styles.phonePresets}>
+                      <TouchableOpacity
+                        style={styles.phonePresetButton}
+                        onPress={() => onChange("+234")}
+                      >
+                        <ThemedText style={styles.phonePresetText}>
+                          +234
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.phonePresetButton}
+                        onPress={() => onChange("0")}
+                      >
+                        <ThemedText style={styles.phonePresetText}>
+                          0
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 )}
               />
               <HelperText type="error" visible={!!errors.phone}>
@@ -288,6 +310,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+  },
   cancelButton: {
     padding: 8,
   },
@@ -306,8 +334,8 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     alignItems: "center",
-    marginBottom: 32,
-    paddingVertical: 16,
+    marginBottom: 20,
+    paddingVertical: 8,
   },
   subtitle: {
     marginTop: 12,
@@ -356,5 +384,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     lineHeight: 16,
+  },
+  phonePresets: {
+    flexDirection: "row",
+    marginTop: 8,
+    gap: 8,
+  },
+  phonePresetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  phonePresetText: {
+    fontSize: 12,
+    fontWeight: "600",
+    opacity: 0.8,
   },
 });
