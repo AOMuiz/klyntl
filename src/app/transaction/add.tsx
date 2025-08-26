@@ -1,8 +1,10 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { Colors } from "@/constants/Colors";
 import { useCustomers, useTransactions } from "@/services/database/context";
 import { CreateTransactionInput } from "@/types/transaction";
+import { format } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -10,28 +12,36 @@ import {
   Alert,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from "react-native";
-import { HelperText, TextInput } from "react-native-paper";
+import { HelperText, TextInput, useTheme } from "react-native-paper";
+import { DatePickerModal } from "react-native-paper-dates";
+import { createStyles } from "./add.styles";
 
 interface TransactionFormData {
   customerId: string;
   amount: string;
   description: string;
-  date: string;
+  date: Date;
   type: "sale" | "payment" | "refund";
 }
 
 export default function AddTransactionScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const colorScheme = useColorScheme();
+  // Create dynamic styles
+  const dynamicStyles = createStyles(theme);
+  const isDark = colorScheme === "dark";
   const { customerId } = useLocalSearchParams<{ customerId?: string }>();
   const { createTransaction } = useTransactions();
   const { getCustomers } = useCustomers();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
 
   const {
     control,
@@ -45,7 +55,7 @@ export default function AddTransactionScreen() {
       customerId: customerId || "",
       amount: "",
       description: "",
-      date: new Date().toISOString().split("T")[0],
+      date: new Date(),
       type: "sale",
     },
   });
@@ -103,7 +113,7 @@ export default function AddTransactionScreen() {
         customerId: data.customerId,
         amount: parseFloat(data.amount),
         description: data.description.trim() || undefined,
-        date: data.date,
+        date: format(data.date, "yyyy-MM-dd"),
         type: data.type,
       };
 
@@ -117,7 +127,7 @@ export default function AddTransactionScreen() {
               customerId: data.customerId,
               amount: "",
               description: "",
-              date: new Date().toISOString().split("T")[0],
+              date: new Date(),
               type: "sale",
             }),
         },
@@ -165,45 +175,51 @@ export default function AddTransactionScreen() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "sale":
-        return "#34C759";
+        return Colors[isDark ? "dark" : "light"].success;
       case "payment":
-        return "#007AFF";
+        return Colors[isDark ? "dark" : "light"].secondary;
       case "refund":
-        return "#FF3B30";
+        return Colors[isDark ? "dark" : "light"].error;
       default:
-        return "#8E8E93";
+        return Colors[isDark ? "dark" : "light"].textTertiary;
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+    <SafeAreaView style={dynamicStyles.container}>
+      <ThemedView style={dynamicStyles.content}>
+        <View style={dynamicStyles.header}>
+          <TouchableOpacity
+            style={dynamicStyles.cancelButton}
+            onPress={handleCancel}
+          >
+            <ThemedText style={dynamicStyles.cancelText}>Cancel</ThemedText>
           </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
+          <ThemedText type="title" style={dynamicStyles.headerTitle}>
             Add Transaction
           </ThemedText>
-          <View style={styles.placeholder} />
+          <View style={dynamicStyles.placeholder} />
         </View>
 
-        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-          <View style={styles.formContent}>
-            <View style={styles.iconContainer}>
+        <ScrollView
+          style={dynamicStyles.form}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={dynamicStyles.formContent}>
+            <View style={dynamicStyles.iconContainer}>
               <IconSymbol
                 name={getTypeIcon(watchedType)}
                 size={32}
                 color={getTypeColor(watchedType)}
               />
-              <ThemedText style={styles.subtitle}>
+              <ThemedText style={dynamicStyles.subtitle}>
                 Record a new transaction
               </ThemedText>
             </View>
 
             {/* Transaction Type */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>
                 Transaction Type *
               </ThemedText>
               <Controller
@@ -211,13 +227,13 @@ export default function AddTransactionScreen() {
                 name="type"
                 rules={{ required: "Transaction type is required" }}
                 render={({ field: { onChange, value } }) => (
-                  <View style={styles.typeSelector}>
+                  <View style={dynamicStyles.typeSelector}>
                     {["sale", "payment", "refund"].map((type) => (
                       <TouchableOpacity
                         key={type}
                         style={[
-                          styles.typeOption,
-                          value === type && styles.typeOptionSelected,
+                          dynamicStyles.typeOption,
+                          value === type && dynamicStyles.typeOptionSelected,
                           { borderColor: getTypeColor(type) },
                           value === type && {
                             backgroundColor: getTypeColor(type) + "20",
@@ -234,7 +250,7 @@ export default function AddTransactionScreen() {
                         />
                         <ThemedText
                           style={[
-                            styles.typeOptionText,
+                            dynamicStyles.typeOptionText,
                             value === type && { color: getTypeColor(type) },
                           ]}
                         >
@@ -251,14 +267,14 @@ export default function AddTransactionScreen() {
             </View>
 
             {/* Customer Selection */}
-            <View style={styles.fieldContainer}>
+            <View style={dynamicStyles.fieldContainer}>
               <Controller
                 control={control}
                 name="customerId"
                 rules={{ required: "Please select a customer" }}
                 render={({ field: { onChange, value } }) => (
                   <View>
-                    <ThemedText style={styles.fieldLabel}>
+                    <ThemedText style={dynamicStyles.fieldLabel}>
                       Customer *
                     </ThemedText>
 
@@ -268,34 +284,36 @@ export default function AddTransactionScreen() {
                       placeholder="Search customers..."
                       value={searchQuery}
                       onChangeText={setSearchQuery}
-                      style={[styles.input, styles.searchInput]}
+                      style={[dynamicStyles.input, dynamicStyles.searchInput]}
                       left={<TextInput.Icon icon="magnify" />}
                     />
 
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
-                      style={styles.customerSelector}
+                      style={dynamicStyles.customerSelector}
                     >
                       {filteredCustomers.map((customer) => (
                         <TouchableOpacity
                           key={customer.id}
                           style={[
-                            styles.customerOption,
+                            dynamicStyles.customerOption,
                             value === customer.id &&
-                              styles.customerOptionSelected,
+                              dynamicStyles.customerOptionSelected,
                           ]}
                           onPress={() => onChange(customer.id)}
                         >
                           <View
                             style={[
-                              styles.customerAvatar,
+                              dynamicStyles.customerAvatar,
                               value === customer.id && {
                                 backgroundColor: "#007AFF",
                               },
                             ]}
                           >
-                            <ThemedText style={styles.customerAvatarText}>
+                            <ThemedText
+                              style={dynamicStyles.customerAvatarText}
+                            >
                               {customer.name
                                 .split(" ")
                                 .map((n: string) => n[0])
@@ -306,9 +324,9 @@ export default function AddTransactionScreen() {
                           </View>
                           <ThemedText
                             style={[
-                              styles.customerName,
+                              dynamicStyles.customerName,
                               value === customer.id &&
-                                styles.customerNameSelected,
+                                dynamicStyles.customerNameSelected,
                             ]}
                             numberOfLines={1}
                           >
@@ -326,34 +344,34 @@ export default function AddTransactionScreen() {
             </View>
 
             {/* Amount Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>Amount *</ThemedText>
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>Amount *</ThemedText>
 
               {/* Quick Amount Presets */}
-              <View style={styles.quickAmountsContainer}>
-                <ThemedText style={styles.quickAmountsLabel}>
+              <View style={dynamicStyles.quickAmountsContainer}>
+                <ThemedText style={dynamicStyles.quickAmountsLabel}>
                   Quick amounts:
                 </ThemedText>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  style={styles.quickAmountsScroll}
+                  style={dynamicStyles.quickAmountsScroll}
                 >
                   {quickAmountPresets.map((preset) => (
                     <TouchableOpacity
                       key={preset}
                       style={[
-                        styles.quickAmountButton,
+                        dynamicStyles.quickAmountButton,
                         watchedAmount === preset.toString() &&
-                          styles.quickAmountButtonSelected,
+                          dynamicStyles.quickAmountButtonSelected,
                       ]}
                       onPress={() => handleQuickAmount(preset)}
                     >
                       <ThemedText
                         style={[
-                          styles.quickAmountText,
+                          dynamicStyles.quickAmountText,
                           watchedAmount === preset.toString() &&
-                            styles.quickAmountTextSelected,
+                            dynamicStyles.quickAmountTextSelected,
                         ]}
                       >
                         ₦{preset.toLocaleString()}
@@ -379,22 +397,22 @@ export default function AddTransactionScreen() {
                       onChangeText={(text) => onChange(formatAmountInput(text))}
                       onBlur={onBlur}
                       error={!!errors.amount}
-                      style={styles.input}
+                      style={dynamicStyles.input}
                       keyboardType="numeric"
                       placeholder="0.00"
                       left={<TextInput.Icon icon="currency-ngn" />}
                     />
                     {value && !errors.amount && (
-                      <View style={styles.amountPreviewContainer}>
+                      <View style={dynamicStyles.amountPreviewContainer}>
                         <ThemedText
                           style={[
-                            styles.amountPreview,
+                            dynamicStyles.amountPreview,
                             { color: getTypeColor(watchedType) },
                           ]}
                         >
                           {formatCurrency(value)}
                         </ThemedText>
-                        <ThemedText style={styles.amountPreviewLabel}>
+                        <ThemedText style={dynamicStyles.amountPreviewLabel}>
                           {watchedType === "refund"
                             ? "Refund Amount"
                             : watchedType === "payment"
@@ -412,75 +430,102 @@ export default function AddTransactionScreen() {
             </View>
 
             {/* Date Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>Date *</ThemedText>
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>Date *</ThemedText>
               <Controller
                 control={control}
                 name="date"
                 rules={{ required: "Date is required" }}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput
-                      label="Transaction Date *"
-                      mode="outlined"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      error={!!errors.date}
-                      style={styles.input}
-                      placeholder="YYYY-MM-DD"
-                      left={<TextInput.Icon icon="calendar" />}
-                      right={
-                        <TextInput.Icon
-                          icon="calendar-today"
-                          onPress={() => {
-                            const today = new Date()
-                              .toISOString()
-                              .split("T")[0];
-                            onChange(today);
-                          }}
-                        />
-                      }
-                    />
-                    <View style={styles.datePresetContainer}>
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <TouchableOpacity
+                      onPress={() => setDatePickerVisible(true)}
+                      style={dynamicStyles.dateButton}
+                    >
+                      <TextInput
+                        label="Transaction Date *"
+                        mode="outlined"
+                        value={format(value, "MMM dd, yyyy")}
+                        editable={false}
+                        style={dynamicStyles.input}
+                        left={<TextInput.Icon icon="calendar" />}
+                      />
+                    </TouchableOpacity>
+
+                    <View style={dynamicStyles.datePresetContainer}>
                       <TouchableOpacity
-                        style={styles.datePresetButton}
+                        style={[
+                          dynamicStyles.datePresetButton,
+                          {
+                            backgroundColor: theme.colors.primaryContainer,
+                          },
+                        ]}
                         onPress={() => {
-                          const today = new Date().toISOString().split("T")[0];
-                          onChange(today);
+                          onChange(new Date());
                         }}
                       >
-                        <ThemedText style={styles.datePresetText}>
+                        <ThemedText
+                          style={[
+                            dynamicStyles.datePresetText,
+                            {
+                              color: theme.colors.onPrimaryContainer,
+                            },
+                          ]}
+                        >
                           Today
                         </ThemedText>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.datePresetButton}
+                        style={[
+                          dynamicStyles.datePresetButton,
+                          {
+                            backgroundColor: theme.colors.secondaryContainer,
+                          },
+                        ]}
                         onPress={() => {
                           const yesterday = new Date();
                           yesterday.setDate(yesterday.getDate() - 1);
-                          onChange(yesterday.toISOString().split("T")[0]);
+                          onChange(yesterday);
                         }}
                       >
-                        <ThemedText style={styles.datePresetText}>
+                        <ThemedText
+                          style={[
+                            dynamicStyles.datePresetText,
+                            {
+                              color: theme.colors.onSecondaryContainer,
+                            },
+                          ]}
+                        >
                           Yesterday
                         </ThemedText>
                       </TouchableOpacity>
                     </View>
-                  </View>
+
+                    <DatePickerModal
+                      visible={isDatePickerVisible}
+                      mode="single"
+                      onDismiss={() => setDatePickerVisible(false)}
+                      date={value}
+                      onConfirm={({ date }) => {
+                        if (date) {
+                          onChange(date);
+                        }
+                        setDatePickerVisible(false);
+                      }}
+                      presentationStyle="pageSheet"
+                      locale="en-GB"
+                    />
+                  </>
                 )}
               />
               <HelperText type="error" visible={!!errors.date}>
                 {errors.date?.message}
               </HelperText>
-              <HelperText type="info" visible={!errors.date}>
-                Format: YYYY-MM-DD (e.g., 2024-12-25)
-              </HelperText>
             </View>
 
             {/* Description Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>
                 Description (Optional)
               </ThemedText>
               <Controller
@@ -494,28 +539,32 @@ export default function AddTransactionScreen() {
                       value={value}
                       onChangeText={onChange}
                       onBlur={onBlur}
-                      style={styles.input}
+                      style={dynamicStyles.input}
                       multiline
                       numberOfLines={3}
                       placeholder="Add details about this transaction..."
                       left={<TextInput.Icon icon="note-text" />}
                     />
-                    <View style={styles.descriptionPresets}>
+                    <View style={dynamicStyles.descriptionPresets}>
                       {watchedType === "sale" && (
                         <>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Product sale")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Product sale
                             </ThemedText>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Service provided")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Service provided
                             </ThemedText>
                           </TouchableOpacity>
@@ -524,18 +573,22 @@ export default function AddTransactionScreen() {
                       {watchedType === "payment" && (
                         <>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Outstanding payment")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Outstanding payment
                             </ThemedText>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Partial payment")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Partial payment
                             </ThemedText>
                           </TouchableOpacity>
@@ -544,18 +597,22 @@ export default function AddTransactionScreen() {
                       {watchedType === "refund" && (
                         <>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Product return")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Product return
                             </ThemedText>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.descriptionPresetButton}
+                            style={dynamicStyles.descriptionPresetButton}
                             onPress={() => onChange("Service cancellation")}
                           >
-                            <ThemedText style={styles.descriptionPresetText}>
+                            <ThemedText
+                              style={dynamicStyles.descriptionPresetText}
+                            >
                               Service cancellation
                             </ThemedText>
                           </TouchableOpacity>
@@ -567,26 +624,26 @@ export default function AddTransactionScreen() {
               />
             </View>
 
-            <View style={styles.buttonContainer}>
+            <View style={dynamicStyles.buttonContainer}>
               <TouchableOpacity
                 style={[
-                  styles.submitButton,
+                  dynamicStyles.submitButton,
                   { backgroundColor: getTypeColor(watchedType) },
-                  loading && styles.disabledButton,
+                  loading && dynamicStyles.disabledButton,
                 ]}
                 onPress={handleSubmit(onSubmit)}
                 disabled={loading}
               >
                 {loading ? (
-                  <View style={styles.loadingContainer}>
-                    <ThemedText style={styles.submitButtonText}>
+                  <View style={dynamicStyles.loadingContainer}>
+                    <ThemedText style={dynamicStyles.submitButtonText}>
                       Adding...
                     </ThemedText>
                   </View>
                 ) : (
                   <>
                     <IconSymbol name="plus" size={20} color="white" />
-                    <ThemedText style={styles.submitButtonText}>
+                    <ThemedText style={dynamicStyles.submitButtonText}>
                       Add{" "}
                       {watchedType.charAt(0).toUpperCase() +
                         watchedType.slice(1)}
@@ -596,21 +653,36 @@ export default function AddTransactionScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.helpText}>
-              <ThemedText style={styles.helpLabel}>
+            <View style={dynamicStyles.helpText}>
+              <ThemedText style={dynamicStyles.helpLabel}>
                 Transaction Types:
               </ThemedText>
-              <ThemedText style={styles.helpDescription}>
+              <ThemedText style={dynamicStyles.helpDescription}>
                 •{" "}
-                <ThemedText style={[styles.helpType, { color: "#34C759" }]}>
+                <ThemedText
+                  style={[
+                    dynamicStyles.helpType,
+                    { color: Colors[isDark ? "dark" : "light"].success },
+                  ]}
+                >
                   Sale
                 </ThemedText>
                 : Customer purchase{"\n"}•{" "}
-                <ThemedText style={[styles.helpType, { color: "#007AFF" }]}>
+                <ThemedText
+                  style={[
+                    dynamicStyles.helpType,
+                    { color: Colors[isDark ? "dark" : "light"].secondary },
+                  ]}
+                >
                   Payment
                 </ThemedText>
                 : Customer payment received{"\n"}•{" "}
-                <ThemedText style={[styles.helpType, { color: "#FF3B30" }]}>
+                <ThemedText
+                  style={[
+                    dynamicStyles.helpType,
+                    { color: Colors[isDark ? "dark" : "light"].error },
+                  ]}
+                >
                   Refund
                 </ThemedText>
                 : Money returned to customer
@@ -622,262 +694,3 @@ export default function AddTransactionScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  cancelButton: {
-    padding: 8,
-  },
-  cancelText: {
-    color: "#007AFF",
-    fontSize: 16,
-  },
-  placeholder: {
-    width: 60,
-  },
-  form: {
-    flex: 1,
-  },
-  formContent: {
-    padding: 16,
-  },
-  iconContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-    paddingVertical: 8,
-  },
-  subtitle: {
-    marginTop: 12,
-    opacity: 0.7,
-    textAlign: "center",
-  },
-  fieldContainer: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  typeSelector: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  typeOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#8E8E93",
-    gap: 6,
-  },
-  typeOptionSelected: {
-    borderWidth: 2,
-  },
-  typeOptionText: {
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  customerSelector: {
-    maxHeight: 100,
-  },
-  customerOption: {
-    alignItems: "center",
-    marginRight: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "transparent",
-    minWidth: 80,
-  },
-  customerOptionSelected: {
-    borderColor: "#007AFF",
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-  },
-  customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  customerAvatarText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  customerName: {
-    fontSize: 12,
-    textAlign: "center",
-    maxWidth: 70,
-  },
-  input: {
-    backgroundColor: "transparent",
-  },
-  searchInput: {
-    marginBottom: 12,
-  },
-  quickAmountsContainer: {
-    marginBottom: 16,
-  },
-  quickAmountsLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  quickAmountsScroll: {
-    marginBottom: 8,
-  },
-  quickAmountButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  quickAmountButtonSelected: {
-    backgroundColor: "rgba(0, 122, 255, 0.2)",
-    borderColor: "#007AFF",
-  },
-  quickAmountText: {
-    fontSize: 14,
-    fontWeight: "600",
-    opacity: 0.8,
-  },
-  quickAmountTextSelected: {
-    color: "#007AFF",
-    opacity: 1,
-  },
-  customerNameSelected: {
-    fontWeight: "700",
-    color: "#007AFF",
-  },
-  amountPreviewContainer: {
-    alignItems: "center",
-    marginTop: 12,
-    padding: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 12,
-  },
-  amountPreview: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  amountPreviewLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  datePresetContainer: {
-    flexDirection: "row",
-    marginTop: 8,
-    gap: 8,
-  },
-  datePresetButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  datePresetText: {
-    fontSize: 12,
-    fontWeight: "600",
-    opacity: 0.8,
-  },
-  descriptionPresets: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-    gap: 8,
-  },
-  descriptionPresetButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  descriptionPresetText: {
-    fontSize: 12,
-    fontWeight: "500",
-    opacity: 0.8,
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  buttonContainer: {
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  submitButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  helpText: {
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  helpLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  helpDescription: {
-    fontSize: 12,
-    opacity: 0.8,
-    lineHeight: 18,
-  },
-  helpType: {
-    fontWeight: "600",
-  },
-});
