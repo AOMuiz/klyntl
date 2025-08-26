@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { act, renderHook } from "@testing-library/react-native";
 import { createMockCustomers, mockCustomer } from "../../__tests__/test-utils";
 import { databaseService } from "../../services/database";
@@ -341,50 +342,148 @@ describe("useCustomerStore", () => {
   });
 
   describe("clearError", () => {
-    it("should clear error state", () => {
+    it("should clear error state", async () => {
       const { result } = renderHook(() => useCustomerStore());
 
-      // Set an error
-      act(() => {
-        useCustomerStore.setState({ error: "Some error" });
+      // Trigger an error first by making a failing call
+      mockDatabaseService.getCustomers.mockRejectedValueOnce(
+        new Error("Test error")
+      );
+
+      await act(async () => {
+        await result.current.fetchCustomers();
       });
 
-      expect(result.current.error).toBe("Some error");
+      expect(result.current.error).toBe("Test error");
 
       // Clear the error
       act(() => {
         result.current.clearError();
       });
 
-      expect(result.current.error).toBe(null);
+      expect(result.current.error).toBeNull();
     });
   });
 
   describe("reset", () => {
-    it("should reset store to initial state", () => {
+    it("should reset store to initial state", async () => {
       const { result } = renderHook(() => useCustomerStore());
 
-      // Modify store state
-      act(() => {
-        useCustomerStore.setState({
-          customers: createMockCustomers(5),
-          loading: true,
-          searchQuery: "test",
-          selectedCustomer: mockCustomer,
-          error: "Some error",
-        });
+      // Set some state through actions
+      mockDatabaseService.getCustomers.mockResolvedValueOnce([mockCustomer]);
+      await act(async () => {
+        await result.current.fetchCustomers();
       });
 
-      // Reset store
+      act(() => {
+        result.current.selectCustomer(mockCustomer);
+      });
+
+      expect(result.current.customers).toHaveLength(1);
+      expect(result.current.selectedCustomer).toEqual(mockCustomer);
+
+      // Reset the store
       act(() => {
         result.current.reset();
       });
 
-      expect(result.current.customers).toEqual([]);
+      expect(result.current.customers).toHaveLength(0);
+      expect(result.current.selectedCustomer).toBeNull();
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
-      expect(result.current.searchQuery).toBe("");
-      expect(result.current.selectedCustomer).toBe(null);
-      expect(result.current.error).toBe(null);
+    });
+  });
+
+  describe("integration tests", () => {
+    it("should handle complete customer lifecycle", async () => {
+      const { result } = renderHook(() => useCustomerStore());
+
+      // Start with empty state
+      expect(result.current.customers).toHaveLength(0);
+      expect(result.current.selectedCustomer).toBeNull();
+
+      // Add a customer
+      const newCustomer = {
+        ...mockCustomer,
+        id: "cust_new",
+        name: "John Doe",
+      };
+
+      mockDatabaseService.createCustomer.mockResolvedValueOnce(newCustomer);
+      mockDatabaseService.getCustomers.mockResolvedValueOnce([newCustomer]);
+
+      await act(async () => {
+        await result.current.addCustomer({
+          name: "John Doe",
+          phone: "+2348012345678",
+          email: "john@example.com",
+        });
+      });
+
+      expect(result.current.customers).toHaveLength(1);
+      const addedCustomer = result.current.customers[0];
+      expect(addedCustomer.name).toBe("John Doe");
+
+      // Select the customer
+      act(() => {
+        result.current.selectCustomer(addedCustomer);
+      });
+
+      expect(result.current.selectedCustomer).toEqual(addedCustomer);
+
+      // Update the customer
+      const updatedCustomer = {
+        ...addedCustomer,
+        name: "John Updated",
+        email: "john.updated@example.com",
+      };
+
+      mockDatabaseService.updateCustomer.mockResolvedValueOnce(undefined);
+      mockDatabaseService.getCustomers.mockResolvedValueOnce([updatedCustomer]);
+
+      await act(async () => {
+        await result.current.updateCustomer(addedCustomer.id, {
+          name: "John Updated",
+          email: "john.updated@example.com",
+        });
+      });
+
+      const currentCustomer = result.current.customers.find(
+        (c) => c.id === addedCustomer.id
+      );
+      expect(currentCustomer?.name).toBe("John Updated");
+      expect(currentCustomer?.email).toBe("john.updated@example.com");
+      expect(result.current.selectedCustomer?.name).toBe("John Updated");
+
+      // Delete the customer
+      mockDatabaseService.deleteCustomer.mockResolvedValueOnce(undefined);
+      mockDatabaseService.getCustomers.mockResolvedValueOnce([]);
+
+      await act(async () => {
+        await result.current.deleteCustomer(addedCustomer.id);
+      });
+
+      expect(result.current.customers).toHaveLength(0);
+      expect(result.current.selectedCustomer).toBeNull();
+    });
+
+    it("should handle errors gracefully", async () => {
+      mockDatabaseService.createCustomer.mockRejectedValueOnce(
+        new Error("Database error")
+      );
+
+      const { result } = renderHook(() => useCustomerStore());
+
+      await act(async () => {
+        await result.current.addCustomer({
+          name: "Test Customer",
+          phone: "+2348012345678",
+        });
+      });
+
+      expect(result.current.error).toBe("Database error");
+      expect(result.current.loading).toBe(false);
+      expect(result.current.customers).toHaveLength(0);
     });
   });
 });

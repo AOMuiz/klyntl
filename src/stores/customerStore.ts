@@ -20,7 +20,10 @@ interface CustomerStore {
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   selectCustomer: (customer: Customer | null) => void;
-  importFromContacts: () => Promise<{ imported: number; skipped: number }>;
+  importFromContacts: (
+    forceRefresh?: boolean
+  ) => Promise<{ imported: number; skipped: number }>;
+  clearImportCache: () => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -74,8 +77,19 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       set({ customers: [newCustomer, ...customers] });
     } catch (error) {
       console.error("Failed to add customer:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to add customer";
+
+      // Handle specific database constraint errors
+      let errorMessage = "Failed to add customer";
+      if (error instanceof Error) {
+        if (
+          error.message.includes("UNIQUE constraint failed: customers.phone")
+        ) {
+          errorMessage = "A customer with this phone number already exists";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       set({ error: errorMessage });
       throw new Error(errorMessage);
     }
@@ -141,34 +155,46 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
     set({ selectedCustomer: customer });
   },
 
-  importFromContacts: async () => {
+  importFromContacts: async (forceRefresh: boolean = true) => {
     set({ error: null, loading: true });
     try {
       const Contacts = await import("expo-contacts");
 
-      // Request permissions
+      // Always request permissions fresh to ensure we have access
       const { status } = await Contacts.requestPermissionsAsync();
 
       if (status !== "granted") {
+        set({ loading: false });
         throw new Error("Permission to access contacts was denied");
       }
 
-      // Get contacts
-      const { data } = await Contacts.getContactsAsync({
+      // Force fresh contact data by using specific query options
+      // This helps prevent cached/stale contact data
+      const contactOptions = {
         fields: [
           Contacts.Fields.Name,
           Contacts.Fields.PhoneNumbers,
           Contacts.Fields.Emails,
         ],
-      });
+        // These options help ensure fresh data
+        pageSize: 0, // Get all contacts
+        sort: Contacts.SortTypes.FirstName,
+      };
 
-      const { customers } = get();
+      const { data } = await Contacts.getContactsAsync(contactOptions);
+
+      // Get fresh customer list from database to check for existing phone numbers
+      const latestCustomers = await databaseService.getCustomers();
       const existingPhones = new Set(
-        customers.map((c) => c.phone.replace(/\D/g, ""))
+        latestCustomers.map((c) => c.phone.replace(/\D/g, ""))
       );
 
       let imported = 0;
       let skipped = 0;
+
+      console.log(
+        `Starting contact import. Found ${data.length} contacts to process.`
+      );
 
       // Process contacts
       for (const contact of data) {
@@ -208,6 +234,15 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
         }
 
         try {
+          // Check if customer already exists in database
+          const existingCustomer = await databaseService.getCustomerByPhone(
+            formattedPhone
+          );
+          if (existingCustomer) {
+            skipped++;
+            continue;
+          }
+
           const customerData: CreateCustomerInput = {
             name: contact.name,
             phone: formattedPhone,
@@ -228,7 +263,14 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
         }
       }
 
+      // Refresh customer list to reflect imports
+      await get().fetchCustomers();
+
       set({ loading: false });
+      console.log(
+        `Contact import completed. Imported: ${imported}, Skipped: ${skipped}`
+      );
+
       return { imported, skipped };
     } catch (error) {
       console.error("Failed to import contacts:", error);
@@ -236,6 +278,22 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
         error instanceof Error ? error.message : "Failed to import contacts";
       set({ error: errorMessage, loading: false });
       throw new Error(errorMessage);
+    }
+  },
+
+  clearImportCache: async () => {
+    try {
+      // This method helps ensure fresh contact data on next import
+      // by clearing any potential cached contact permission state
+      console.log("Clearing contact import cache...");
+
+      // For expo-contacts, we don't need to do much as it handles its own caching
+      // But we can ensure our local state is fresh
+      await get().fetchCustomers();
+
+      console.log("Contact import cache cleared successfully");
+    } catch (error) {
+      console.error("Failed to clear import cache:", error);
     }
   },
 

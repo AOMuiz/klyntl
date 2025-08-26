@@ -6,6 +6,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useCustomers } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
 import { Customer } from "@/types/customer";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -17,7 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Searchbar } from "react-native-paper";
+import { FAB, Searchbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CustomerListScreen() {
@@ -119,6 +120,9 @@ export default function CustomerListScreen() {
     </View>
   );
 
+  const [fabOpen, setFabOpen] = useState(false);
+  const { importFromContacts } = useCustomerStore();
+
   const renderHeader = () => (
     <View style={styles.header}>
       <ThemedText type="title">Customers</ThemedText>
@@ -157,16 +161,43 @@ export default function CustomerListScreen() {
           />
         )}
 
-        <TouchableOpacity style={styles.fab} onPress={handleAddCustomer}>
-          <IconSymbol name="plus" size={24} color="white" />
-        </TouchableOpacity>
-
-        {/* Import FAB - positioned above main FAB */}
-        <ContactImportButton
-          variant="fab"
-          size="small"
-          onImportComplete={handleImportComplete}
-          style={styles.importFab}
+        {/* FAB Group for Add and Import actions */}
+        <FAB.Group
+          visible={true}
+          open={fabOpen}
+          icon={fabOpen ? "close" : "plus"}
+          actions={[
+            {
+              icon: "account-plus",
+              label: "Add Customer",
+              onPress: handleAddCustomer,
+              color: "#007AFF",
+            },
+            {
+              icon: "account-multiple-plus",
+              label: "Import Contacts",
+              onPress: async () => {
+                try {
+                  const result = await importFromContacts();
+                  await loadCustomers();
+                  Alert.alert(
+                    "Import Complete",
+                    `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                  );
+                } catch (error) {
+                  Alert.alert(
+                    "Import Failed",
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to import contacts"
+                  );
+                }
+              },
+              color: "#007AFF",
+            },
+          ]}
+          onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
+          style={styles.fabGroup}
         />
       </ThemedView>
     </SafeAreaView>
@@ -174,6 +205,11 @@ export default function CustomerListScreen() {
 }
 
 const styles = StyleSheet.create({
+  fabGroup: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+  },
   container: {
     flex: 1,
   },

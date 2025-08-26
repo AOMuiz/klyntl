@@ -19,7 +19,7 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   variant = "button",
   size = "medium",
 }) => {
-  const { importFromContacts } = useCustomerStore();
+  const { importFromContacts, clearImportCache } = useCustomerStore();
   const [importing, setImporting] = useState(false);
 
   const handleImportContacts = async () => {
@@ -34,6 +34,31 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
             text: "Cancel",
             style: "cancel",
             onPress: () => setImporting(false),
+          },
+          {
+            text: "Refresh & Import",
+            onPress: async () => {
+              try {
+                // Clear cache to ensure fresh contact data
+                await clearImportCache();
+                const result = await importFromContacts(true);
+                onImportComplete?.(result);
+
+                Alert.alert(
+                  "Import Complete",
+                  `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                );
+              } catch (error) {
+                Alert.alert(
+                  "Import Failed",
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to import contacts"
+                );
+              } finally {
+                setImporting(false);
+              }
+            },
           },
           {
             text: "Import",
