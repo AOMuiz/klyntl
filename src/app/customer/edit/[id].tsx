@@ -1,6 +1,6 @@
 import { useAppTheme } from "@/components/ThemeProvider";
 import { BorderRadius, Shadows, Spacing } from "@/constants/Layout";
-import { useCustomers } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
 import { Customer, UpdateCustomerInput } from "@/types/customer";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -32,9 +32,9 @@ interface CustomerFormData {
 export default function EditCustomerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getCustomerById, updateCustomer } = useCustomers();
+  const { getCustomerById, updateCustomer, loading, clearError } =
+    useCustomerStore();
   const { colors } = useAppTheme();
-  const [loading, setLoading] = useState(false);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -57,6 +57,7 @@ export default function EditCustomerScreen() {
 
     try {
       setInitialLoading(true);
+      clearError(); // Clear any previous errors
       const customerData = await getCustomerById(id);
       setCustomer(customerData);
 
@@ -75,7 +76,7 @@ export default function EditCustomerScreen() {
     } finally {
       setInitialLoading(false);
     }
-  }, [id, getCustomerById, reset, router]);
+  }, [id, getCustomerById, reset, router, clearError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,7 +103,7 @@ export default function EditCustomerScreen() {
     if (!customer) return;
 
     try {
-      setLoading(true);
+      clearError(); // Clear any previous errors
 
       const updateData: UpdateCustomerInput = {
         name: data.name.trim(),
@@ -125,12 +126,11 @@ export default function EditCustomerScreen() {
       );
     } catch (error) {
       console.error("Failed to update customer:", error);
-      Alert.alert(
-        "Error",
-        "Failed to update customer. Please check if the phone number is already registered."
-      );
-    } finally {
-      setLoading(false);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to update customer. Please check if the phone number is already registered.";
+      Alert.alert("Error", errorMessage);
     }
   };
 

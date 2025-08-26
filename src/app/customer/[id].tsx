@@ -1,7 +1,7 @@
 import { useAppTheme } from "@/components/ThemeProvider";
-import { useCustomers, useTransactions } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import { Customer } from "@/types/customer";
-import { Transaction } from "@/types/transaction";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -25,12 +25,11 @@ import {
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getCustomerById, deleteCustomer } = useCustomers();
-  const { getTransactions } = useTransactions();
+  const { getCustomerById, deleteCustomer, clearError } = useCustomerStore();
+  const { fetchTransactions, transactions } = useTransactionStore();
   const { colors } = useAppTheme();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadCustomerData = useCallback(async () => {
@@ -38,20 +37,22 @@ export default function CustomerDetailScreen() {
 
     try {
       setLoading(true);
-      const [customerData, customerTransactions] = await Promise.all([
+      clearError();
+
+      // Load customer and transactions in parallel
+      const [customerData] = await Promise.all([
         getCustomerById(id),
-        getTransactions(id),
+        fetchTransactions(id), // This updates the store's transactions state
       ]);
 
       setCustomer(customerData);
-      setTransactions(customerTransactions);
     } catch (error) {
       console.error("Failed to load customer data:", error);
       Alert.alert("Error", "Failed to load customer information");
     } finally {
       setLoading(false);
     }
-  }, [id, getCustomerById, getTransactions]);
+  }, [id, getCustomerById, clearError, fetchTransactions]);
 
   useFocusEffect(
     useCallback(() => {
