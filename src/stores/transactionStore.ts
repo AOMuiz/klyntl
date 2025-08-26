@@ -6,6 +6,15 @@ import {
   UpdateTransactionInput,
 } from "../types/transaction";
 
+// Helper function to invalidate analytics cache
+const invalidateAnalyticsCache = () => {
+  // Import analytics store dynamically to avoid circular dependency
+  import("./analyticsStore").then(({ useAnalyticsStore }) => {
+    const store = useAnalyticsStore.getState();
+    store.reset(); // Reset analytics cache when transaction data changes
+  });
+};
+
 interface TransactionStore {
   transactions: Transaction[];
   loading: boolean;
@@ -74,6 +83,9 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       );
       const { transactions } = get();
       set({ transactions: [newTransaction, ...transactions] });
+
+      // Invalidate analytics cache since transaction data changed
+      invalidateAnalyticsCache();
     } catch (error) {
       console.error("Failed to create transaction:", error);
       const errorMessage =

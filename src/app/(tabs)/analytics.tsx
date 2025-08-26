@@ -3,11 +3,8 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useAnalytics, useTransactions } from "@/services/database/context";
-import { Analytics as AnalyticsType } from "@/types/analytics";
-import { Transaction } from "@/types/transaction";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useAnalyticsStore } from "@/stores/analyticsStore";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
   RefreshControl,
@@ -23,44 +20,39 @@ const screenWidth = Dimensions.get("window").width;
 
 export default function AnalyticsScreen() {
   const colorScheme = useColorScheme();
-  const { getAnalytics } = useAnalytics();
-  const { getTransactions } = useTransactions();
+  const {
+    analytics,
+    transactions,
+    loading,
+    fetchAnalytics,
+    fetchTransactions,
+    refreshAll,
+    clearError,
+  } = useAnalyticsStore();
 
-  const [analytics, setAnalytics] = useState<AnalyticsType | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<
     "week" | "month" | "year"
   >("month");
 
-  const loadAnalytics = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [analyticsData, transactionData] = await Promise.all([
-        getAnalytics(),
-        getTransactions(),
+  // Load data on mount only (no useFocusEffect needed)
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await Promise.all([
+        fetchAnalytics(), // Uses cache if available
+        fetchTransactions(), // Uses cache if available
       ]);
-      setAnalytics(analyticsData);
-      setTransactions(transactionData);
-    } catch (error) {
-      console.error("Failed to load analytics:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [getAnalytics, getTransactions]);
+    };
+
+    loadInitialData();
+    clearError();
+  }, [fetchAnalytics, fetchTransactions, clearError]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadAnalytics();
+    await refreshAll(); // Force refresh all data
     setRefreshing(false);
-  }, [loadAnalytics]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAnalytics();
-    }, [loadAnalytics])
-  );
+  }, [refreshAll]);
 
   const formatCurrency = (amount: number) => {
     return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;

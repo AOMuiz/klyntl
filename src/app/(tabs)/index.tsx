@@ -7,8 +7,8 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer } from "@/types/customer";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -29,16 +29,13 @@ export default function CustomerListScreen() {
     customers,
     loading,
     searchQuery,
-    error,
     fetchCustomers,
     searchCustomers,
     importFromContacts,
     checkContactAccess,
-    clearError,
   } = useCustomerStore();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -55,11 +52,10 @@ export default function CustomerListScreen() {
     setRefreshing(false);
   }, [loadCustomers]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadCustomers();
-    }, [loadCustomers])
-  );
+  // Load customers on mount only - store will handle updates automatically
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const handleSearch = useCallback(
     async (query: string) => {

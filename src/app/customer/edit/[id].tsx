@@ -2,8 +2,8 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { BorderRadius, Shadows, Spacing } from "@/constants/Layout";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer, UpdateCustomerInput } from "@/types/customer";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -78,11 +78,10 @@ export default function EditCustomerScreen() {
     }
   }, [id, getCustomerById, reset, router, clearError]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadCustomer();
-    }, [loadCustomer])
-  );
+  // Load customer data on mount only - edit screens don't need focus refresh
+  useEffect(() => {
+    loadCustomer();
+  }, [loadCustomer]);
 
   const validatePhone = (phone: string) => {
     // Nigerian phone number validation

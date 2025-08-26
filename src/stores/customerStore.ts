@@ -7,6 +7,15 @@ import {
   UpdateCustomerInput,
 } from "../types/customer";
 
+// Helper function to invalidate analytics cache
+const invalidateAnalyticsCache = () => {
+  // Import analytics store dynamically to avoid circular dependency
+  import("./analyticsStore").then(({ useAnalyticsStore }) => {
+    const store = useAnalyticsStore.getState();
+    store.reset(); // Reset analytics cache when customer data changes
+  });
+};
+
 interface CustomerStore {
   customers: Customer[];
   loading: boolean;
@@ -105,6 +114,9 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       const newCustomer = await databaseService.createCustomer(customerData);
       const { customers } = get();
       set({ customers: [newCustomer, ...customers] });
+
+      // Invalidate analytics cache since customer data changed
+      invalidateAnalyticsCache();
     } catch (error) {
       console.error("Failed to add customer:", error);
 
@@ -172,6 +184,9 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       if (selectedCustomer && selectedCustomer.id === id) {
         set({ selectedCustomer: null });
       }
+
+      // Invalidate analytics cache since customer data changed
+      invalidateAnalyticsCache();
     } catch (error) {
       console.error("Failed to delete customer:", error);
       const errorMessage =

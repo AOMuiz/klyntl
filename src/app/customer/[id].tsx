@@ -56,6 +56,7 @@ export default function CustomerDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Only reload if customer might be stale (useful for when returning from edit screen)
       loadCustomerData();
     }, [loadCustomerData])
   );
