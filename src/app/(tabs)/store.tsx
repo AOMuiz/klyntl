@@ -3,16 +3,14 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+
+import { formatCurrency } from "@/utils/helpers";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StoreScreen() {
   const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
 
   const mockProducts = [
     {
@@ -38,41 +36,58 @@ export default function StoreScreen() {
     },
   ];
 
-  const formatCurrency = (amount: number) => {
-    return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
-  };
+  // ...existing code...
 
   const renderProductCard = (product: any) => (
-    <View key={product.id} style={styles.productCard}>
-      <View style={styles.productImage}>
-        <IconSymbol
-          name="bag.fill"
-          size={32}
-          color={Colors[colorScheme ?? "light"].tabIconDefault}
-        />
+    <View
+      key={product.id}
+      style={[styles.productCard, { backgroundColor: colors.surfaceVariant }]}
+    >
+      <View
+        style={[
+          styles.productImage,
+          { backgroundColor: colors.surfaceVariant },
+        ]}
+      >
+        <IconSymbol name="bag.fill" size={32} color={colors.tabIconDefault} />
       </View>
       <View style={styles.productInfo}>
-        <ThemedText style={styles.productName}>{product.name}</ThemedText>
-        <ThemedText style={styles.productDescription}>
+        <ThemedText style={[styles.productName, { color: colors.text }]}>
+          {product.name}
+        </ThemedText>
+        <ThemedText
+          style={[styles.productDescription, { color: colors.textSecondary }]}
+        >
           {product.description}
         </ThemedText>
-        <ThemedText style={styles.productPrice}>
+        <ThemedText
+          style={[styles.productPrice, { color: colors.currencyPositive }]}
+        >
           {formatCurrency(product.price)}
         </ThemedText>
         <View style={styles.stockStatus}>
           <View
             style={[
               styles.stockIndicator,
-              { backgroundColor: product.inStock ? "#34C759" : "#FF3B30" },
+              {
+                backgroundColor: product.inStock
+                  ? colors.success
+                  : colors.error,
+              },
             ]}
           />
-          <ThemedText style={styles.stockText}>
+          <ThemedText
+            style={[
+              styles.stockText,
+              { color: product.inStock ? colors.success : colors.error },
+            ]}
+          >
             {product.inStock ? "In Stock" : "Out of Stock"}
           </ThemedText>
         </View>
       </View>
       <TouchableOpacity style={styles.editButton}>
-        <IconSymbol name="pencil" size={16} color="#007AFF" />
+        <IconSymbol name="pencil" size={16} color={colors.secondary} />
       </TouchableOpacity>
     </View>
   );
@@ -82,37 +97,59 @@ export default function StoreScreen() {
     description: string,
     icon: any
   ) => (
-    <View style={styles.featureCard}>
-      <IconSymbol name={icon} size={24} color="#FF9500" />
+    <View
+      style={[styles.featureCard, { backgroundColor: colors.surfaceVariant }]}
+    >
+      <IconSymbol name={icon} size={24} color={colors.warning} />
       <View style={styles.featureInfo}>
-        <ThemedText style={styles.featureTitle}>{title}</ThemedText>
-        <ThemedText style={styles.featureDescription}>{description}</ThemedText>
+        <ThemedText style={[styles.featureTitle, { color: colors.text }]}>
+          {title}
+        </ThemedText>
+        <ThemedText
+          style={[styles.featureDescription, { color: colors.textSecondary }]}
+        >
+          {description}
+        </ThemedText>
       </View>
-      <View style={styles.comingSoonBadge}>
+      <View
+        style={[styles.comingSoonBadge, { backgroundColor: colors.warning }]}
+      >
         <ThemedText style={styles.comingSoonText}>Soon</ThemedText>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <ThemedView
+        style={[styles.content, { backgroundColor: colors.background }]}
+      >
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <ThemedText type="title">Store</ThemedText>
-            <ThemedText style={styles.subtitle}>
+            <ThemedText type="title" style={{ color: colors.text }}>
+              Store
+            </ThemedText>
+            <ThemedText
+              style={[styles.subtitle, { color: colors.textSecondary }]}
+            >
               Manage your products and online presence
             </ThemedText>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle">Products</ThemedText>
-              <TouchableOpacity style={styles.addButton}>
-                <IconSymbol name="plus" size={16} color="white" />
+              <ThemedText type="subtitle" style={{ color: colors.text }}>
+                Products
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: colors.primary }]}
+              >
+                <IconSymbol name="plus" size={16} color={colors.background} />
                 <ThemedText style={styles.addButtonText}>
                   Add Product
                 </ThemedText>
@@ -122,33 +159,76 @@ export default function StoreScreen() {
             {mockProducts.map(renderProductCard)}
           </View>
 
-          <View style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <ThemedText
+              type="subtitle"
+              style={[styles.sectionTitle, { color: colors.text }]}
+            >
               Store Features
             </ThemedText>
 
-            <View style={styles.storeStatsCard}>
+            <View
+              style={[
+                styles.storeStatsCard,
+                { backgroundColor: colors.surfaceVariant },
+              ]}
+            >
               <View style={styles.statItem}>
-                <ThemedText style={styles.statValue}>0</ThemedText>
-                <ThemedText style={styles.statLabel}>Orders Today</ThemedText>
+                <ThemedText
+                  style={[styles.statValue, { color: colors.secondary }]}
+                >
+                  0
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
+                  Orders Today
+                </ThemedText>
               </View>
-              <View style={styles.statDivider} />
+              <View
+                style={[
+                  styles.statDivider,
+                  { backgroundColor: colors.divider },
+                ]}
+              />
               <View style={styles.statItem}>
-                <ThemedText style={styles.statValue}>3</ThemedText>
-                <ThemedText style={styles.statLabel}>
+                <ThemedText
+                  style={[styles.statValue, { color: colors.secondary }]}
+                >
+                  3
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
                   Active Products
                 </ThemedText>
               </View>
-              <View style={styles.statDivider} />
+              <View
+                style={[
+                  styles.statDivider,
+                  { backgroundColor: colors.divider },
+                ]}
+              />
               <View style={styles.statItem}>
-                <ThemedText style={styles.statValue}>₦0</ThemedText>
-                <ThemedText style={styles.statLabel}>Store Revenue</ThemedText>
+                <ThemedText
+                  style={[styles.statValue, { color: colors.currencyPositive }]}
+                >
+                  ₦0
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                >
+                  Store Revenue
+                </ThemedText>
               </View>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <ThemedText
+              type="subtitle"
+              style={[styles.sectionTitle, { color: colors.text }]}
+            >
               Coming Soon
             </ThemedText>
 
@@ -177,17 +257,29 @@ export default function StoreScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <View style={styles.ctaCard}>
-              <IconSymbol name="sparkles" size={32} color="#007AFF" />
-              <ThemedText type="subtitle" style={styles.ctaTitle}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <View
+              style={[
+                styles.ctaCard,
+                { backgroundColor: colors.secondarySurface },
+              ]}
+            >
+              <IconSymbol name="sparkles" size={32} color={colors.secondary} />
+              <ThemedText
+                type="subtitle"
+                style={[styles.ctaTitle, { color: colors.text }]}
+              >
                 Launch Your Online Store
               </ThemedText>
-              <ThemedText style={styles.ctaDescription}>
+              <ThemedText
+                style={[styles.ctaDescription, { color: colors.textSecondary }]}
+              >
                 Get your products online and start selling to more customers.
                 Full e-commerce features coming in the next update!
               </ThemedText>
-              <TouchableOpacity style={styles.ctaButton}>
+              <TouchableOpacity
+                style={[styles.ctaButton, { backgroundColor: colors.primary }]}
+              >
                 <ThemedText style={styles.ctaButtonText}>
                   Get Notified
                 </ThemedText>

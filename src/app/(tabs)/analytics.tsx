@@ -4,6 +4,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useAnalyticsStore } from "@/stores/analyticsStore";
+import { formatCurrency } from "@/utils/helpers";
 import { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
@@ -14,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { BarChart, LineChart, PieChart } from "react-native-gifted-charts";
 
 const screenWidth = Dimensions.get("window").width;
@@ -62,9 +64,7 @@ export default function AnalyticsScreen() {
     setRefreshing(false);
   }, [refreshAll]);
 
-  const formatCurrency = (amount: number) => {
-    return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
-  };
+  // ...existing code...
 
   const getTransactionTypeData = () => {
     const saleCount = transactions.filter((t) => t.type === "sale").length;

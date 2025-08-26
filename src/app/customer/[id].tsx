@@ -2,6 +2,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { useCustomerStore } from "@/stores/customerStore";
 import { useTransactionStore } from "@/stores/transactionStore";
 import { Customer } from "@/types/customer";
+import { getCustomerInitials } from "@/utils/helpers";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -177,7 +178,7 @@ export default function CustomerDetailScreen() {
           {/* Customer Header */}
           <Card
             style={[styles.customerHeader, { backgroundColor: colors.surface }]}
-            elevation={3}
+            elevation={1}
             mode="elevated"
           >
             <Card.Content style={styles.customerContent}>
@@ -186,18 +187,13 @@ export default function CustomerDetailScreen() {
                   styles.customerAvatar,
                   { backgroundColor: colors.primary },
                 ]}
-                elevation={4}
+                elevation={2}
               >
                 <Text
                   variant="headlineMedium"
                   style={[styles.avatarText, { color: "#FFFFFF" }]}
                 >
-                  {customer.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)}
+                  {getCustomerInitials(customer.name)}
                 </Text>
               </Surface>
               <View style={styles.customerInfo}>
@@ -246,7 +242,7 @@ export default function CustomerDetailScreen() {
           <View style={styles.actionButtonsContainer}>
             <Surface
               style={{ borderRadius: 20, overflow: "hidden" }}
-              elevation={2}
+              elevation={1}
             >
               <SegmentedButtons
                 value=""
@@ -280,7 +276,7 @@ export default function CustomerDetailScreen() {
           <View style={styles.statsContainer}>
             <Card
               style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={3}
+              elevation={1}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
@@ -300,7 +296,7 @@ export default function CustomerDetailScreen() {
             </Card>
             <Card
               style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={3}
+              elevation={1}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
@@ -320,7 +316,7 @@ export default function CustomerDetailScreen() {
             </Card>
             <Card
               style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={3}
+              elevation={1}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
@@ -368,7 +364,6 @@ export default function CustomerDetailScreen() {
                   styles.emptyTransactions,
                   { backgroundColor: colors.surface },
                 ]}
-                elevation={3}
                 mode="elevated"
               >
                 <Card.Content style={styles.emptyTransactionsContent}>
@@ -383,8 +378,8 @@ export default function CustomerDetailScreen() {
                     onPress={handleAddTransaction}
                     style={styles.firstTransactionButton}
                     contentStyle={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 32,
+                      paddingVertical: 10,
+                      paddingHorizontal: 30,
                     }}
                   >
                     Add First Transaction
@@ -397,7 +392,6 @@ export default function CustomerDetailScreen() {
                   styles.transactionsList,
                   { backgroundColor: colors.surface },
                 ]}
-                elevation={3}
                 mode="elevated"
               >
                 {transactions.slice(0, 5).map((transaction, index) => (
@@ -469,7 +463,6 @@ export default function CustomerDetailScreen() {
             </Text>
             <Card
               style={[styles.detailsCard, { backgroundColor: colors.surface }]}
-              elevation={3}
               mode="elevated"
             >
               <Card.Content style={{ padding: 20 }}>
@@ -753,7 +746,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: 13,
     textAlign: "right",
     flex: 1,
     marginLeft: 20,

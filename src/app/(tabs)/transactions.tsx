@@ -6,6 +6,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useCustomers, useTransactions } from "@/services/database/context";
 import { Customer } from "@/types/customer";
 import { Transaction } from "@/types/transaction";
+import { formatCurrency } from "@/utils/helpers"; // Keep this import
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface TransactionWithCustomer extends Transaction {
@@ -79,9 +81,7 @@ export default function TransactionsScreen() {
     }, [loadTransactions])
   );
 
-  const formatCurrency = (amount: number) => {
-    return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
-  };
+  // ...existing code...
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
