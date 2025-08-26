@@ -318,6 +318,24 @@ export class DatabaseService {
     }
   }
 
+  async getTransactionById(id: string): Promise<Transaction | null> {
+    await this.initialize();
+    const db = await this.getDatabase();
+
+    try {
+      const transaction = await executeQueryForFirstResult<Transaction>(
+        db,
+        "SELECT * FROM transactions WHERE id = ?",
+        [id]
+      );
+
+      return transaction || null;
+    } catch (error) {
+      console.error("Failed to get transaction by ID:", error);
+      throw error;
+    }
+  }
+
   async deleteTransaction(id: string): Promise<void> {
     await this.initialize();
     const db = await this.getDatabase();

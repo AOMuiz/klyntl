@@ -4,6 +4,17 @@ export interface Customer {
   phone: string;
   email?: string;
   address?: string;
+  company?: string;
+  jobTitle?: string;
+  birthday?: string;
+  notes?: string;
+  nickname?: string;
+  photoUri?: string;
+  // Contact metadata
+  contactSource?: "manual" | "imported" | "updated";
+  lastContactDate?: string;
+  preferredContactMethod?: "phone" | "email" | "sms";
+  // Business fields
   totalSpent: number;
   lastPurchase?: string;
   createdAt: string;
@@ -15,6 +26,14 @@ export interface CreateCustomerInput {
   phone: string;
   email?: string;
   address?: string;
+  company?: string;
+  jobTitle?: string;
+  birthday?: string;
+  notes?: string;
+  nickname?: string;
+  photoUri?: string;
+  contactSource?: "manual" | "imported" | "updated";
+  preferredContactMethod?: "phone" | "email" | "sms";
 }
 
 export interface UpdateCustomerInput {
@@ -22,4 +41,13 @@ export interface UpdateCustomerInput {
   phone?: string;
   email?: string;
   address?: string;
+  company?: string;
+  jobTitle?: string;
+  birthday?: string;
+  notes?: string;
+  nickname?: string;
+  photoUri?: string;
+  contactSource?: "manual" | "imported" | "updated";
+  lastContactDate?: string;
+  preferredContactMethod?: "phone" | "email" | "sms";
 }

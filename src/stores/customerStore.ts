@@ -17,6 +17,7 @@ interface CustomerStore {
   // Actions
   fetchCustomers: () => Promise<void>;
   searchCustomers: (query: string) => Promise<void>;
+  getCustomerById: (id: string) => Promise<Customer | null>;
   addCustomer: (customer: CreateCustomerInput) => Promise<void>;
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
@@ -81,6 +82,20 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
         error:
           error instanceof Error ? error.message : "Failed to search customers",
       });
+    }
+  },
+
+  getCustomerById: async (id: string) => {
+    set({ error: null });
+    try {
+      const customer = await databaseService.getCustomerById(id);
+      return customer;
+    } catch (error) {
+      console.error("Failed to get customer:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to get customer";
+      set({ error: errorMessage });
+      throw new Error(errorMessage);
     }
   },
 

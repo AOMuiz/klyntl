@@ -2,10 +2,10 @@ import { ContactImportButton } from "@/components/ContactImportButton";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useCustomers } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
 import { CreateCustomerInput } from "@/types/customer";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -26,8 +26,7 @@ interface CustomerFormData {
 
 export default function AddCustomerScreen() {
   const router = useRouter();
-  const { createCustomer } = useCustomers();
-  const [loading, setLoading] = useState(false);
+  const { addCustomer, loading, clearError } = useCustomerStore();
 
   const {
     control,
@@ -42,6 +41,11 @@ export default function AddCustomerScreen() {
       address: "",
     },
   });
+
+  // Clear any existing errors when component mounts
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   const validatePhone = (phone: string) => {
     // Nigerian phone number validation
@@ -60,7 +64,7 @@ export default function AddCustomerScreen() {
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
-      setLoading(true);
+      clearError(); // Clear any previous errors
 
       const customerData: CreateCustomerInput = {
         name: data.name.trim(),
@@ -69,33 +73,37 @@ export default function AddCustomerScreen() {
         address: data.address?.trim() || undefined,
       };
 
-      const newCustomer = await createCustomer(customerData);
+      await addCustomer(customerData);
 
+      // Success - customer was added
       Alert.alert(
         "Success",
-        `Customer ${newCustomer.name} has been added successfully!`,
+        `Customer ${customerData.name} has been added successfully!`,
         [
           {
             text: "Add Another",
-            onPress: () => reset(),
+            onPress: () => {
+              reset();
+              clearError();
+            },
           },
           {
-            text: "View Customer",
+            text: "View Customers",
             onPress: () => {
               router.dismiss();
-              router.push(`/customer/${newCustomer.id}`);
             },
           },
         ]
       );
     } catch (error) {
-      console.error("Failed to create customer:", error);
-      Alert.alert(
-        "Error",
-        "Failed to add customer. Please check if the phone number is already registered."
-      );
-    } finally {
-      setLoading(false);
+      // Error handling is managed by the store
+      // Display the error from the store or a fallback message
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to add customer. Please check if the phone number is already registered.";
+
+      Alert.alert("Error", errorMessage);
     }
   };
 
@@ -296,17 +304,18 @@ export default function AddCustomerScreen() {
                 </ThemedText>
                 <ContactImportButton
                   variant="text"
-                  onImportComplete={() => {
-                    Alert.alert(
-                      "Import Complete",
-                      "Contacts have been imported. You can view them in the customer list.",
-                      [
-                        {
-                          text: "OK",
-                          onPress: () => router.dismiss(),
-                        },
-                      ]
-                    );
+                  onImportComplete={async (result) => {
+                    const message =
+                      result.imported > 0
+                        ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped.`
+                        : "No new contacts were imported. They may already exist or have invalid phone numbers.";
+
+                    Alert.alert("Import Complete", message, [
+                      {
+                        text: "OK",
+                        onPress: () => router.dismiss(),
+                      },
+                    ]);
                   }}
                 />
               </View>

@@ -5,7 +5,6 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useCustomers } from "@/services/database/context";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer } from "@/types/customer";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -24,27 +23,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function CustomerListScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const { getCustomers } = useCustomers();
 
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Use the store instead of hooks
+  const {
+    customers,
+    loading,
+    searchQuery,
+    error,
+    fetchCustomers,
+    searchCustomers,
+    importFromContacts,
+    checkContactAccess,
+    clearError,
+  } = useCustomerStore();
+
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   const loadCustomers = useCallback(async () => {
     try {
-      setLoading(true);
-      const customerList = await getCustomers();
-      setCustomers(customerList);
-      setFilteredCustomers(customerList);
+      await fetchCustomers();
     } catch (error) {
       console.error("Failed to load customers:", error);
       Alert.alert("Error", "Failed to load customers");
-    } finally {
-      setLoading(false);
     }
-  }, [getCustomers]);
+  }, [fetchCustomers]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -59,20 +62,14 @@ export default function CustomerListScreen() {
   );
 
   const handleSearch = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
+    async (query: string) => {
       if (query.trim() === "") {
-        setFilteredCustomers(customers);
+        await fetchCustomers(); // Get all customers
       } else {
-        const filtered = customers.filter(
-          (customer) =>
-            customer.name.toLowerCase().includes(query.toLowerCase()) ||
-            customer.phone.includes(query)
-        );
-        setFilteredCustomers(filtered);
+        await searchCustomers(query); // Use store's search function
       }
     },
-    [customers]
+    [fetchCustomers, searchCustomers]
   );
 
   const handleCustomerPress = (customer: Customer) => {
@@ -121,14 +118,12 @@ export default function CustomerListScreen() {
   );
 
   const [fabOpen, setFabOpen] = useState(false);
-  const { importFromContacts, checkContactAccess } = useCustomerStore();
 
   const renderHeader = () => (
     <View style={styles.header}>
       <ThemedText type="title">Customers</ThemedText>
       <ThemedText style={styles.customerCount}>
-        {filteredCustomers.length}{" "}
-        {filteredCustomers.length === 1 ? "customer" : "customers"}
+        {customers.length} {customers.length === 1 ? "customer" : "customers"}
       </ThemedText>
     </View>
   );
@@ -145,11 +140,11 @@ export default function CustomerListScreen() {
           style={styles.searchbar}
         />
 
-        {filteredCustomers.length === 0 && !loading ? (
+        {customers.length === 0 && !loading ? (
           renderEmptyState()
         ) : (
           <FlatList
-            data={filteredCustomers}
+            data={customers}
             renderItem={renderCustomerItem}
             keyExtractor={(item) => item.id}
             refreshControl={
