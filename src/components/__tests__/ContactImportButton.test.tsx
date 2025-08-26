@@ -22,13 +22,24 @@ const mockUseCustomerStore = useCustomerStore as jest.MockedFunction<
 
 describe("ContactImportButton", () => {
   const mockImportFromContacts = jest.fn();
+  const mockCheckContactAccess = jest.fn();
+  const mockClearImportCache = jest.fn();
   const mockOnImportComplete = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCustomerStore.mockReturnValue({
       importFromContacts: mockImportFromContacts,
+      checkContactAccess: mockCheckContactAccess,
+      clearImportCache: mockClearImportCache,
     } as any);
+
+    // Default mock implementation for checkContactAccess
+    mockCheckContactAccess.mockResolvedValue({
+      hasAccess: true,
+      isLimited: false,
+      contactCount: 100,
+    });
   });
 
   describe('variant="button"', () => {
@@ -38,19 +49,47 @@ describe("ContactImportButton", () => {
       expect(getByText("Import Contacts")).toBeTruthy();
     });
 
-    it("should show confirmation dialog when pressed", () => {
+    it("should show confirmation dialog when pressed", async () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       fireEvent.press(getByText("Import Contacts"));
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Import Contacts",
-        "This will import contacts from your phone. Only Nigerian phone numbers will be imported and duplicates will be skipped.",
-        expect.arrayContaining([
-          expect.objectContaining({ text: "Cancel" }),
-          expect.objectContaining({ text: "Import" }),
-        ])
-      );
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          "Import Contacts",
+          expect.stringContaining("This will import contacts from your phone"),
+          expect.arrayContaining([
+            expect.objectContaining({ text: "Cancel" }),
+            expect.objectContaining({ text: "Import" }),
+          ])
+        );
+      });
+    });
+
+    it("should handle limited contact access", async () => {
+      mockCheckContactAccess.mockResolvedValue({
+        hasAccess: true,
+        isLimited: true,
+        contactCount: 4,
+      });
+
+      const { getByText } = render(<ContactImportButton variant="button" />);
+
+      fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          "Limited Contact Access Detected",
+          expect.stringContaining(
+            "You currently have limited access to contacts (4 contacts available)"
+          ),
+          expect.arrayContaining([
+            expect.objectContaining({ text: "Cancel" }),
+            expect.objectContaining({ text: "Grant More Access" }),
+            expect.objectContaining({ text: "Import Available" }),
+          ])
+        );
+      });
     });
 
     it("should call importFromContacts when confirmed", async () => {
@@ -65,6 +104,10 @@ describe("ContactImportButton", () => {
       );
 
       fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
@@ -82,6 +125,10 @@ describe("ContactImportButton", () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
@@ -103,6 +150,10 @@ describe("ContactImportButton", () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
@@ -138,6 +189,10 @@ describe("ContactImportButton", () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
@@ -196,6 +251,10 @@ describe("ContactImportButton", () => {
 
       fireEvent.press(getByText("Import Contacts"));
 
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
       const importCallback = alertCalls[0][2][1].onPress;
@@ -247,6 +306,10 @@ describe("ContactImportButton", () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       fireEvent.press(getByText("Import Contacts"));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;

@@ -121,7 +121,7 @@ export default function CustomerListScreen() {
   );
 
   const [fabOpen, setFabOpen] = useState(false);
-  const { importFromContacts } = useCustomerStore();
+  const { importFromContacts, checkContactAccess } = useCustomerStore();
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -178,18 +178,97 @@ export default function CustomerListScreen() {
               label: "Import Contacts",
               onPress: async () => {
                 try {
-                  const result = await importFromContacts();
-                  await loadCustomers();
-                  Alert.alert(
-                    "Import Complete",
-                    `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                  );
+                  // Check current contact access status
+                  const accessStatus = await checkContactAccess();
+
+                  let alertTitle = "Import Contacts";
+                  let alertMessage =
+                    "This will import contacts from your phone. Only Nigerian phone numbers will be imported and duplicates will be skipped.";
+
+                  if (!accessStatus.hasAccess) {
+                    alertMessage =
+                      "This app needs permission to access your contacts. You'll be prompted to grant permission.";
+                  } else if (accessStatus.isLimited) {
+                    alertTitle = "Limited Contact Access Detected";
+                    alertMessage = `You currently have limited access to contacts (${accessStatus.contactCount} contacts available). You can:\n\n• Import available contacts, or\n• Grant access to more contacts for a better import experience`;
+                  } else {
+                    alertMessage += `\n\n${accessStatus.contactCount} contacts available for import.`;
+                  }
+
+                  const buttons = [];
+
+                  // Cancel button
+                  buttons.push({
+                    text: "Cancel",
+                    style: "cancel" as const,
+                  });
+
+                  // If limited access, offer option to grant more access
+                  if (accessStatus.isLimited) {
+                    buttons.push({
+                      text: "Grant More Access",
+                      onPress: async () => {
+                        try {
+                          const result = await importFromContacts(true);
+                          await loadCustomers();
+
+                          const message =
+                            result.imported > 0
+                              ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                              : result.skipped > 0
+                              ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers). You may still have limited contact access.`
+                              : "No contacts found to import.";
+
+                          Alert.alert("Import Complete", message);
+                        } catch (error) {
+                          Alert.alert(
+                            "Import Failed",
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to import contacts"
+                          );
+                        }
+                      },
+                    });
+                  }
+
+                  // Always offer import option
+                  buttons.push({
+                    text: accessStatus.isLimited
+                      ? "Import Available"
+                      : "Import",
+                    onPress: async () => {
+                      try {
+                        const result = await importFromContacts(
+                          !accessStatus.isLimited
+                        );
+                        await loadCustomers();
+
+                        const message =
+                          result.imported > 0
+                            ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                            : result.skipped > 0
+                            ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                            : "No contacts found to import.";
+
+                        Alert.alert("Import Complete", message);
+                      } catch (error) {
+                        Alert.alert(
+                          "Import Failed",
+                          error instanceof Error
+                            ? error.message
+                            : "Failed to import contacts"
+                        );
+                      }
+                    },
+                  });
+
+                  Alert.alert(alertTitle, alertMessage, buttons);
                 } catch (error) {
+                  console.error("Failed to check contact access:", error);
                   Alert.alert(
-                    "Import Failed",
-                    error instanceof Error
-                      ? error.message
-                      : "Failed to import contacts"
+                    "Error",
+                    "Failed to check contact access. Please try again."
                   );
                 }
               },
