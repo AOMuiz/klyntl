@@ -10,7 +10,11 @@ import {
   Customer,
   UpdateCustomerInput,
 } from "../../types/customer";
-import { CreateTransactionInput, Transaction } from "../../types/transaction";
+import {
+  CreateTransactionInput,
+  Transaction,
+  UpdateTransactionInput,
+} from "../../types/transaction";
 
 // Migration function that runs when the database is first created or updated
 async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -331,7 +335,98 @@ export const useTransactions = () => {
     [db]
   );
 
-  return { createTransaction, getTransactions };
+  const updateTransaction = useCallback(
+    async (id: string, updates: UpdateTransactionInput): Promise<void> => {
+      try {
+        await db.withTransactionAsync(async () => {
+          // Get the original transaction
+          const originalTransaction = (await db.getFirstAsync(
+            "SELECT * FROM transactions WHERE id = ?",
+            [id]
+          )) as Transaction | null;
+
+          if (!originalTransaction) {
+            throw new Error("Transaction not found");
+          }
+
+          // Update the transaction
+          const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+          const values = [...Object.values(updates), id];
+
+          await db.runAsync(
+            `UPDATE transactions SET ${setClause} WHERE id = ?`,
+            values
+          );
+
+          // Update customer totals if amount changed
+          if (updates.amount !== undefined) {
+            // Reverse the original transaction impact
+            if (originalTransaction.type === "sale") {
+              await db.runAsync(
+                "UPDATE customers SET totalSpent = totalSpent - ? WHERE id = ?",
+                [originalTransaction.amount, originalTransaction.customerId]
+              );
+            }
+
+            // Apply the new transaction impact (use new type if provided, otherwise original)
+            const newType = updates.type || originalTransaction.type;
+            if (newType === "sale") {
+              await db.runAsync(
+                "UPDATE customers SET totalSpent = totalSpent + ? WHERE id = ?",
+                [updates.amount, originalTransaction.customerId]
+              );
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Error updating transaction:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
+
+  const deleteTransaction = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await db.withTransactionAsync(async () => {
+          // Get the transaction details first
+          const transaction = (await db.getFirstAsync(
+            "SELECT * FROM transactions WHERE id = ?",
+            [id]
+          )) as Transaction | null;
+
+          if (!transaction) {
+            throw new Error("Transaction not found");
+          }
+
+          // Delete the transaction
+          await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
+
+          // Update customer total spent if it was a sale
+          if (transaction.type === "sale") {
+            await db.runAsync(
+              "UPDATE customers SET totalSpent = totalSpent - ? WHERE id = ?",
+              [transaction.amount, transaction.customerId]
+            );
+          }
+        });
+      } catch (error) {
+        console.error("Error deleting transaction:", error);
+        throw error;
+      }
+    },
+    [db]
+  );
+
+  return {
+    createTransaction,
+    getTransactions,
+    updateTransaction,
+    deleteTransaction,
+  };
 };
 
 export const useAnalytics = () => {

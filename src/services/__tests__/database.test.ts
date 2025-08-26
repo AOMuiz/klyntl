@@ -205,19 +205,16 @@ describe("DatabaseService", () => {
     });
 
     it("should handle update errors", async () => {
-      // Mock successful initialization but failing update
-      mockDb.runAsync
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockRejectedValueOnce(new Error("Update failed")); // for actual update
+      // Create a fresh database service instance for this error test
+      const errorDatabaseService = new DatabaseService("test.db");
+
+      // Reset the mock and configure it to fail on the update operation
+      jest.clearAllMocks();
+      mockDb.runAsync.mockRejectedValue(new Error("Update failed"));
+      mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
 
       await expect(
-        databaseService.updateCustomer("cust_1", updateData)
+        errorDatabaseService.updateCustomer("cust_1", updateData)
       ).rejects.toThrow("Update failed");
     });
   });
@@ -257,20 +254,85 @@ describe("DatabaseService", () => {
     });
 
     it("should handle transaction creation errors", async () => {
-      // Mock successful initialization but failing transaction creation
-      mockDb.runAsync
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 }) // for initialization
-        .mockRejectedValueOnce(new Error("Transaction failed")); // for actual transaction
+      // Create a fresh database service instance for this error test
+      const errorDatabaseService = new DatabaseService("test.db");
+
+      // Reset the mock and configure it to fail on the transaction operation
+      jest.clearAllMocks();
+      mockDb.runAsync.mockRejectedValue(new Error("Transaction failed"));
+      mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
 
       await expect(
-        databaseService.createTransaction(transactionInput)
+        errorDatabaseService.createTransaction(transactionInput)
       ).rejects.toThrow("Transaction failed");
+    });
+  });
+
+  describe("updateTransaction", () => {
+    const updateData = {
+      amount: 30000,
+      description: "Updated transaction",
+      type: "payment" as const,
+    };
+
+    beforeEach(() => {
+      // Mock successful initialization
+      mockDb.withTransactionAsync.mockResolvedValue(undefined);
+      // Mock existing transaction
+      mockDb.getFirstAsync.mockResolvedValue({
+        id: "txn_1",
+        customerId: "cust_1",
+        amount: 25000,
+        description: "Original transaction",
+        type: "sale",
+        date: "2024-01-15T10:30:00Z",
+      });
+    });
+
+    it("should update transaction successfully", async () => {
+      await databaseService.updateTransaction("txn_1", updateData);
+
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE transactions SET"),
+        expect.arrayContaining([
+          30000,
+          "Updated transaction",
+          "payment",
+          "txn_1",
+        ])
+      );
+    });
+
+    it("should handle update errors", async () => {
+      // Create a fresh database service instance for this error test
+      const errorDatabaseService = new DatabaseService("test.db");
+
+      // Reset the mock and configure it to fail on the update operation
+      jest.clearAllMocks();
+      mockDb.runAsync.mockRejectedValue(new Error("Update failed"));
+      mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
+
+      await expect(
+        errorDatabaseService.updateTransaction("txn_1", updateData)
+      ).rejects.toThrow("Update failed");
+    });
+
+    it("should throw error if transaction not found", async () => {
+      mockDb.getFirstAsync.mockResolvedValue(null);
+
+      await expect(
+        databaseService.updateTransaction("nonexistent", updateData)
+      ).rejects.toThrow("Transaction not found");
+    });
+
+    it("should update customer totals when amount changes", async () => {
+      await databaseService.updateTransaction("txn_1", { amount: 30000 });
+
+      // Should call updateCustomerTotals
+      expect(mockDb.getFirstAsync).toHaveBeenCalledWith(
+        expect.stringContaining("SELECT * FROM transactions WHERE id = ?"),
+        ["txn_1"]
+      );
     });
   });
 

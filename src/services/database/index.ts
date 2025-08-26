@@ -4,7 +4,11 @@ import {
   Customer,
   UpdateCustomerInput,
 } from "@/types/customer";
-import { CreateTransactionInput, Transaction } from "@/types/transaction";
+import {
+  CreateTransactionInput,
+  Transaction,
+  UpdateTransactionInput,
+} from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import * as SQLite from "expo-sqlite";
 import {
@@ -332,6 +336,46 @@ export class DatabaseService {
       }
     } catch (error) {
       console.error("Failed to delete transaction:", error);
+      throw error;
+    }
+  }
+
+  async updateTransaction(
+    id: string,
+    updates: UpdateTransactionInput
+  ): Promise<void> {
+    await this.initialize();
+    const db = await this.getDatabase();
+
+    try {
+      // Get the original transaction to update customer totals if needed
+      const originalTransaction = await executeQueryForFirstResult<Transaction>(
+        db,
+        "SELECT * FROM transactions WHERE id = ?",
+        [id]
+      );
+
+      if (!originalTransaction) {
+        throw new Error("Transaction not found");
+      }
+
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+      const values = [...Object.values(updates), id];
+
+      await executeQuery(
+        db,
+        `UPDATE transactions SET ${setClause} WHERE id = ?`,
+        values
+      );
+
+      // Update customer totals if the amount changed
+      if (updates.amount !== undefined) {
+        await this.updateCustomerTotals(originalTransaction.customerId);
+      }
+    } catch (error) {
+      console.error("Failed to update transaction:", error);
       throw error;
     }
   }

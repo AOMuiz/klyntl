@@ -14,3 +14,10 @@ export interface CreateTransactionInput {
   date: string;
   type: "sale" | "payment" | "refund";
 }
+
+export interface UpdateTransactionInput {
+  amount?: number;
+  description?: string;
+  date?: string;
+  type?: "sale" | "payment" | "refund";
+}
