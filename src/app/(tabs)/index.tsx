@@ -277,7 +277,6 @@ export default function CustomerListScreen() {
 const styles = StyleSheet.create({
   fabGroup: {
     position: "absolute",
-    right: 16,
     bottom: 16,
   },
   container: {

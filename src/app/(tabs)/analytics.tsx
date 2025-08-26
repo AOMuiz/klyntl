@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
+import { BarChart, LineChart, PieChart } from "react-native-gifted-charts";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -67,27 +67,24 @@ export default function AnalyticsScreen() {
 
     return [
       {
-        name: "Sales",
-        count: saleCount,
+        value: saleCount,
+        text: "Sales",
         color: "#34C759",
-        legendFontColor: Colors[colorScheme ?? "light"].text,
-        legendFontSize: 12,
+        textColor: Colors[colorScheme ?? "light"].text,
       },
       {
-        name: "Payments",
-        count: paymentCount,
+        value: paymentCount,
+        text: "Payments",
         color: "#007AFF",
-        legendFontColor: Colors[colorScheme ?? "light"].text,
-        legendFontSize: 12,
+        textColor: Colors[colorScheme ?? "light"].text,
       },
       {
-        name: "Refunds",
-        count: refundCount,
+        value: refundCount,
+        text: "Refunds",
         color: "#FF3B30",
-        legendFontColor: Colors[colorScheme ?? "light"].text,
-        legendFontSize: 12,
+        textColor: Colors[colorScheme ?? "light"].text,
       },
-    ].filter((item) => item.count > 0);
+    ].filter((item) => item.value > 0);
   };
 
   const getRevenueData = () => {
@@ -97,24 +94,27 @@ export default function AnalyticsScreen() {
       return date.toISOString().split("T")[0];
     });
 
-    const revenueByDay = last7Days.map((date) => {
+    const revenueByDay = last7Days.map((date, index) => {
       const dayTransactions = transactions.filter(
         (t) => t.date === date && t.type === "sale"
       );
-      return dayTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const revenue = dayTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+      const d = new Date(date);
+      const label = d.toLocaleDateString("en-US", { weekday: "short" });
+
+      return {
+        value: revenue,
+        label: label,
+        labelTextStyle: {
+          color: colorScheme === "dark" ? "#FFFFFF" : "#000000",
+          fontSize: 12,
+        },
+        dataPointText: revenue > 0 ? `₦${(revenue / 1000).toFixed(0)}k` : "₦0",
+      };
     });
 
-    return {
-      labels: last7Days.map((date) => {
-        const d = new Date(date);
-        return d.toLocaleDateString("en-US", { weekday: "short" });
-      }),
-      datasets: [
-        {
-          data: revenueByDay.length > 0 ? revenueByDay : [0],
-        },
-      ],
-    };
+    return revenueByDay;
   };
 
   const getMonthlyBarData = () => {
@@ -127,48 +127,29 @@ export default function AnalyticsScreen() {
       };
     });
 
-    const revenueByMonth = last6Months.map(({ month }) => {
+    const revenueByMonth = last6Months.map(({ month, label }) => {
       const monthTransactions = transactions.filter(
         (t) => t.date.startsWith(month) && t.type === "sale"
       );
-      return monthTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const revenue = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        value: revenue,
+        label: label,
+        labelTextStyle: {
+          color: colorScheme === "dark" ? "#FFFFFF" : "#000000",
+          fontSize: 12,
+        },
+        frontColor: "#007AFF",
+        topLabelComponent: () => (
+          <ThemedText style={{ fontSize: 10, marginBottom: 6 }}>
+            {revenue > 0 ? `₦${(revenue / 1000).toFixed(0)}k` : "₦0"}
+          </ThemedText>
+        ),
+      };
     });
 
-    return {
-      labels: last6Months.map((m) => m.label),
-      datasets: [
-        {
-          data: revenueByMonth.length > 0 ? revenueByMonth : [0],
-        },
-      ],
-    };
-  };
-
-  const chartConfig = {
-    backgroundColor: "transparent",
-    backgroundGradientFrom: "transparent",
-    backgroundGradientTo: "transparent",
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.8})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: "4",
-      strokeWidth: "2",
-      stroke: "#007AFF",
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: "",
-      stroke: `rgba(255, 255, 255, 0.2)`,
-      strokeWidth: 1,
-    },
-  };
-
-  const pieChartConfig = {
-    backgroundColor: "transparent",
-    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    return revenueByMonth;
   };
 
   const renderStatCard = (
@@ -339,13 +320,40 @@ export default function AnalyticsScreen() {
                   data={getRevenueData()}
                   width={screenWidth - 48}
                   height={200}
-                  chartConfig={chartConfig}
-                  style={styles.chart}
-                  bezier
-                  withHorizontalLines={true}
-                  withVerticalLines={false}
-                  withInnerLines={false}
-                  withOuterLines={false}
+                  curved
+                  isAnimated
+                  animationDuration={1000}
+                  color="#007AFF"
+                  thickness={3}
+                  dataPointsColor="#007AFF"
+                  dataPointsRadius={4}
+                  textColor1={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                  textFontSize={12}
+                  hideDataPoints={false}
+                  showVerticalLines={false}
+                  verticalLinesColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  rulesColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  rulesType="solid"
+                  initialSpacing={0}
+                  endSpacing={0}
+                  yAxisColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  xAxisColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
                 />
               </View>
             </View>
@@ -365,13 +373,38 @@ export default function AnalyticsScreen() {
                   data={getMonthlyBarData()}
                   width={screenWidth - 48}
                   height={200}
-                  chartConfig={chartConfig}
-                  style={styles.chart}
-                  showValuesOnTopOfBars={false}
-                  withHorizontalLabels={true}
-                  withInnerLines={false}
-                  yAxisLabel="₦"
-                  yAxisSuffix=""
+                  isAnimated
+                  animationDuration={1000}
+                  showGradient
+                  gradientColor="#007AFF"
+                  frontColor="#007AFF"
+                  spacing={24}
+                  roundedTop
+                  roundedBottom
+                  hideRules={false}
+                  rulesColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  rulesType="solid"
+                  yAxisColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  xAxisColor={
+                    colorScheme === "dark"
+                      ? "rgba(255, 255, 255, 0.3)"
+                      : "rgba(0, 0, 0, 0.2)"
+                  }
+                  yAxisTextStyle={{
+                    color: colorScheme === "dark" ? "#FFFFFF" : "#000000",
+                    fontSize: 12,
+                  }}
+                  yAxisLabelPrefix="₦"
+                  initialSpacing={10}
+                  endSpacing={10}
                 />
               </View>
             </View>
@@ -389,13 +422,33 @@ export default function AnalyticsScreen() {
               <View style={styles.chartWrapper}>
                 <PieChart
                   data={getTransactionTypeData()}
-                  width={screenWidth - 48}
-                  height={200}
-                  chartConfig={pieChartConfig}
-                  accessor="count"
-                  backgroundColor="transparent"
-                  paddingLeft="15"
-                  style={styles.chart}
+                  radius={80}
+                  isAnimated
+                  animationDuration={1000}
+                  showText
+                  textColor={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                  textSize={12}
+                  showTextBackground
+                  textBackgroundColor={
+                    colorScheme === "dark"
+                      ? "rgba(0, 0, 0, 0.7)"
+                      : "rgba(255, 255, 255, 0.7)"
+                  }
+                  textBackgroundRadius={16}
+                  showValuesAsLabels
+                  labelsPosition="onBorder"
+                  centerLabelComponent={() => (
+                    <View
+                      style={{ justifyContent: "center", alignItems: "center" }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: "bold" }}>
+                        {transactions.length}
+                      </ThemedText>
+                      <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
+                        Total
+                      </ThemedText>
+                    </View>
+                  )}
                 />
               </View>
             </View>
@@ -462,7 +515,7 @@ const styles = StyleSheet.create({
     margin: 16,
     marginTop: 8,
     marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(128, 128, 128, 0.1)",
     borderRadius: 12,
     padding: 4,
   },
@@ -497,7 +550,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(128, 128, 128, 0.1)",
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -527,7 +580,6 @@ const styles = StyleSheet.create({
   statSubtitle: {
     fontSize: 10,
     opacity: 0.6,
-    marginTop: 2,
   },
   statValue: {
     fontWeight: "bold",
@@ -536,7 +588,7 @@ const styles = StyleSheet.create({
   chartContainer: {
     margin: 16,
     marginTop: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    // backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
     padding: 16,
   },
@@ -555,15 +607,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     borderRadius: 12,
+    backgroundColor: "transparent",
   },
   chart: {
     borderRadius: 12,
+    backgroundColor: "transparent",
   },
   emptyChartState: {
     padding: 48,
     alignItems: "center",
     margin: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    // backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
   },
   emptyChartTitle: {
@@ -588,7 +642,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    borderBottomColor: "rgba(128, 128, 128, 0.1)",
   },
   customerRank: {
     width: 32,
