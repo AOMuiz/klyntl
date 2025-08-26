@@ -27,6 +27,9 @@ export default function TransactionsScreen() {
   const { getTransactions } = useTransactions();
   const { getCustomers } = useCustomers();
 
+  // Theme colors
+  const colors = Colors[colorScheme ?? "light"];
+
   const [transactions, setTransactions] = useState<TransactionWithCustomer[]>(
     []
   );
@@ -105,13 +108,13 @@ export default function TransactionsScreen() {
   const getTransactionColor = (type: string) => {
     switch (type) {
       case "sale":
-        return "#34C759";
+        return colors.currencyPositive;
       case "refund":
-        return "#FF3B30";
+        return colors.currencyNegative;
       case "payment":
-        return "#007AFF";
+        return colors.secondary;
       default:
-        return Colors[colorScheme ?? "light"].text;
+        return colors.text;
     }
   };
 
@@ -124,9 +127,14 @@ export default function TransactionsScreen() {
   }: {
     item: TransactionWithCustomer;
   }) => (
-    <View style={styles.transactionCard}>
+    <View style={[styles.transactionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.transactionHeader}>
-        <View style={styles.transactionIcon}>
+        <View
+          style={[
+            styles.transactionIcon,
+            { backgroundColor: colors.surfaceVariant },
+          ]}
+        >
           <IconSymbol
             name={getTransactionIcon(item.type)}
             size={24}
@@ -137,11 +145,15 @@ export default function TransactionsScreen() {
           <ThemedText style={styles.customerName}>
             {item.customerName}
           </ThemedText>
-          <ThemedText style={styles.transactionDate}>
+          <ThemedText
+            style={[styles.transactionDate, { color: colors.textSecondary }]}
+          >
             {formatDate(item.date)}
           </ThemedText>
           {item.description && (
-            <ThemedText style={styles.description}>
+            <ThemedText
+              style={[styles.description, { color: colors.textTertiary }]}
+            >
               {item.description}
             </ThemedText>
           )}
@@ -156,7 +168,9 @@ export default function TransactionsScreen() {
             {item.type === "refund" ? "-" : "+"}
             {formatCurrency(item.amount)}
           </ThemedText>
-          <ThemedText style={styles.typeText}>
+          <ThemedText
+            style={[styles.typeText, { color: colors.textSecondary }]}
+          >
             {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
           </ThemedText>
         </View>
@@ -166,18 +180,17 @@ export default function TransactionsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <IconSymbol
-        name="list.bullet"
-        size={64}
-        color={Colors[colorScheme ?? "light"].tabIconDefault}
-      />
+      <IconSymbol name="list.bullet" size={64} color={colors.tabIconDefault} />
       <ThemedText type="title" style={styles.emptyTitle}>
         No transactions yet
       </ThemedText>
       <ThemedText style={styles.emptySubtitle}>
         Start recording your first transaction
       </ThemedText>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
+        onPress={handleAddTransaction}
+      >
         <ThemedText style={styles.addButtonText}>Add Transaction</ThemedText>
       </TouchableOpacity>
     </View>
@@ -214,7 +227,13 @@ export default function TransactionsScreen() {
           />
         )}
 
-        <TouchableOpacity style={styles.fab} onPress={handleAddTransaction}>
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { backgroundColor: colors.primary, shadowColor: colors.text },
+          ]}
+          onPress={handleAddTransaction}
+        >
           <IconSymbol name="plus" size={24} color="white" />
         </TouchableOpacity>
       </ThemedView>
@@ -245,10 +264,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   transactionCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   transactionHeader: {
     flexDirection: "row",
@@ -258,7 +281,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -271,11 +293,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   transactionDate: {
-    opacity: 0.7,
     marginTop: 2,
   },
   description: {
-    opacity: 0.8,
     marginTop: 4,
     fontStyle: "italic",
   },
@@ -287,7 +307,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   typeText: {
-    opacity: 0.7,
     marginTop: 2,
     fontSize: 12,
     textTransform: "uppercase",
@@ -309,7 +328,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addButton: {
-    backgroundColor: "#007AFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -325,11 +343,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     right: 16,
-    bottom: 70, // Increased from 16 to avoid tab bar
-    backgroundColor: "#007AFF",
+    bottom: 70,
     borderRadius: 28,
     elevation: 8,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

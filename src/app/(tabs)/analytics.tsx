@@ -35,6 +35,14 @@ export default function AnalyticsScreen() {
     "week" | "month" | "year"
   >("month");
 
+  // Theme-aware colors
+  const isDark = colorScheme === "dark";
+  const containerBg = isDark ? "#1C1C1E" : "#FFFFFF";
+  const chartWrapperBg = isDark ? "#2C2C2E" : "#F2F2F7";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const gridColor = isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
+  const shadowColor = isDark ? "#000000" : "#000000";
+
   // Load data on mount only (no useFocusEffect needed)
   useEffect(() => {
     const loadInitialData = async () => {
@@ -308,52 +316,59 @@ export default function AnalyticsScreen() {
 
           {/* Revenue Trend Chart */}
           {transactions.length > 0 && (
-            <View style={styles.chartContainer}>
+            <View
+              style={[
+                styles.chartContainer,
+                { backgroundColor: containerBg, shadowColor: shadowColor },
+              ]}
+            >
               <View style={styles.chartHeader}>
                 <ThemedText type="subtitle">Revenue Trend</ThemedText>
                 <ThemedText style={styles.chartSubtitle}>
                   Last 7 days
                 </ThemedText>
               </View>
-              <View style={styles.chartWrapper}>
+              <View
+                style={[
+                  styles.chartWrapper,
+                  { backgroundColor: chartWrapperBg },
+                ]}
+              >
                 <LineChart
                   data={getRevenueData()}
-                  width={screenWidth - 48}
-                  height={200}
+                  width={screenWidth - 80}
+                  height={220}
                   curved
                   isAnimated
-                  animationDuration={1000}
+                  animationDuration={1200}
                   color="#007AFF"
                   thickness={3}
                   dataPointsColor="#007AFF"
-                  dataPointsRadius={4}
-                  textColor1={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
-                  textFontSize={12}
+                  dataPointsRadius={5}
+                  textColor1={textColor}
+                  textFontSize={11}
                   hideDataPoints={false}
                   showVerticalLines={false}
-                  verticalLinesColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
-                  rulesColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
+                  verticalLinesColor={gridColor}
+                  rulesColor={gridColor}
                   rulesType="solid"
-                  initialSpacing={0}
-                  endSpacing={0}
-                  yAxisColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
-                  xAxisColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
+                  initialSpacing={20}
+                  endSpacing={20}
+                  yAxisColor={gridColor}
+                  xAxisColor={gridColor}
+                  yAxisTextStyle={{
+                    color: textColor,
+                    fontSize: 11,
+                  }}
+                  xAxisLabelTextStyle={{
+                    color: textColor,
+                    fontSize: 11,
+                  }}
+                  areaChart
+                  startFillColor="#007AFF"
+                  startOpacity={0.3}
+                  endFillColor="#007AFF"
+                  endOpacity={0.1}
                 />
               </View>
             </View>
@@ -361,50 +376,53 @@ export default function AnalyticsScreen() {
 
           {/* Monthly Bar Chart */}
           {transactions.length > 0 && (
-            <View style={styles.chartContainer}>
+            <View
+              style={[
+                styles.chartContainer,
+                { backgroundColor: containerBg, shadowColor: shadowColor },
+              ]}
+            >
               <View style={styles.chartHeader}>
                 <ThemedText type="subtitle">Monthly Performance</ThemedText>
                 <ThemedText style={styles.chartSubtitle}>
                   Last 6 months
                 </ThemedText>
               </View>
-              <View style={styles.chartWrapper}>
+              <View
+                style={[
+                  styles.chartWrapper,
+                  { backgroundColor: chartWrapperBg },
+                ]}
+              >
                 <BarChart
                   data={getMonthlyBarData()}
-                  width={screenWidth - 48}
-                  height={200}
+                  width={screenWidth - 80}
+                  height={220}
                   isAnimated
-                  animationDuration={1000}
+                  animationDuration={1200}
                   showGradient
                   gradientColor="#007AFF"
                   frontColor="#007AFF"
-                  spacing={24}
+                  spacing={32}
                   roundedTop
                   roundedBottom
                   hideRules={false}
-                  rulesColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
+                  rulesColor={gridColor}
                   rulesType="solid"
-                  yAxisColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
-                  xAxisColor={
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.3)"
-                      : "rgba(0, 0, 0, 0.2)"
-                  }
+                  yAxisColor={gridColor}
+                  xAxisColor={gridColor}
                   yAxisTextStyle={{
-                    color: colorScheme === "dark" ? "#FFFFFF" : "#000000",
-                    fontSize: 12,
+                    color: textColor,
+                    fontSize: 11,
+                  }}
+                  xAxisLabelTextStyle={{
+                    color: textColor,
+                    fontSize: 11,
                   }}
                   yAxisLabelPrefix="₦"
-                  initialSpacing={10}
-                  endSpacing={10}
+                  initialSpacing={20}
+                  endSpacing={20}
+                  barWidth={24}
                 />
               </View>
             </View>
@@ -412,36 +430,46 @@ export default function AnalyticsScreen() {
 
           {/* Transaction Types Pie Chart */}
           {transactions.length > 0 && getTransactionTypeData().length > 0 && (
-            <View style={styles.chartContainer}>
+            <View
+              style={[
+                styles.chartContainer,
+                { backgroundColor: containerBg, shadowColor: shadowColor },
+              ]}
+            >
               <View style={styles.chartHeader}>
                 <ThemedText type="subtitle">Transaction Types</ThemedText>
                 <ThemedText style={styles.chartSubtitle}>
                   Distribution breakdown
                 </ThemedText>
               </View>
-              <View style={styles.chartWrapper}>
+              <View
+                style={[
+                  styles.chartWrapper,
+                  { backgroundColor: chartWrapperBg },
+                ]}
+              >
                 <PieChart
                   data={getTransactionTypeData()}
-                  radius={80}
+                  radius={90}
                   isAnimated
-                  animationDuration={1000}
+                  animationDuration={1200}
                   showText
-                  textColor={colorScheme === "dark" ? "#FFFFFF" : "#000000"}
+                  textColor={textColor}
                   textSize={12}
                   showTextBackground
                   textBackgroundColor={
-                    colorScheme === "dark"
-                      ? "rgba(0, 0, 0, 0.7)"
-                      : "rgba(255, 255, 255, 0.7)"
+                    isDark ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)"
                   }
-                  textBackgroundRadius={16}
+                  textBackgroundRadius={12}
                   showValuesAsLabels
                   labelsPosition="onBorder"
+                  strokeColor={containerBg}
+                  strokeWidth={2}
                   centerLabelComponent={() => (
                     <View
                       style={{ justifyContent: "center", alignItems: "center" }}
                     >
-                      <ThemedText style={{ fontSize: 16, fontWeight: "bold" }}>
+                      <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
                         {transactions.length}
                       </ThemedText>
                       <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
@@ -586,14 +614,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   chartContainer: {
-    margin: 16,
-    marginTop: 8,
-    // backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 16,
-    padding: 16,
+    marginHorizontal: 15,
+    marginTop: 20,
+    marginBottom: 32,
+    borderRadius: 20,
+    padding: 20,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 4,
   },
   chartHeader: {
-    marginBottom: 16,
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   chartTitle: {
     marginBottom: 16,
@@ -605,12 +640,16 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     alignItems: "center",
+    justifyContent: "center",
     overflow: "hidden",
-    borderRadius: 12,
-    backgroundColor: "transparent",
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
   chart: {
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: "transparent",
   },
   emptyChartState: {
