@@ -2,34 +2,15 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Hook to access database with initialization checking
+ * Hook to access database - simplified since Expo SQLite provider handles initialization
  */
 export function useDatabase() {
   const db = useSQLiteContext();
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    const checkDatabaseReady = async () => {
-      try {
-        // Simple query to check if database is ready
-        await db.getFirstAsync("SELECT 1");
-        setIsReady(true);
-        setError(null);
-      } catch (err) {
-        console.error("Database not ready:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-        setIsReady(false);
-      }
-    };
-
-    checkDatabaseReady();
-  }, [db]);
 
   return {
     db,
-    isReady,
-    error,
+    isReady: true, // Always ready since SQLiteProvider handles initialization
+    error: null, // Errors are handled by SQLiteProvider
   };
 }
 

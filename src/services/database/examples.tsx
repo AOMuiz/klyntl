@@ -7,7 +7,7 @@ import {
   DatabaseProvider,
   useDatabase,
   useDatabaseHealth,
-} from "@/services/database/modernIndex";
+} from "@/services/database";
 import { Button, Text, View } from "react-native";
 
 // Component that uses the database

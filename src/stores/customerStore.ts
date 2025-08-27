@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
 import { create } from "zustand";
-import { databaseService } from "../services/database";
+import { databaseService } from "../services/database/oldIndex";
 import {
   CreateCustomerInput,
   Customer,

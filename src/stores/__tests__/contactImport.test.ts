@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { databaseService } from "../../services/database";
+import { databaseService } from "../../services/database/oldIndex";
 import { useCustomerStore } from "../customerStore";
 
 // Mock AsyncStorage

@@ -1,8 +1,8 @@
-import { DatabaseService } from "../../services/database";
 import {
   executeQueryForFirstResult,
   executeQueryForResults,
 } from "../../services/database/helper";
+import { DatabaseService } from "../database/oldIndex";
 
 describe("Simple Debug Customer Filtering", () => {
   let testDatabaseService: DatabaseService;

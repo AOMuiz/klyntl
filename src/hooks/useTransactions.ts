@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatabaseService } from "../services/database";
+import { createDatabaseService } from "../services/database";
 import { useDatabase } from "../services/database/hooks";
 import {
   CreateTransactionInput,
@@ -8,21 +8,20 @@ import {
 } from "../types/transaction";
 
 export function useTransactions(customerId?: string) {
-  const { db, isReady } = useDatabase();
+  const { db } = useDatabase();
   const queryClient = useQueryClient();
-  const databaseService = new DatabaseService();
 
   const transactionsQuery = useQuery({
     queryKey: ["transactions", customerId],
     queryFn: async () => {
-      if (!db || !isReady) throw new Error("Database not ready");
-      await databaseService.initialize();
+      if (!db) throw new Error("Database not available");
+      const databaseService = createDatabaseService(db);
 
       return customerId
         ? databaseService.getTransactionsByCustomer(customerId)
         : databaseService.getAllTransactions();
     },
-    enabled: isReady && !!db,
+    enabled: !!db,
     staleTime: 1 * 60 * 1000, // Transaction data should be fresh for 1 minute
     gcTime: 3 * 60 * 1000, // Keep in cache for 3 minutes
     retry: 3,
@@ -31,8 +30,8 @@ export function useTransactions(customerId?: string) {
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateTransactionInput) => {
-      if (!db || !isReady) throw new Error("Database not ready");
-      await databaseService.initialize();
+      if (!db) throw new Error("Database not available");
+      const databaseService = createDatabaseService(db);
       return databaseService.createTransaction(data);
     },
     onSuccess: (newTransaction) => {
@@ -65,8 +64,8 @@ export function useTransactions(customerId?: string) {
       id: string;
       updates: UpdateTransactionInput;
     }) => {
-      if (!db || !isReady) throw new Error("Database not ready");
-      await databaseService.initialize();
+      if (!db) throw new Error("Database not available");
+      const databaseService = createDatabaseService(db);
       await databaseService.updateTransaction(id, updates);
       return { id, updates };
     },
@@ -87,8 +86,8 @@ export function useTransactions(customerId?: string) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!db || !isReady) throw new Error("Database not ready");
-      await databaseService.initialize();
+      if (!db) throw new Error("Database not available");
+      const databaseService = createDatabaseService(db);
       await databaseService.deleteTransaction(id);
       return id;
     },
@@ -144,18 +143,17 @@ export function useTransactions(customerId?: string) {
 
 // Hook for getting a single transaction
 export function useTransaction(id?: string) {
-  const { db, isReady } = useDatabase();
-  const databaseService = new DatabaseService();
+  const { db } = useDatabase();
 
   return useQuery({
     queryKey: ["transactions", "detail", id],
     queryFn: async () => {
-      if (!db || !isReady || !id)
-        throw new Error("Database not ready or no ID provided");
-      await databaseService.initialize();
+      if (!db || !id)
+        throw new Error("Database not available or no ID provided");
+      const databaseService = createDatabaseService(db);
       return databaseService.getTransactionById(id);
     },
-    enabled: isReady && !!db && !!id,
+    enabled: !!db && !!id,
     staleTime: 5 * 60 * 1000, // Individual transaction data can be stale for 5 minutes
     retry: 3,
   });

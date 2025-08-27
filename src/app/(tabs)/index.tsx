@@ -6,12 +6,13 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useCustomerStore } from "@/stores/customerStore";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useCustomerFilters } from "@/stores/uiStore";
 import { Customer } from "@/types/customer";
 import { CustomerFilters, SortOptions } from "@/types/filters";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   RefreshControl,
@@ -26,61 +27,53 @@ export default function CustomerListScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
 
-  // Use the store instead of hooks
+  // UI state management
+  const { filters, updateFilters } = useCustomerFilters();
+
+  // Use infinite query without pagination state
   const {
     customers,
-    loading,
-    searchQuery,
-    appliedFilterDescription,
-    filteredCustomersCount,
-    totalCustomersCount,
+    totalCount,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
     hasNextPage,
-    loadingMore,
-    fetchCustomers,
-    searchCustomers,
-    setFilters,
-    setSortOptions,
-    applyFilters,
-    importFromContacts,
-    checkContactAccess,
-    loadMoreCustomers,
-    resetPagination,
-  } = useCustomerStore();
+    fetchNextPage,
+    error,
+    refetch,
+  } = useCustomers(
+    filters.searchQuery,
+    {
+      customerType: filters.customerType,
+      isActive: filters.isActive,
+    },
+    {
+      field: filters.sortBy as "name" | "totalSpent" | "createdAt",
+      direction: filters.sortOrder,
+    },
+    20 // pageSize
+  );
 
   const [refreshing, setRefreshing] = useState(false);
-
-  const loadCustomers = useCallback(async () => {
-    try {
-      await fetchCustomers();
-    } catch (error) {
-      console.error("Failed to load customers:", error);
-      Alert.alert("Error", "Failed to load customers");
-    }
-  }, [fetchCustomers]);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadCustomers();
-    setRefreshing(false);
-  }, [loadCustomers]);
-
-  // Load customers on mount only - store will handle updates automatically
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+    try {
+      await refetch();
+    } catch (error) {
+      console.error("Failed to refresh customers:", error);
+      Alert.alert("Error", "Failed to refresh customers");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const handleSearch = useCallback(
-    async (query: string) => {
-      // Reset pagination when search changes
-      resetPagination();
-
-      if (query.trim() === "") {
-        await fetchCustomers(); // Get all customers
-      } else {
-        await searchCustomers(query); // Use store's search function
-      }
+    (query: string) => {
+      updateFilters({ searchQuery: query });
     },
-    [fetchCustomers, searchCustomers, resetPagination]
+    [updateFilters]
   );
 
   const handleCustomerPress = (customer: Customer) => {
@@ -95,34 +88,29 @@ export default function CustomerListScreen() {
     imported: number;
     skipped: number;
   }) => {
-    await loadCustomers(); // Reload the customer list
+    await refetch(); // Reload the customer list
   };
 
   const handleFiltersChange = async (
-    filters: CustomerFilters,
+    newFilters: CustomerFilters,
     sort: SortOptions
   ) => {
-    // Reset pagination when filters change
-    resetPagination();
-
-    // Update store with new filters and sort options
-    setFilters(filters);
-    setSortOptions(sort);
-
-    // Apply the filters to get updated customer list
-    await applyFilters();
-
-    console.log("Filters applied:", filters, sort);
+    updateFilters({
+      customerType: newFilters.customerType || "all",
+      isActive: newFilters.isActive,
+      sortBy: sort.field,
+      sortOrder: sort.direction,
+    });
   };
 
   const handleLoadMore = useCallback(() => {
-    if (hasNextPage && !loadingMore) {
-      loadMoreCustomers();
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-  }, [hasNextPage, loadingMore, loadMoreCustomers]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderLoadingFooter = () => {
-    if (!loadingMore) return null;
+    if (!isFetchingNextPage) return null;
 
     return (
       <View style={styles.loadingFooter}>
@@ -163,20 +151,18 @@ export default function CustomerListScreen() {
     </View>
   );
 
-  const [fabOpen, setFabOpen] = useState(false);
-
   const renderHeader = () => (
     <View style={styles.header}>
       <ThemedText type="title">Customers</ThemedText>
       <View style={styles.headerInfo}>
         <ThemedText style={styles.customerCount}>
-          Showing {filteredCustomersCount} of {totalCustomersCount}{" "}
-          {totalCustomersCount === 1 ? "customer" : "customers"}
-          {hasNextPage && " (loading more as you scroll)"}
+          Showing {customers.length} of {totalCount}{" "}
+          {totalCount === 1 ? "customer" : "customers"}
+          {customers.length < totalCount && " (scroll for more)"}
         </ThemedText>
-        {appliedFilterDescription !== "All customers" && (
+        {filters.customerType !== "all" && (
           <ThemedText style={styles.filterDescription}>
-            {appliedFilterDescription}
+            Filtered by: {filters.customerType}
           </ThemedText>
         )}
       </View>
@@ -191,13 +177,27 @@ export default function CustomerListScreen() {
         <Searchbar
           placeholder="Search customers..."
           onChangeText={handleSearch}
-          value={searchQuery}
+          value={filters.searchQuery}
           style={styles.searchbar}
         />
 
         <FilterBar onFiltersChange={handleFiltersChange} />
 
-        {customers.length === 0 && !loading ? (
+        {error && (
+          <View style={styles.errorState}>
+            <ThemedText style={styles.errorText}>
+              Error loading customers: {error.message}
+            </ThemedText>
+            <TouchableOpacity
+              onPress={() => refetch()}
+              style={styles.retryButton}
+            >
+              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {customers.length === 0 && !isLoading ? (
           renderEmptyState()
         ) : (
           <FlashList
@@ -232,97 +232,17 @@ export default function CustomerListScreen() {
               label: "Import Contacts",
               onPress: async () => {
                 try {
-                  // Check current contact access status
-                  const accessStatus = await checkContactAccess();
-
-                  let alertTitle = "Import Contacts";
-                  let alertMessage =
-                    "This will import contacts from your phone. Only Nigerian phone numbers will be imported and duplicates will be skipped.";
-
-                  if (!accessStatus.hasAccess) {
-                    alertMessage =
-                      "This app needs permission to access your contacts. You'll be prompted to grant permission.";
-                  } else if (accessStatus.isLimited) {
-                    alertTitle = "Limited Contact Access Detected";
-                    alertMessage = `You currently have limited access to contacts (${accessStatus.contactCount} contacts available). You can:\n\n• Import available contacts, or\n• Grant access to more contacts for a better import experience`;
-                  } else {
-                    alertMessage += `\n\n${accessStatus.contactCount} contacts available for import.`;
-                  }
-
-                  const buttons = [];
-
-                  // Cancel button
-                  buttons.push({
-                    text: "Cancel",
-                    style: "cancel" as const,
-                  });
-
-                  // If limited access, offer option to grant more access
-                  if (accessStatus.isLimited) {
-                    buttons.push({
-                      text: "Grant More Access",
-                      onPress: async () => {
-                        try {
-                          const result = await importFromContacts(true);
-                          await loadCustomers();
-
-                          const message =
-                            result.imported > 0
-                              ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                              : result.skipped > 0
-                              ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers). You may still have limited contact access.`
-                              : "No contacts found to import.";
-
-                          Alert.alert("Import Complete", message);
-                        } catch (error) {
-                          Alert.alert(
-                            "Import Failed",
-                            error instanceof Error
-                              ? error.message
-                              : "Failed to import contacts"
-                          );
-                        }
-                      },
-                    });
-                  }
-
-                  // Always offer import option
-                  buttons.push({
-                    text: accessStatus.isLimited
-                      ? "Import Available"
-                      : "Import",
-                    onPress: async () => {
-                      try {
-                        const result = await importFromContacts(
-                          !accessStatus.isLimited
-                        );
-                        await loadCustomers();
-
-                        const message =
-                          result.imported > 0
-                            ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                            : result.skipped > 0
-                            ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                            : "No contacts found to import.";
-
-                        Alert.alert("Import Complete", message);
-                      } catch (error) {
-                        Alert.alert(
-                          "Import Failed",
-                          error instanceof Error
-                            ? error.message
-                            : "Failed to import contacts"
-                        );
-                      }
-                    },
-                  });
-
-                  Alert.alert(alertTitle, alertMessage, buttons);
+                  // For now, show a simple message
+                  Alert.alert(
+                    "Contact Import",
+                    "Contact import functionality will be available soon. For now, you can add customers manually.",
+                    [{ text: "OK" }]
+                  );
                 } catch (error) {
-                  console.error("Failed to check contact access:", error);
+                  console.error("Contact import error:", error);
                   Alert.alert(
                     "Error",
-                    "Failed to check contact access. Please try again."
+                    "Failed to import contacts. Please try again."
                   );
                 }
               },
@@ -368,6 +288,25 @@ const styles = StyleSheet.create({
   searchbar: {
     margin: 16,
     marginTop: 8,
+  },
+  errorState: {
+    padding: 20,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "#ff4444",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontWeight: "600",
   },
   list: {
     flex: 1,

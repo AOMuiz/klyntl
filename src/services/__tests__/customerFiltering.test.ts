@@ -1,5 +1,5 @@
-import { databaseService } from "../../services/database";
 import { CustomerFilters } from "../../types/filters";
+import { databaseService } from "../database/oldIndex";
 
 describe("Customer Filtering", () => {
   beforeAll(async () => {

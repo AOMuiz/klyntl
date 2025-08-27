@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { databaseService } from "../services/database";
+import { databaseService } from "../services/database/oldIndex";
 import {
   CreateTransactionInput,
   Transaction,
