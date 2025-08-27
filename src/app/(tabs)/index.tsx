@@ -9,11 +9,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer } from "@/types/customer";
 import { CustomerFilters, SortOptions } from "@/types/filters";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  FlatList,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
@@ -34,6 +34,8 @@ export default function CustomerListScreen() {
     appliedFilterDescription,
     filteredCustomersCount,
     totalCustomersCount,
+    hasNextPage,
+    loadingMore,
     fetchCustomers,
     searchCustomers,
     setFilters,
@@ -41,6 +43,8 @@ export default function CustomerListScreen() {
     applyFilters,
     importFromContacts,
     checkContactAccess,
+    loadMoreCustomers,
+    resetPagination,
   } = useCustomerStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -67,13 +71,16 @@ export default function CustomerListScreen() {
 
   const handleSearch = useCallback(
     async (query: string) => {
+      // Reset pagination when search changes
+      resetPagination();
+
       if (query.trim() === "") {
         await fetchCustomers(); // Get all customers
       } else {
         await searchCustomers(query); // Use store's search function
       }
     },
-    [fetchCustomers, searchCustomers]
+    [fetchCustomers, searchCustomers, resetPagination]
   );
 
   const handleCustomerPress = (customer: Customer) => {
@@ -95,6 +102,9 @@ export default function CustomerListScreen() {
     filters: CustomerFilters,
     sort: SortOptions
   ) => {
+    // Reset pagination when filters change
+    resetPagination();
+
     // Update store with new filters and sort options
     setFilters(filters);
     setSortOptions(sort);
@@ -103,6 +113,24 @@ export default function CustomerListScreen() {
     await applyFilters();
 
     console.log("Filters applied:", filters, sort);
+  };
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !loadingMore) {
+      loadMoreCustomers();
+    }
+  }, [hasNextPage, loadingMore, loadMoreCustomers]);
+
+  const renderLoadingFooter = () => {
+    if (!loadingMore) return null;
+
+    return (
+      <View style={styles.loadingFooter}>
+        <ThemedText style={styles.loadingText}>
+          Loading more customers...
+        </ThemedText>
+      </View>
+    );
   };
 
   const renderCustomerItem = ({ item }: { item: Customer }) => (
@@ -142,10 +170,9 @@ export default function CustomerListScreen() {
       <ThemedText type="title">Customers</ThemedText>
       <View style={styles.headerInfo}>
         <ThemedText style={styles.customerCount}>
-          {filteredCustomersCount}{" "}
-          {filteredCustomersCount === 1 ? "customer" : "customers"}
-          {totalCustomersCount !== filteredCustomersCount &&
-            ` of ${totalCustomersCount} total`}
+          Showing {filteredCustomersCount} of {totalCustomersCount}{" "}
+          {totalCustomersCount === 1 ? "customer" : "customers"}
+          {hasNextPage && " (loading more as you scroll)"}
         </ThemedText>
         {appliedFilterDescription !== "All customers" && (
           <ThemedText style={styles.filterDescription}>
@@ -173,16 +200,18 @@ export default function CustomerListScreen() {
         {customers.length === 0 && !loading ? (
           renderEmptyState()
         ) : (
-          <FlatList
+          <FlashList
             data={customers}
             renderItem={renderCustomerItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: Customer) => item.id}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderLoadingFooter}
           />
         )}
 
@@ -395,5 +424,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     bottom: 140, // Position above main FAB
+  },
+  loadingFooter: {
+    padding: 16,
+    alignItems: "center",
+  },
+  loadingText: {
+    opacity: 0.7,
   },
 });

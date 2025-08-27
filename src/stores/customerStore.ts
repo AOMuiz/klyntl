@@ -41,6 +41,12 @@ interface CustomerStore {
   selectedCustomer: Customer | null;
   error: string | null;
 
+  // Pagination state
+  currentPage: number;
+  hasNextPage: boolean;
+  loadingMore: boolean;
+  pageSize: number;
+
   // Filtering state
   activeFilters: CustomerFilters;
   sortOptions: SortOptions;
@@ -57,6 +63,10 @@ interface CustomerStore {
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   selectCustomer: (customer: Customer | null) => void;
+
+  // Pagination actions
+  loadMoreCustomers: () => Promise<void>;
+  resetPagination: () => void;
 
   // Filtering actions
   setFilters: (filters: CustomerFilters) => void;
@@ -95,6 +105,11 @@ const initialState = {
   searchQuery: "",
   selectedCustomer: null,
   error: null,
+  // Pagination state
+  currentPage: 1,
+  hasNextPage: true,
+  loadingMore: false,
+  pageSize: 20,
   // Filtering state
   activeFilters: {} as CustomerFilters,
   sortOptions: { field: "name", direction: "asc" } as SortOptions,
@@ -108,24 +123,43 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   ...initialState,
 
   fetchCustomers: async () => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, currentPage: 1, hasNextPage: true });
     try {
-      const { activeFilters, sortOptions, searchQuery } = get();
-      const customers = await databaseService.getCustomersWithFilters(
-        searchQuery || undefined,
-        Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-        sortOptions
-      );
+      const { activeFilters, sortOptions, searchQuery, pageSize } = get();
+      console.log("Fetching customers with pagination:", {
+        page: 1,
+        pageSize,
+        searchQuery,
+      });
 
-      // Get total count for comparison
-      const totalCustomers = await databaseService.getCustomersWithFilters();
+      const [customers, totalCount] = await Promise.all([
+        databaseService.getCustomersWithFilters(
+          searchQuery || undefined,
+          Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
+          sortOptions,
+          1, // First page
+          pageSize
+        ),
+        databaseService.getCustomersCountWithFilters(
+          searchQuery || undefined,
+          Object.keys(activeFilters).length > 0 ? activeFilters : undefined
+        ),
+      ]);
+
+      console.log("Customers fetched:", {
+        loadedCount: customers.length,
+        totalCount,
+        hasNextPage: customers.length === pageSize && totalCount > pageSize,
+      });
 
       set({
         customers,
         loading: false,
-        totalCustomersCount: totalCustomers.length,
-        filteredCustomersCount: customers.length,
+        totalCustomersCount: totalCount,
+        filteredCustomersCount: customers.length, // Show currently loaded count, not total
         appliedFilterDescription: getFilterDescription(activeFilters),
+        currentPage: 1,
+        hasNextPage: customers.length === pageSize && totalCount > pageSize,
       });
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -138,20 +172,36 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   },
 
   searchCustomers: async (query: string) => {
-    set({ searchQuery: query, loading: true, error: null });
+    set({
+      searchQuery: query,
+      loading: true,
+      error: null,
+      currentPage: 1,
+      hasNextPage: true,
+    });
     try {
-      const { activeFilters, sortOptions } = get();
-      const customers = await databaseService.getCustomersWithFilters(
-        query || undefined,
-        Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-        sortOptions
-      );
+      const { activeFilters, sortOptions, pageSize } = get();
+      const [customers, totalCount] = await Promise.all([
+        databaseService.getCustomersWithFilters(
+          query || undefined,
+          Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
+          sortOptions,
+          1, // First page
+          pageSize
+        ),
+        databaseService.getCustomersCountWithFilters(
+          query || undefined,
+          Object.keys(activeFilters).length > 0 ? activeFilters : undefined
+        ),
+      ]);
 
       set({
         customers,
         loading: false,
-        filteredCustomersCount: customers.length,
+        filteredCustomersCount: customers.length, // Show currently loaded count, not total
         appliedFilterDescription: getFilterDescription(activeFilters),
+        currentPage: 1,
+        hasNextPage: customers.length === pageSize && totalCount > pageSize,
       });
     } catch (error) {
       console.error("Failed to search customers:", error);
@@ -734,7 +784,8 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   },
 
   applyFilters: async () => {
-    // Re-fetch customers with current filters and search query
+    // Reset pagination and re-fetch customers with current filters and search query
+    set({ currentPage: 1, hasNextPage: true });
     await get().fetchCustomers();
   },
 
@@ -769,5 +820,73 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
 
   reset: () => {
     set(initialState);
+  },
+
+  // Pagination methods
+  loadMoreCustomers: async () => {
+    const {
+      hasNextPage,
+      loadingMore,
+      currentPage,
+      pageSize,
+      activeFilters,
+      sortOptions,
+      searchQuery,
+      customers,
+    } = get();
+
+    if (!hasNextPage || loadingMore) {
+      console.log("Skipping load more:", { hasNextPage, loadingMore });
+      return;
+    }
+
+    console.log("Loading more customers:", {
+      currentPage,
+      nextPage: currentPage + 1,
+      pageSize,
+    });
+    set({ loadingMore: true, error: null });
+    try {
+      const nextPage = currentPage + 1;
+      const newCustomers = await databaseService.getCustomersWithFilters(
+        searchQuery || undefined,
+        Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
+        sortOptions,
+        nextPage,
+        pageSize
+      );
+
+      console.log("Loaded more customers:", {
+        newCount: newCustomers.length,
+        totalLoaded: customers.length + newCustomers.length,
+        hasMore: newCustomers.length === pageSize,
+      });
+
+      const allCustomers = [...customers, ...newCustomers];
+      set({
+        customers: allCustomers,
+        loadingMore: false,
+        currentPage: nextPage,
+        hasNextPage: newCustomers.length === pageSize,
+        filteredCustomersCount: allCustomers.length, // Update count with loaded customers
+      });
+    } catch (error) {
+      console.error("Failed to load more customers:", error);
+      set({
+        loadingMore: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load more customers",
+      });
+    }
+  },
+
+  resetPagination: () => {
+    set({
+      currentPage: 1,
+      hasNextPage: true,
+      loadingMore: false,
+    });
   },
 }));

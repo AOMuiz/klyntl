@@ -27,6 +27,7 @@ import {
 export class DatabaseService {
   private db: SQLite.SQLiteDatabase | null = null;
   private isInitialized = false;
+  private isInitializing = false;
   private databaseName: string;
 
   constructor(databaseName = "klyntl.db") {
@@ -40,10 +41,29 @@ export class DatabaseService {
     return this.db;
   }
 
-  // Database migration method to add missing columns
-  private async runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  // Database migration method to add missing columns (removed to avoid nested transactions)
+  // All migrations are now handled within the main transaction in initialize()
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    // Prevent concurrent initialization
+    if (this.isInitializing) {
+      // Wait for the current initialization to complete
+      while (this.isInitializing) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return;
+    }
+
+    this.isInitializing = true;
+    const db = await this.getDatabase();
+
     try {
-      // First ensure the base customers table exists
+      // First, run table creation and migrations outside of transaction
+      // (ALTER TABLE operations in SQLite have limited transaction support)
+
+      // Create base tables first
       await executeQuery(
         db,
         `CREATE TABLE IF NOT EXISTS customers (
@@ -59,16 +79,34 @@ export class DatabaseService {
       )`
       );
 
-      // Check if we need to add new columns to existing customers table
-      const tableInfo = await executeQueryForResults<any>(
+      await executeQuery(
         db,
-        "PRAGMA table_info(customers)"
+        `CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        customerId TEXT NOT NULL,
+        amount REAL NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL,
+        FOREIGN KEY (customerId) REFERENCES customers (id)
+      )`
       );
 
-      const existingColumns = tableInfo.map((col: any) => col.name);
-      console.log("Existing customer table columns:", existingColumns);
+      // Check existing table structure and add missing columns
+      let existingColumns: string[] = [];
+      try {
+        const tableInfo = await executeQueryForResults<any>(
+          db,
+          "PRAGMA table_info(customers)"
+        );
+        existingColumns = tableInfo.map((col: any) => col.name);
+        console.log("Existing customer table columns:", existingColumns);
+      } catch {
+        // Table doesn't exist yet, that's fine
+        console.log("Customers table doesn't exist yet, will create it");
+      }
 
-      // List of new columns that need to be added
+      // Add missing columns one by one (outside transaction)
       const newColumns = [
         { name: "company", type: "TEXT" },
         { name: "jobTitle", type: "TEXT" },
@@ -81,67 +119,25 @@ export class DatabaseService {
         { name: "preferredContactMethod", type: "TEXT" },
       ];
 
-      // Add missing columns
       for (const column of newColumns) {
         if (!existingColumns.includes(column.name)) {
           console.log(`Adding missing column: ${column.name}`);
-          await executeQuery(
-            db,
-            `ALTER TABLE customers ADD COLUMN ${column.name} ${column.type}`
-          );
+          try {
+            await executeQuery(
+              db,
+              `ALTER TABLE customers ADD COLUMN ${column.name} ${column.type}`
+            );
+          } catch (error) {
+            console.error(`Failed to add column ${column.name}:`, error);
+            // Continue with other columns
+          }
         }
       }
-    } catch (error) {
-      console.log("Migration check failed:", error);
-      throw error;
-    }
-  }
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
 
-    const db = await this.getDatabase();
-
-    try {
-      // First, run database migrations to add missing columns
-      await this.runMigrations(db);
-
-      // Create tables and indexes using transaction for better performance
+      // Now create indexes and set pragmas in a transaction
       const initQueries = [
         {
           query: "PRAGMA journal_mode = WAL;",
-        },
-        {
-          query: `CREATE TABLE IF NOT EXISTS customers (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            phone TEXT UNIQUE NOT NULL,
-            email TEXT,
-            address TEXT,
-            company TEXT,
-            jobTitle TEXT,
-            birthday TEXT,
-            notes TEXT,
-            nickname TEXT,
-            photoUri TEXT,
-            contactSource TEXT DEFAULT 'manual',
-            lastContactDate TEXT,
-            preferredContactMethod TEXT,
-            totalSpent REAL DEFAULT 0,
-            lastPurchase TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL
-          );`,
-        },
-        {
-          query: `CREATE TABLE IF NOT EXISTS transactions (
-            id TEXT PRIMARY KEY,
-            customerId TEXT NOT NULL,
-            amount REAL NOT NULL,
-            description TEXT,
-            date TEXT NOT NULL,
-            type TEXT NOT NULL,
-            FOREIGN KEY (customerId) REFERENCES customers (id)
-          );`,
         },
         // Performance indexes
         {
@@ -185,8 +181,10 @@ export class DatabaseService {
       await executeTransaction(db, initQueries);
 
       this.isInitialized = true;
+      this.isInitializing = false;
     } catch (error) {
       console.error("Database initialization failed:", error);
+      this.isInitializing = false;
       throw error;
     }
   }
@@ -390,7 +388,9 @@ export class DatabaseService {
   async getCustomersWithFilters(
     searchQuery?: string,
     filters?: CustomerFilters,
-    sort?: SortOptions
+    sort?: SortOptions,
+    page?: number,
+    pageSize?: number
   ): Promise<Customer[]> {
     await this.initialize();
     const db = await this.getDatabase();
@@ -433,6 +433,16 @@ export class DatabaseService {
       // Add sorting
       baseSql += ` ${this.buildSortClause(sort)}`;
 
+      // Add pagination
+      if (page != null && pageSize != null && pageSize > 0) {
+        const offset = (page - 1) * pageSize;
+        baseSql += ` LIMIT ? OFFSET ?`;
+        allParams.push(pageSize, offset);
+        console.log("Applied pagination:", { page, pageSize, offset });
+      } else {
+        console.log("No pagination applied - loading all records");
+      }
+
       console.log("Executing customer query:", baseSql, allParams);
 
       const results = await executeQueryForResults<any>(db, baseSql, allParams);
@@ -452,6 +462,63 @@ export class DatabaseService {
   async getCustomers(searchQuery?: string): Promise<Customer[]> {
     // Use the enhanced filtering method for backward compatibility
     return this.getCustomersWithFilters(searchQuery);
+  }
+
+  // Count customers with filters for pagination
+  async getCustomersCountWithFilters(
+    searchQuery?: string,
+    filters?: CustomerFilters
+  ): Promise<number> {
+    await this.initialize();
+    const db = await this.getDatabase();
+
+    try {
+      let baseSql = "SELECT COUNT(*) as count FROM customers";
+      const allParams: any[] = [];
+      const allConditions: string[] = [];
+
+      // Add search query conditions
+      if (searchQuery && searchQuery.trim()) {
+        allConditions.push(
+          "(name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ?)"
+        );
+        const searchPattern = `%${searchQuery.trim()}%`;
+        allParams.push(
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern
+        );
+      }
+
+      // Add filter conditions
+      if (filters) {
+        const { whereClause, params } = this.buildFilterQuery(filters);
+        if (whereClause) {
+          // Extract conditions from WHERE clause
+          const filterConditions = whereClause.replace("WHERE ", "");
+          allConditions.push(filterConditions);
+          allParams.push(...params);
+        }
+      }
+
+      // Combine all conditions
+      if (allConditions.length > 0) {
+        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
+      }
+
+      console.log("Executing customer count query:", baseSql, allParams);
+
+      const results = await executeQueryForResults<{ count: number }>(
+        db,
+        baseSql,
+        allParams
+      );
+      return results[0]?.count || 0;
+    } catch (error) {
+      console.error("Failed to count customers with filters:", error);
+      throw error;
+    }
   }
 
   async getCustomerById(id: string): Promise<Customer | null> {

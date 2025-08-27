@@ -7,10 +7,10 @@ import { useCustomers, useTransactions } from "@/services/database/context";
 import { Customer } from "@/types/customer";
 import { Transaction } from "@/types/transaction";
 import { formatCurrency } from "@/utils/helpers"; // Keep this import
+import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  FlatList,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
@@ -214,14 +214,13 @@ export default function TransactionsScreen() {
         {transactions.length === 0 && !loading ? (
           renderEmptyState()
         ) : (
-          <FlatList
+          <FlashList
             data={transactions}
             renderItem={renderTransactionItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: TransactionWithCustomer) => item.id}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />

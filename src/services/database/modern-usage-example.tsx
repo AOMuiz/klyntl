@@ -1,5 +1,6 @@
+import { FlashList } from "@shopify/flash-list";
 import React from "react";
-import { Alert, FlatList, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
 import { DatabaseProvider, useAnalytics, useCustomers } from "./context";
 
 // Example component showing how to use the modern database hooks
@@ -10,11 +11,6 @@ const CustomersScreen: React.FC = () => {
   // Use the modern database hooks
   const { getCustomers, createCustomer, deleteCustomer } = useCustomers();
   const { getAnalytics } = useAnalytics();
-
-  // Load customers when component mounts
-  React.useEffect(() => {
-    loadCustomers();
-  }, []);
 
   const loadCustomers = React.useCallback(async () => {
     setLoading(true);
@@ -28,6 +24,11 @@ const CustomersScreen: React.FC = () => {
       setLoading(false);
     }
   }, [getCustomers]);
+
+  // Load customers when component mounts
+  React.useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const handleCreateCustomer = async () => {
     try {
@@ -127,10 +128,10 @@ const CustomersScreen: React.FC = () => {
       {loading ? (
         <Text style={{ textAlign: "center" }}>Loading...</Text>
       ) : (
-        <FlatList
+        <FlashList
           data={customers}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+          keyExtractor={(item: any) => item.id}
+          renderItem={({ item }: { item: any }) => (
             <View
               style={{
                 backgroundColor: "#f0f0f0",
