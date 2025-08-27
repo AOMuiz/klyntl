@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Contacts from "expo-contacts";
 import { create } from "zustand";
 import { databaseService } from "../services/database";
 import {
@@ -489,6 +490,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
             name: fullName,
             phone: formattedPhone,
             email: contact.emails?.[0]?.email || undefined,
+            contactSource: "imported",
           };
 
           await get().addCustomer(customerData);
@@ -537,8 +539,6 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
 
   checkContactAccess: async () => {
     try {
-      const Contacts = await import("expo-contacts");
-
       // Check permission status with built-in limited access detection
       const permissionResponse = await Contacts.getPermissionsAsync();
       const { status, accessPrivileges } = permissionResponse;
