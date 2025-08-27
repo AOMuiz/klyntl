@@ -210,12 +210,97 @@ const migration002: Migration = {
 };
 
 /**
+ * Migration 3: Add products and store configuration tables
+ */
+const migration003: Migration = {
+  version: 3,
+  name: "products_and_store",
+  up: async (db: SQLiteDatabase) => {
+    await db.execAsync(`
+      -- Create products table
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        price REAL NOT NULL,
+        costPrice REAL DEFAULT 0,
+        sku TEXT UNIQUE,
+        category TEXT,
+        imageUrl TEXT,
+        stockQuantity INTEGER DEFAULT 0,
+        lowStockThreshold INTEGER DEFAULT 5,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+
+      -- Create store configuration table
+      CREATE TABLE IF NOT EXISTS store_config (
+        id TEXT PRIMARY KEY DEFAULT 'main',
+        storeName TEXT NOT NULL,
+        description TEXT,
+        logoUrl TEXT,
+        primaryColor TEXT DEFAULT '#2E7D32',
+        secondaryColor TEXT DEFAULT '#FFA726',
+        currency TEXT DEFAULT 'NGN',
+        isActive INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+
+      -- Create product categories table
+      CREATE TABLE IF NOT EXISTS product_categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        parentId TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (parentId) REFERENCES product_categories (id) ON DELETE SET NULL
+      );
+
+      -- Add indexes for products
+      CREATE INDEX IF NOT EXISTS idx_product_category ON products(category);
+      CREATE INDEX IF NOT EXISTS idx_product_sku ON products(sku);
+      CREATE INDEX IF NOT EXISTS idx_product_active ON products(isActive);
+      CREATE INDEX IF NOT EXISTS idx_product_price ON products(price);
+      CREATE INDEX IF NOT EXISTS idx_product_stock ON products(stockQuantity);
+      CREATE INDEX IF NOT EXISTS idx_product_name ON products(name);
+
+      -- Add indexes for categories
+      CREATE INDEX IF NOT EXISTS idx_category_parent ON product_categories(parentId);
+      CREATE INDEX IF NOT EXISTS idx_category_active ON product_categories(isActive);
+
+      -- Insert default store config if none exists
+      INSERT OR IGNORE INTO store_config (id, storeName, createdAt, updatedAt) 
+      VALUES ('main', 'My Store', datetime('now'), datetime('now'));
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_category_active;
+      DROP INDEX IF EXISTS idx_category_parent;
+      DROP INDEX IF EXISTS idx_product_name;
+      DROP INDEX IF EXISTS idx_product_stock;
+      DROP INDEX IF EXISTS idx_product_price;
+      DROP INDEX IF EXISTS idx_product_active;
+      DROP INDEX IF EXISTS idx_product_sku;
+      DROP INDEX IF EXISTS idx_product_category;
+      DROP TABLE IF EXISTS product_categories;
+      DROP TABLE IF EXISTS store_config;
+      DROP TABLE IF EXISTS products;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
   migration000,
   migration001,
   migration002,
+  migration003,
 ];
 
 /**

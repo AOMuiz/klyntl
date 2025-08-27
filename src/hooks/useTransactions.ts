@@ -10,13 +10,12 @@ import {
 export function useTransactions(customerId?: string) {
   const { db } = useDatabase();
   const queryClient = useQueryClient();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   const transactionsQuery = useQuery({
     queryKey: ["transactions", customerId],
     queryFn: async () => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
-
+      if (!databaseService) throw new Error("Database not available");
       return customerId
         ? databaseService.getTransactionsByCustomer(customerId)
         : databaseService.getAllTransactions();
@@ -30,8 +29,7 @@ export function useTransactions(customerId?: string) {
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateTransactionInput) => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
+      if (!databaseService) throw new Error("Database not available");
       return databaseService.createTransaction(data);
     },
     onSuccess: (newTransaction) => {
@@ -64,8 +62,7 @@ export function useTransactions(customerId?: string) {
       id: string;
       updates: UpdateTransactionInput;
     }) => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
+      if (!databaseService) throw new Error("Database not available");
       await databaseService.updateTransaction(id, updates);
       return { id, updates };
     },
@@ -86,8 +83,7 @@ export function useTransactions(customerId?: string) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
+      if (!databaseService) throw new Error("Database not available");
       await databaseService.deleteTransaction(id);
       return id;
     },
@@ -144,13 +140,13 @@ export function useTransactions(customerId?: string) {
 // Hook for getting a single transaction
 export function useTransaction(id?: string) {
   const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
     queryKey: ["transactions", "detail", id],
     queryFn: async () => {
-      if (!db || !id)
+      if (!databaseService || !id)
         throw new Error("Database not available or no ID provided");
-      const databaseService = createDatabaseService(db);
       return databaseService.getTransactionById(id);
     },
     enabled: !!db && !!id,

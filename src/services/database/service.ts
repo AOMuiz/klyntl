@@ -6,6 +6,16 @@ import type {
 } from "@/types/customer";
 import type { CustomerFilters, SortOptions } from "@/types/filters";
 import type {
+  CreateCategoryInput,
+  CreateProductInput,
+  Product,
+  ProductCategory,
+  ProductFilters,
+  ProductSortOptions,
+  UpdateProductInput,
+} from "@/types/product";
+import type { StoreConfig, UpdateStoreConfigInput } from "@/types/store";
+import type {
   CreateTransactionInput,
   Transaction,
   UpdateTransactionInput,
@@ -589,6 +599,442 @@ export class DatabaseService {
       };
     } catch (error) {
       console.error("Failed to get analytics:", error);
+      throw error;
+    }
+  }
+
+  // Product CRUD Operations
+  async createProduct(productData: CreateProductInput): Promise<Product> {
+    const id = generateId("prod");
+    const now = new Date().toISOString();
+
+    const product: Product = {
+      id,
+      name: productData.name,
+      description: productData.description,
+      price: productData.price,
+      costPrice: productData.costPrice || 0,
+      sku: productData.sku,
+      category: productData.category,
+      imageUrl: productData.imageUrl,
+      stockQuantity: productData.stockQuantity || 0,
+      lowStockThreshold: productData.lowStockThreshold || 5,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await this.db.runAsync(
+        `INSERT INTO products (
+          id, name, description, price, costPrice, sku, category, 
+          imageUrl, stockQuantity, lowStockThreshold, isActive, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          product.id,
+          product.name,
+          product.description || null,
+          product.price,
+          product.costPrice,
+          product.sku || null,
+          product.category || null,
+          product.imageUrl || null,
+          product.stockQuantity,
+          product.lowStockThreshold,
+          product.isActive ? 1 : 0,
+          product.createdAt,
+          product.updatedAt,
+        ]
+      );
+
+      return product;
+    } catch (error) {
+      console.error("Failed to create product:", error);
+      throw error;
+    }
+  }
+
+  async getProducts(
+    filters?: ProductFilters,
+    sort?: ProductSortOptions,
+    page?: number,
+    pageSize?: number
+  ): Promise<Product[]> {
+    try {
+      let baseSql = "SELECT * FROM products";
+      const allParams: any[] = [];
+      const allConditions: string[] = [];
+
+      // Add filter conditions
+      if (filters) {
+        // Category filter
+        if (filters.category) {
+          allConditions.push("category = ?");
+          allParams.push(filters.category);
+        }
+
+        // Price range filter
+        if (filters.priceRange) {
+          if (filters.priceRange.min > 0) {
+            allConditions.push("price >= ?");
+            allParams.push(filters.priceRange.min);
+          }
+          if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
+            allConditions.push("price <= ?");
+            allParams.push(filters.priceRange.max);
+          }
+        }
+
+        // Stock status filter
+        if (filters.stockStatus && filters.stockStatus !== "all") {
+          switch (filters.stockStatus) {
+            case "in_stock":
+              allConditions.push("stockQuantity > lowStockThreshold");
+              break;
+            case "low_stock":
+              allConditions.push(
+                "stockQuantity > 0 AND stockQuantity <= lowStockThreshold"
+              );
+              break;
+            case "out_of_stock":
+              allConditions.push("stockQuantity = 0");
+              break;
+          }
+        }
+
+        // Active status filter
+        if (filters.isActive !== undefined) {
+          allConditions.push("isActive = ?");
+          allParams.push(filters.isActive ? 1 : 0);
+        }
+
+        // Search query filter
+        if (filters.searchQuery && filters.searchQuery.trim()) {
+          allConditions.push(
+            "(name LIKE ? OR description LIKE ? OR sku LIKE ?)"
+          );
+          const searchPattern = `%${filters.searchQuery.trim()}%`;
+          allParams.push(searchPattern, searchPattern, searchPattern);
+        }
+      }
+
+      // Combine all conditions
+      if (allConditions.length > 0) {
+        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
+      }
+
+      // Add sorting
+      if (sort) {
+        const direction = sort.direction.toUpperCase();
+        switch (sort.field) {
+          case "name":
+            baseSql += ` ORDER BY name ${direction}`;
+            break;
+          case "price":
+            baseSql += ` ORDER BY price ${direction}`;
+            break;
+          case "stockQuantity":
+            baseSql += ` ORDER BY stockQuantity ${direction}`;
+            break;
+          case "createdAt":
+            baseSql += ` ORDER BY createdAt ${direction}`;
+            break;
+          case "updatedAt":
+            baseSql += ` ORDER BY updatedAt ${direction}`;
+            break;
+          default:
+            baseSql += " ORDER BY name ASC";
+        }
+      } else {
+        baseSql += " ORDER BY name ASC";
+      }
+
+      // Add pagination
+      if (page != null && pageSize != null && pageSize > 0) {
+        const offset = page * pageSize;
+        baseSql += ` LIMIT ? OFFSET ?`;
+        allParams.push(pageSize, offset);
+      }
+
+      const results = await this.db.getAllAsync<any>(baseSql, allParams);
+
+      return results.map((result) => ({
+        ...result,
+        isActive: result.isActive === 1,
+      }));
+    } catch (error) {
+      console.error("Failed to get products:", error);
+      throw error;
+    }
+  }
+
+  async getProductsCount(filters?: ProductFilters): Promise<number> {
+    try {
+      let baseSql = "SELECT COUNT(*) as count FROM products";
+      const allParams: any[] = [];
+      const allConditions: string[] = [];
+
+      // Add filter conditions (same as getProducts)
+      if (filters) {
+        if (filters.category) {
+          allConditions.push("category = ?");
+          allParams.push(filters.category);
+        }
+
+        if (filters.priceRange) {
+          if (filters.priceRange.min > 0) {
+            allConditions.push("price >= ?");
+            allParams.push(filters.priceRange.min);
+          }
+          if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
+            allConditions.push("price <= ?");
+            allParams.push(filters.priceRange.max);
+          }
+        }
+
+        if (filters.stockStatus && filters.stockStatus !== "all") {
+          switch (filters.stockStatus) {
+            case "in_stock":
+              allConditions.push("stockQuantity > lowStockThreshold");
+              break;
+            case "low_stock":
+              allConditions.push(
+                "stockQuantity > 0 AND stockQuantity <= lowStockThreshold"
+              );
+              break;
+            case "out_of_stock":
+              allConditions.push("stockQuantity = 0");
+              break;
+          }
+        }
+
+        if (filters.isActive !== undefined) {
+          allConditions.push("isActive = ?");
+          allParams.push(filters.isActive ? 1 : 0);
+        }
+
+        if (filters.searchQuery && filters.searchQuery.trim()) {
+          allConditions.push(
+            "(name LIKE ? OR description LIKE ? OR sku LIKE ?)"
+          );
+          const searchPattern = `%${filters.searchQuery.trim()}%`;
+          allParams.push(searchPattern, searchPattern, searchPattern);
+        }
+      }
+
+      if (allConditions.length > 0) {
+        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
+      }
+
+      const result = await this.db.getFirstAsync<{ count: number }>(
+        baseSql,
+        allParams
+      );
+      return result?.count || 0;
+    } catch (error) {
+      console.error("Failed to get products count:", error);
+      throw error;
+    }
+  }
+
+  async getProductById(id: string): Promise<Product | null> {
+    try {
+      const result = await this.db.getFirstAsync<any>(
+        "SELECT * FROM products WHERE id = ?",
+        [id]
+      );
+
+      if (!result) return null;
+
+      return {
+        ...result,
+        isActive: result.isActive === 1,
+      };
+    } catch (error) {
+      console.error("Failed to get product by id:", error);
+      throw error;
+    }
+  }
+
+  async getProductBySku(sku: string): Promise<Product | null> {
+    try {
+      const result = await this.db.getFirstAsync<any>(
+        "SELECT * FROM products WHERE sku = ?",
+        [sku]
+      );
+
+      if (!result) return null;
+
+      return {
+        ...result,
+        isActive: result.isActive === 1,
+      };
+    } catch (error) {
+      console.error("Failed to get product by SKU:", error);
+      throw error;
+    }
+  }
+
+  async updateProduct(id: string, updates: UpdateProductInput): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const fields = Object.keys(updates).filter((key) => key !== "id");
+      const setClause = fields.map((field) => `${field} = ?`).join(", ");
+      const values = fields.map((field) => {
+        const value = (updates as any)[field];
+        // Convert boolean to integer for SQLite
+        if (field === "isActive" && typeof value === "boolean") {
+          return value ? 1 : 0;
+        }
+        return value;
+      });
+
+      await this.db.runAsync(
+        `UPDATE products SET ${setClause}, updatedAt = ? WHERE id = ?`,
+        [...values, now, id]
+      );
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      throw error;
+    }
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    try {
+      await this.db.runAsync("DELETE FROM products WHERE id = ?", [id]);
+    } catch (error) {
+      console.error("Failed to delete product:", error);
+      throw error;
+    }
+  }
+
+  async getLowStockProducts(): Promise<Product[]> {
+    try {
+      const results = await this.db.getAllAsync<any>(
+        "SELECT * FROM products WHERE stockQuantity <= lowStockThreshold AND isActive = 1 ORDER BY stockQuantity ASC"
+      );
+
+      return results.map((result) => ({
+        ...result,
+        isActive: result.isActive === 1,
+      }));
+    } catch (error) {
+      console.error("Failed to get low stock products:", error);
+      throw error;
+    }
+  }
+
+  // Product Categories CRUD
+  async createCategory(
+    categoryData: CreateCategoryInput
+  ): Promise<ProductCategory> {
+    const id = generateId("cat");
+    const now = new Date().toISOString();
+
+    const category: ProductCategory = {
+      id,
+      name: categoryData.name,
+      description: categoryData.description,
+      parentId: categoryData.parentId,
+      isActive: true,
+      createdAt: now,
+    };
+
+    try {
+      await this.db.runAsync(
+        `INSERT INTO product_categories (id, name, description, parentId, isActive, createdAt) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          category.id,
+          category.name,
+          category.description || null,
+          category.parentId || null,
+          category.isActive ? 1 : 0,
+          category.createdAt,
+        ]
+      );
+
+      return category;
+    } catch (error) {
+      console.error("Failed to create category:", error);
+      throw error;
+    }
+  }
+
+  async getCategories(): Promise<ProductCategory[]> {
+    try {
+      const results = await this.db.getAllAsync<any>(
+        "SELECT * FROM product_categories WHERE isActive = 1 ORDER BY name ASC"
+      );
+
+      return results.map((result) => ({
+        ...result,
+        isActive: result.isActive === 1,
+      }));
+    } catch (error) {
+      console.error("Failed to get categories:", error);
+      throw error;
+    }
+  }
+
+  async getCategoryById(id: string): Promise<ProductCategory | null> {
+    try {
+      const result = await this.db.getFirstAsync<any>(
+        "SELECT * FROM product_categories WHERE id = ?",
+        [id]
+      );
+
+      if (!result) return null;
+
+      return {
+        ...result,
+        isActive: result.isActive === 1,
+      };
+    } catch (error) {
+      console.error("Failed to get category by id:", error);
+      throw error;
+    }
+  }
+
+  // Store Configuration CRUD
+  async getStoreConfig(): Promise<StoreConfig | null> {
+    try {
+      const result = await this.db.getFirstAsync<any>(
+        "SELECT * FROM store_config WHERE id = 'main'"
+      );
+
+      if (!result) return null;
+
+      return {
+        ...result,
+        isActive: result.isActive === 1,
+      };
+    } catch (error) {
+      console.error("Failed to get store config:", error);
+      throw error;
+    }
+  }
+
+  async updateStoreConfig(updates: UpdateStoreConfigInput): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const fields = Object.keys(updates);
+      const setClause = fields.map((field) => `${field} = ?`).join(", ");
+      const values = fields.map((field) => {
+        const value = (updates as any)[field];
+        // Convert boolean to integer for SQLite
+        if (field === "isActive" && typeof value === "boolean") {
+          return value ? 1 : 0;
+        }
+        return value;
+      });
+
+      await this.db.runAsync(
+        `UPDATE store_config SET ${setClause}, updatedAt = ? WHERE id = 'main'`,
+        [...values, now]
+      );
+    } catch (error) {
+      console.error("Failed to update store config:", error);
       throw error;
     }
   }

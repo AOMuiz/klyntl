@@ -6,11 +6,16 @@ import { Analytics } from "../types/analytics";
 export function useAnalytics() {
   const { db } = useDatabase();
 
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const databaseService = db ? createDatabaseService(db) : undefined;
+
   return useQuery({
     queryKey: ["analytics"],
     queryFn: async (): Promise<Analytics> => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
+      if (!databaseService) throw new Error("Database not available");
       return databaseService.getAnalytics();
     },
     enabled: !!db,
@@ -25,13 +30,12 @@ export function useAnalytics() {
 // Hook for more granular analytics queries if needed in the future
 export function useCustomerAnalytics() {
   const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
     queryKey: ["analytics", "customers"],
     queryFn: async () => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
-
+      if (!databaseService) throw new Error("Database not available");
       // This could be extended to get more detailed customer analytics
       const analytics = await databaseService.getAnalytics();
       return {
@@ -48,13 +52,12 @@ export function useCustomerAnalytics() {
 
 export function useRevenueAnalytics() {
   const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
     queryKey: ["analytics", "revenue"],
     queryFn: async () => {
-      if (!db) throw new Error("Database not available");
-      const databaseService = createDatabaseService(db);
-
+      if (!databaseService) throw new Error("Database not available");
       const analytics = await databaseService.getAnalytics();
       return {
         totalRevenue: analytics.totalRevenue,

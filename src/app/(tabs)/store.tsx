@@ -1,96 +1,72 @@
+import { EditProductForm } from "@/components/EditProductForm";
+import { ProductDetails } from "@/components/ProductDetails";
+import { ProductForm } from "@/components/ProductForm";
+import { ProductList } from "@/components/ProductList";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useLowStockProducts, useProducts } from "@/hooks/useProducts";
 
-import { formatCurrency } from "@/utils/helpers";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import type { Product } from "@/types/product";
+import { useState } from "react";
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StoreScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showProductList, setShowProductList] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showProductDetails, setShowProductDetails] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const mockProducts = [
-    {
-      id: "1",
-      name: "Sample Product 1",
-      price: 5000,
-      description: "A great product for your customers",
-      inStock: true,
-    },
-    {
-      id: "2",
-      name: "Sample Product 2",
-      price: 10000,
-      description: "Another excellent product",
-      inStock: true,
-    },
-    {
-      id: "3",
-      name: "Sample Product 3",
-      price: 7500,
-      description: "Premium quality item",
-      inStock: false,
-    },
-  ];
+  const {
+    totalCount: productCount,
+    isLoading: productsLoading,
+    deleteProduct,
+  } = useProducts();
+  const { data: lowStockProducts } = useLowStockProducts();
 
-  // ...existing code...
+  const handleProductPress = (product: Product) => {
+    setSelectedProduct(product);
+    setShowProductDetails(true);
+  };
 
-  const renderProductCard = (product: any) => (
-    <View
-      key={product.id}
-      style={[styles.productCard, { backgroundColor: colors.surfaceVariant }]}
-    >
-      <View
-        style={[
-          styles.productImage,
-          { backgroundColor: colors.surfaceVariant },
-        ]}
-      >
-        <IconSymbol name="bag.fill" size={32} color={colors.tabIconDefault} />
-      </View>
-      <View style={styles.productInfo}>
-        <ThemedText style={[styles.productName, { color: colors.text }]}>
-          {product.name}
-        </ThemedText>
-        <ThemedText
-          style={[styles.productDescription, { color: colors.textSecondary }]}
-        >
-          {product.description}
-        </ThemedText>
-        <ThemedText
-          style={[styles.productPrice, { color: colors.currencyPositive }]}
-        >
-          {formatCurrency(product.price)}
-        </ThemedText>
-        <View style={styles.stockStatus}>
-          <View
-            style={[
-              styles.stockIndicator,
-              {
-                backgroundColor: product.inStock
-                  ? colors.success
-                  : colors.error,
-              },
-            ]}
-          />
-          <ThemedText
-            style={[
-              styles.stockText,
-              { color: product.inStock ? colors.success : colors.error },
-            ]}
-          >
-            {product.inStock ? "In Stock" : "Out of Stock"}
-          </ThemedText>
-        </View>
-      </View>
-      <TouchableOpacity style={styles.editButton}>
-        <IconSymbol name="pencil" size={16} color={colors.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setShowEditForm(true);
+  };
+
+  const handleDeleteProduct = (product: Product) => {
+    Alert.alert(
+      "Delete Product",
+      `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteProduct(product.id);
+            if (selectedProduct?.id === product.id) {
+              setShowProductDetails(false);
+              setSelectedProduct(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderComingSoonFeature = (
     title: string,
@@ -126,28 +102,22 @@ export default function StoreScreen() {
       <ThemedView
         style={[styles.content, { backgroundColor: colors.background }]}
       >
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <ThemedText type="title" style={{ color: colors.text }}>
-              Store
-            </ThemedText>
-            <ThemedText
-              style={[styles.subtitle, { color: colors.textSecondary }]}
-            >
-              Manage your products and online presence
-            </ThemedText>
-          </View>
-
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" style={{ color: colors.text }}>
-                Products
-              </ThemedText>
+        {showProductList ? (
+          // Product List View - Uses FlatList internally
+          <View style={styles.productListContainer}>
+            <View style={styles.productListHeader}>
+              <TouchableOpacity
+                onPress={() => setShowProductList(false)}
+                style={styles.backButton}
+              >
+                <IconSymbol name="chevron.left" size={20} color={colors.text} />
+                <ThemedText style={[styles.backText, { color: colors.text }]}>
+                  Back to Store
+                </ThemedText>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.addButton, { backgroundColor: colors.primary }]}
+                onPress={() => setShowAddProduct(true)}
               >
                 <IconSymbol name="plus" size={16} color={colors.background} />
                 <ThemedText style={styles.addButtonText}>
@@ -155,138 +125,309 @@ export default function StoreScreen() {
                 </ThemedText>
               </TouchableOpacity>
             </View>
-
-            {mockProducts.map(renderProductCard)}
+            <ProductList
+              onProductPress={handleProductPress}
+              onEditProduct={handleEditProduct}
+              onDeleteProduct={handleDeleteProduct}
+            />
           </View>
+        ) : (
+          // Store Overview - Uses ScrollView
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <ThemedText type="title" style={{ color: colors.text }}>
+                Store
+              </ThemedText>
+              <ThemedText
+                style={[styles.subtitle, { color: colors.textSecondary }]}
+              >
+                Manage your products and online presence
+              </ThemedText>
+            </View>
 
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <ThemedText
-              type="subtitle"
-              style={[styles.sectionTitle, { color: colors.text }]}
-            >
-              Store Features
-            </ThemedText>
-
-            <View
-              style={[
-                styles.storeStatsCard,
-                { backgroundColor: colors.surfaceVariant },
-              ]}
-            >
-              <View style={styles.statItem}>
-                <ThemedText
-                  style={[styles.statValue, { color: colors.secondary }]}
-                >
-                  0
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <View style={styles.sectionHeader}>
+                <ThemedText type="subtitle" style={{ color: colors.text }}>
+                  Products
                 </ThemedText>
-                <ThemedText
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                <TouchableOpacity
+                  style={[
+                    styles.addButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setShowAddProduct(true)}
                 >
-                  Orders Today
-                </ThemedText>
+                  <IconSymbol name="plus" size={16} color={colors.background} />
+                  <ThemedText style={styles.addButtonText}>
+                    Add Product
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.viewAllButton,
+                  { backgroundColor: colors.secondarySurface },
+                ]}
+                onPress={() => setShowProductList(true)}
+              >
+                <ThemedText style={{ color: colors.text }}>
+                  View All Products ({productCount})
+                </ThemedText>
+                <IconSymbol
+                  name="chevron.right"
+                  size={16}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
+              {/* Show low stock alerts */}
+              {lowStockProducts && lowStockProducts.length > 0 && (
+                <View
+                  style={[
+                    styles.alertCard,
+                    {
+                      backgroundColor: colors.warning + "20",
+                      borderColor: colors.warning,
+                    },
+                  ]}
+                >
+                  <IconSymbol
+                    name="exclamationmark.triangle"
+                    size={20}
+                    color={colors.warning}
+                  />
+                  <ThemedText
+                    style={[styles.alertText, { color: colors.warning }]}
+                  >
+                    {lowStockProducts.length} product(s) running low on stock
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <View
                 style={[
-                  styles.statDivider,
-                  { backgroundColor: colors.divider },
+                  styles.storeStatsCard,
+                  { backgroundColor: colors.surfaceVariant },
                 ]}
-              />
-              <View style={styles.statItem}>
-                <ThemedText
-                  style={[styles.statValue, { color: colors.secondary }]}
-                >
-                  3
-                </ThemedText>
-                <ThemedText
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
-                >
-                  Active Products
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statDivider,
-                  { backgroundColor: colors.divider },
-                ]}
-              />
-              <View style={styles.statItem}>
-                <ThemedText
-                  style={[styles.statValue, { color: colors.currencyPositive }]}
-                >
-                  ₦0
-                </ThemedText>
-                <ThemedText
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
-                >
-                  Store Revenue
-                </ThemedText>
+              >
+                <View style={styles.statItem}>
+                  <ThemedText
+                    style={[styles.statValue, { color: colors.secondary }]}
+                  >
+                    0
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Orders Today
+                  </ThemedText>
+                </View>
+                <View
+                  style={[
+                    styles.statDivider,
+                    { backgroundColor: colors.divider },
+                  ]}
+                />
+                <View style={styles.statItem}>
+                  <ThemedText
+                    style={[styles.statValue, { color: colors.secondary }]}
+                  >
+                    {productsLoading ? "..." : productCount}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Active Products
+                  </ThemedText>
+                </View>
+                <View
+                  style={[
+                    styles.statDivider,
+                    { backgroundColor: colors.divider },
+                  ]}
+                />
+                <View style={styles.statItem}>
+                  <ThemedText
+                    style={[
+                      styles.statValue,
+                      { color: colors.currencyPositive },
+                    ]}
+                  >
+                    ₦0
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.statLabel, { color: colors.textSecondary }]}
+                  >
+                    Store Revenue
+                  </ThemedText>
+                </View>
               </View>
             </View>
-          </View>
 
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <ThemedText
-              type="subtitle"
-              style={[styles.sectionTitle, { color: colors.text }]}
-            >
-              Coming Soon
-            </ThemedText>
-
-            {renderComingSoonFeature(
-              "Online Store Link",
-              "Share a custom link for customers to browse and order",
-              "link"
-            )}
-
-            {renderComingSoonFeature(
-              "Payment Integration",
-              "Accept payments directly through your store",
-              "creditcard.fill"
-            )}
-
-            {renderComingSoonFeature(
-              "Inventory Management",
-              "Track stock levels and get low inventory alerts",
-              "chart.bar.fill"
-            )}
-
-            {renderComingSoonFeature(
-              "Order Management",
-              "Process and fulfill customer orders efficiently",
-              "shippingbox.fill"
-            )}
-          </View>
-
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <View
-              style={[
-                styles.ctaCard,
-                { backgroundColor: colors.secondarySurface },
-              ]}
-            >
-              <IconSymbol name="sparkles" size={32} color={colors.secondary} />
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <ThemedText
                 type="subtitle"
-                style={[styles.ctaTitle, { color: colors.text }]}
+                style={[styles.sectionTitle, { color: colors.text }]}
               >
-                Launch Your Online Store
+                Coming Soon
               </ThemedText>
-              <ThemedText
-                style={[styles.ctaDescription, { color: colors.textSecondary }]}
+
+              {renderComingSoonFeature(
+                "Online Store Link",
+                "Share a custom link for customers to browse and order",
+                "link"
+              )}
+
+              {renderComingSoonFeature(
+                "Payment Integration",
+                "Accept payments directly through your store",
+                "creditcard.fill"
+              )}
+
+              {renderComingSoonFeature(
+                "Inventory Management",
+                "Track stock levels and get low inventory alerts",
+                "chart.bar.fill"
+              )}
+
+              {renderComingSoonFeature(
+                "Order Management",
+                "Process and fulfill customer orders efficiently",
+                "shippingbox.fill"
+              )}
+            </View>
+
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <View
+                style={[
+                  styles.ctaCard,
+                  { backgroundColor: colors.secondarySurface },
+                ]}
               >
-                Get your products online and start selling to more customers.
-                Full e-commerce features coming in the next update!
-              </ThemedText>
-              <TouchableOpacity
-                style={[styles.ctaButton, { backgroundColor: colors.primary }]}
-              >
-                <ThemedText style={styles.ctaButtonText}>
-                  Get Notified
+                <IconSymbol
+                  name="sparkles"
+                  size={32}
+                  color={colors.secondary}
+                />
+                <ThemedText
+                  type="subtitle"
+                  style={[styles.ctaTitle, { color: colors.text }]}
+                >
+                  Launch Your Online Store
                 </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.ctaDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Get your products online and start selling to more customers.
+                  Full e-commerce features coming in the next update!
+                </ThemedText>
+                <TouchableOpacity
+                  style={[
+                    styles.ctaButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <ThemedText style={styles.ctaButtonText}>
+                    Get Notified
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        )}
+
+        {/* Add Product Modal */}
+        <Modal
+          visible={showAddProduct}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowAddProduct(false)}
+        >
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowAddProduct(false)}
+                style={styles.modalCloseButton}
+              >
+                <ThemedText style={styles.modalCloseText}>Cancel</ThemedText>
               </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
+            <ProductForm onProductCreated={() => setShowAddProduct(false)} />
+          </SafeAreaView>
+        </Modal>
+
+        {/* Edit Product Modal */}
+        <Modal
+          visible={showEditForm && selectedProduct !== null}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            setShowEditForm(false);
+            setSelectedProduct(null);
+          }}
+        >
+          {selectedProduct && (
+            <SafeAreaView style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowEditForm(false);
+                    setSelectedProduct(null);
+                  }}
+                  style={styles.modalCloseButton}
+                >
+                  <ThemedText style={styles.modalCloseText}>Cancel</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <EditProductForm
+                product={selectedProduct}
+                onProductUpdated={() => {
+                  setShowEditForm(false);
+                  setSelectedProduct(null);
+                }}
+                onCancel={() => {
+                  setShowEditForm(false);
+                  setSelectedProduct(null);
+                }}
+              />
+            </SafeAreaView>
+          )}
+        </Modal>
+
+        {/* Product Details Modal */}
+        <Modal
+          visible={showProductDetails && selectedProduct !== null}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            setShowProductDetails(false);
+            setSelectedProduct(null);
+          }}
+        >
+          {selectedProduct && (
+            <ProductDetails
+              product={selectedProduct}
+              onEdit={() => {
+                setShowProductDetails(false);
+                handleEditProduct(selectedProduct);
+              }}
+              onDelete={() => handleDeleteProduct(selectedProduct)}
+              onClose={() => {
+                setShowProductDetails(false);
+                setSelectedProduct(null);
+              }}
+            />
+          )}
+        </Modal>
       </ThemedView>
     </SafeAreaView>
   );
@@ -336,57 +477,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
-  },
-  productCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  productImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  productInfo: {
-    flex: 1,
-  },
-  productName: {
-    fontWeight: "600",
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  productDescription: {
-    opacity: 0.7,
-    marginBottom: 8,
-  },
-  productPrice: {
-    fontWeight: "bold",
-    color: "#34C759",
-    marginBottom: 8,
-  },
-  stockStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  stockIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  stockText: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  editButton: {
-    padding: 8,
   },
   storeStatsCard: {
     flexDirection: "row",
@@ -471,6 +561,63 @@ const styles = StyleSheet.create({
   },
   ctaButtonText: {
     color: "white",
+    fontWeight: "600",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  alertCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    gap: 8,
+  },
+  alertText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalCloseText: {
+    color: "#007AFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  productListContainer: {
+    flex: 1,
+  },
+  productListHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  backText: {
+    fontSize: 16,
     fontWeight: "600",
   },
 });
