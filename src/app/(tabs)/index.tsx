@@ -1,5 +1,6 @@
 import { ContactImportButton } from "@/components/ContactImportButton";
 import { CustomerCard } from "@/components/CustomerCard";
+import { FilterBar } from "@/components/FilterBar";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -7,6 +8,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer } from "@/types/customer";
+import { CustomerFilters, SortOptions } from "@/types/filters";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -29,8 +31,14 @@ export default function CustomerListScreen() {
     customers,
     loading,
     searchQuery,
+    appliedFilterDescription,
+    filteredCustomersCount,
+    totalCustomersCount,
     fetchCustomers,
     searchCustomers,
+    setFilters,
+    setSortOptions,
+    applyFilters,
     importFromContacts,
     checkContactAccess,
   } = useCustomerStore();
@@ -83,6 +91,20 @@ export default function CustomerListScreen() {
     await loadCustomers(); // Reload the customer list
   };
 
+  const handleFiltersChange = async (
+    filters: CustomerFilters,
+    sort: SortOptions
+  ) => {
+    // Update store with new filters and sort options
+    setFilters(filters);
+    setSortOptions(sort);
+
+    // Apply the filters to get updated customer list
+    await applyFilters();
+
+    console.log("Filters applied:", filters, sort);
+  };
+
   const renderCustomerItem = ({ item }: { item: Customer }) => (
     <CustomerCard customer={item} onPress={() => handleCustomerPress(item)} />
   );
@@ -118,9 +140,19 @@ export default function CustomerListScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <ThemedText type="title">Customers</ThemedText>
-      <ThemedText style={styles.customerCount}>
-        {customers.length} {customers.length === 1 ? "customer" : "customers"}
-      </ThemedText>
+      <View style={styles.headerInfo}>
+        <ThemedText style={styles.customerCount}>
+          {filteredCustomersCount}{" "}
+          {filteredCustomersCount === 1 ? "customer" : "customers"}
+          {totalCustomersCount !== filteredCustomersCount &&
+            ` of ${totalCustomersCount} total`}
+        </ThemedText>
+        {appliedFilterDescription !== "All customers" && (
+          <ThemedText style={styles.filterDescription}>
+            {appliedFilterDescription}
+          </ThemedText>
+        )}
+      </View>
     </View>
   );
 
@@ -135,6 +167,8 @@ export default function CustomerListScreen() {
           value={searchQuery}
           style={styles.searchbar}
         />
+
+        <FilterBar onFiltersChange={handleFiltersChange} />
 
         {customers.length === 0 && !loading ? (
           renderEmptyState()
@@ -289,9 +323,17 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
-  customerCount: {
+  headerInfo: {
     marginTop: 4,
+  },
+  customerCount: {
     opacity: 0.7,
+  },
+  filterDescription: {
+    fontSize: 12,
+    opacity: 0.6,
+    marginTop: 2,
+    fontStyle: "italic",
   },
   searchbar: {
     margin: 16,

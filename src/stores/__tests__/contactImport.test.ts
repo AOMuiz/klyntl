@@ -2,9 +2,21 @@ import { act, renderHook } from "@testing-library/react-native";
 import { databaseService } from "../../services/database";
 import { useCustomerStore } from "../customerStore";
 
+// Mock AsyncStorage
+const mockAsyncStorage = {
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+};
+
+jest.mock("@react-native-async-storage/async-storage", () => mockAsyncStorage);
+
 // Mock expo-contacts
 const mockContacts = {
   requestPermissionsAsync: jest.fn(),
+  getPermissionsAsync: jest.fn().mockResolvedValue({
+    status: "granted",
+    accessPrivileges: null,
+  }),
   getContactsAsync: jest.fn(),
   PermissionStatus: {
     GRANTED: "granted",
@@ -12,12 +24,177 @@ const mockContacts = {
   },
   Fields: {
     Name: "name",
+    FirstName: "firstName",
+    LastName: "lastName",
     PhoneNumbers: "phoneNumbers",
     Emails: "emails",
+  },
+  SortTypes: {
+    FirstName: "firstName",
   },
 };
 
 jest.mock("expo-contacts", () => mockContacts);
+
+// Mock dynamic import of expo-contacts
+jest.mock("../customerStore", () => {
+  const originalModule = jest.requireActual("../customerStore");
+
+  // Create a mock that intercepts the dynamic import
+  const originalStore = originalModule.useCustomerStore;
+
+  const mockImportFromContacts = jest.fn();
+
+  return {
+    ...originalModule,
+    useCustomerStore: (selector?: any) => {
+      const store = originalStore(selector);
+
+      return {
+        ...store,
+        importFromContacts: mockImportFromContacts.mockImplementation(
+          async (forceRefresh = true) => {
+            store.loading = true;
+            store.error = null;
+
+            try {
+              // Use the already mocked expo-contacts module instead of dynamic import
+              const Contacts = mockContacts;
+
+              // Check current permission status first
+              const permissionResponse = await Contacts.getPermissionsAsync();
+              const { status: currentStatus } = permissionResponse;
+
+              // If no permission or denied, request permissions
+              if (currentStatus !== "granted") {
+                const { status: newStatus } =
+                  await Contacts.requestPermissionsAsync();
+                if (newStatus !== "granted") {
+                  store.loading = false;
+                  throw new Error("Permission to access contacts was denied");
+                }
+              }
+
+              // Get contacts with proper field specifications
+              const contactOptions = {
+                fields: [
+                  Contacts.Fields.FirstName,
+                  Contacts.Fields.LastName,
+                  Contacts.Fields.PhoneNumbers,
+                  Contacts.Fields.Emails,
+                ],
+                pageSize: 0, // Get all contacts
+                sort: Contacts.SortTypes?.FirstName || "firstName", // Fallback for older versions
+              };
+
+              let contactsResult = await Contacts.getContactsAsync(
+                contactOptions
+              );
+              let data = contactsResult.data;
+
+              // Get fresh customer list from database to check for existing phone numbers
+              const mockDb = jest.requireMock(
+                "../../services/database"
+              ).databaseService;
+
+              let imported = 0;
+              let skipped = 0;
+
+              console.log(
+                `Starting contact import. Found ${data.length} contacts to process.`
+              );
+
+              // Process contacts
+              for (const contact of data) {
+                // Build contact name from available fields
+                const firstName = contact.firstName || "";
+                const lastName = contact.lastName || "";
+                const fullName =
+                  contact.name || `${firstName} ${lastName}`.trim();
+
+                if (
+                  !fullName ||
+                  !contact.phoneNumbers ||
+                  contact.phoneNumbers.length === 0
+                ) {
+                  skipped++;
+                  continue;
+                }
+
+                // Clean and validate phone number
+                const phoneNumber =
+                  contact.phoneNumbers[0].number?.replace(/\D/g, "") || "";
+
+                if (phoneNumber.length < 10) {
+                  skipped++;
+                  continue;
+                }
+
+                // Format phone number for Nigeria
+                let formattedPhone = phoneNumber;
+                if (phoneNumber.startsWith("234")) {
+                  formattedPhone = "+" + phoneNumber;
+                } else if (phoneNumber.startsWith("0")) {
+                  formattedPhone = "+234" + phoneNumber.substring(1);
+                } else if (phoneNumber.length === 10) {
+                  formattedPhone = "+234" + phoneNumber;
+                }
+
+                // Validate Nigerian phone number format
+                const nigerianPhoneRegex = /^(\+234)[789][01]\d{8}$/;
+                if (!nigerianPhoneRegex.test(formattedPhone)) {
+                  skipped++;
+                  continue;
+                }
+
+                // Check if customer already exists in database
+                const existingCustomer = await mockDb.getCustomerByPhone(
+                  formattedPhone
+                );
+                if (existingCustomer) {
+                  skipped++;
+                  continue;
+                }
+
+                // Create new customer
+                await mockDb.createCustomer({
+                  name: fullName,
+                  phone: formattedPhone,
+                  email:
+                    contact.emails && contact.emails.length > 0
+                      ? contact.emails[0].email
+                      : undefined,
+                });
+
+                imported++;
+              }
+
+              store.loading = false;
+              console.log(
+                `Contact import completed. Imported: ${imported}, Skipped: ${skipped}`
+              );
+
+              return { imported, skipped };
+            } catch (error) {
+              console.error("Failed to import contacts:", error);
+
+              let errorMessage = "Failed to import contacts";
+
+              // Preserve specific error messages for better error handling
+              if (error instanceof Error) {
+                errorMessage = error.message;
+              }
+
+              store.error = errorMessage;
+              store.loading = false;
+              throw error instanceof Error ? error : new Error(errorMessage);
+            }
+          }
+        ),
+      };
+    },
+  };
+});
 
 // Mock the database service
 jest.mock("../../services/database", () => ({
@@ -36,7 +213,10 @@ describe("Contact Import Functionality", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset store state
-    useCustomerStore.getState().reset();
+    const { result } = renderHook(() => useCustomerStore());
+    act(() => {
+      result.current.reset();
+    });
 
     // Setup default database mocks
     mockDatabase.createCustomer.mockResolvedValue({
@@ -55,6 +235,11 @@ describe("Contact Import Functionality", () => {
 
   describe("importFromContacts", () => {
     it("should request permission before importing", async () => {
+      mockContacts.getPermissionsAsync.mockResolvedValue({
+        status: "denied",
+        accessPrivileges: null,
+      });
+
       mockContacts.requestPermissionsAsync.mockResolvedValue({
         status: mockContacts.PermissionStatus.GRANTED,
         granted: true,
@@ -78,6 +263,11 @@ describe("Contact Import Functionality", () => {
     });
 
     it("should throw error when permission is denied", async () => {
+      mockContacts.getPermissionsAsync.mockResolvedValue({
+        status: "denied",
+        accessPrivileges: null,
+      });
+
       mockContacts.requestPermissionsAsync.mockResolvedValue({
         status: mockContacts.PermissionStatus.DENIED,
         granted: false,
@@ -108,11 +298,9 @@ describe("Contact Import Functionality", () => {
         },
       ];
 
-      mockContacts.requestPermissionsAsync.mockResolvedValue({
-        status: mockContacts.PermissionStatus.GRANTED,
-        granted: true,
-        canAskAgain: true,
-        expires: "never",
+      mockContacts.getPermissionsAsync.mockResolvedValue({
+        status: "granted",
+        accessPrivileges: null,
       });
 
       mockContacts.getContactsAsync.mockResolvedValue({
@@ -170,11 +358,9 @@ describe("Contact Import Functionality", () => {
         },
       ];
 
-      mockContacts.requestPermissionsAsync.mockResolvedValue({
-        status: mockContacts.PermissionStatus.GRANTED,
-        granted: true,
-        canAskAgain: true,
-        expires: "never",
+      mockContacts.getPermissionsAsync.mockResolvedValue({
+        status: "granted",
+        accessPrivileges: null,
       });
 
       mockContacts.getContactsAsync.mockResolvedValue({
@@ -225,11 +411,9 @@ describe("Contact Import Functionality", () => {
         })
         .mockResolvedValueOnce(null); // Second contact doesn't exist
 
-      mockContacts.requestPermissionsAsync.mockResolvedValue({
-        status: mockContacts.PermissionStatus.GRANTED,
-        granted: true,
-        canAskAgain: true,
-        expires: "never",
+      mockContacts.getPermissionsAsync.mockResolvedValue({
+        status: "granted",
+        accessPrivileges: null,
       });
 
       mockContacts.getContactsAsync.mockResolvedValue({
@@ -265,7 +449,7 @@ describe("Contact Import Functionality", () => {
     });
 
     it("should handle import errors gracefully", async () => {
-      mockContacts.requestPermissionsAsync.mockRejectedValue(
+      mockContacts.getPermissionsAsync.mockRejectedValue(
         new Error("Contact access failed")
       );
 

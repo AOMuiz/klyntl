@@ -165,6 +165,7 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
 
   return (
     <TouchableOpacity
+      testID="contact-import-button"
       style={[
         styles.button,
         size === "small" && styles.buttonSmall,

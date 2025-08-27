@@ -5,6 +5,11 @@ import {
   UpdateCustomerInput,
 } from "@/types/customer";
 import {
+  CustomerFilters,
+  FilterQueryParts,
+  SortOptions,
+} from "@/types/filters";
+import {
   CreateTransactionInput,
   Transaction,
   UpdateTransactionInput,
@@ -35,12 +40,71 @@ export class DatabaseService {
     return this.db;
   }
 
+  // Database migration method to add missing columns
+  private async runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+    try {
+      // First ensure the base customers table exists
+      await executeQuery(
+        db,
+        `CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT UNIQUE NOT NULL,
+        email TEXT,
+        address TEXT,
+        totalSpent REAL DEFAULT 0,
+        lastPurchase TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )`
+      );
+
+      // Check if we need to add new columns to existing customers table
+      const tableInfo = await executeQueryForResults<any>(
+        db,
+        "PRAGMA table_info(customers)"
+      );
+
+      const existingColumns = tableInfo.map((col: any) => col.name);
+      console.log("Existing customer table columns:", existingColumns);
+
+      // List of new columns that need to be added
+      const newColumns = [
+        { name: "company", type: "TEXT" },
+        { name: "jobTitle", type: "TEXT" },
+        { name: "birthday", type: "TEXT" },
+        { name: "notes", type: "TEXT" },
+        { name: "nickname", type: "TEXT" },
+        { name: "photoUri", type: "TEXT" },
+        { name: "contactSource", type: "TEXT DEFAULT 'manual'" },
+        { name: "lastContactDate", type: "TEXT" },
+        { name: "preferredContactMethod", type: "TEXT" },
+      ];
+
+      // Add missing columns
+      for (const column of newColumns) {
+        if (!existingColumns.includes(column.name)) {
+          console.log(`Adding missing column: ${column.name}`);
+          await executeQuery(
+            db,
+            `ALTER TABLE customers ADD COLUMN ${column.name} ${column.type}`
+          );
+        }
+      }
+    } catch (error) {
+      console.log("Migration check failed:", error);
+      throw error;
+    }
+  }
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     const db = await this.getDatabase();
 
     try {
+      // First, run database migrations to add missing columns
+      await this.runMigrations(db);
+
       // Create tables and indexes using transaction for better performance
       const initQueries = [
         {
@@ -53,6 +117,15 @@ export class DatabaseService {
             phone TEXT UNIQUE NOT NULL,
             email TEXT,
             address TEXT,
+            company TEXT,
+            jobTitle TEXT,
+            birthday TEXT,
+            notes TEXT,
+            nickname TEXT,
+            photoUri TEXT,
+            contactSource TEXT DEFAULT 'manual',
+            lastContactDate TEXT,
+            preferredContactMethod TEXT,
             totalSpent REAL DEFAULT 0,
             lastPurchase TEXT,
             createdAt TEXT NOT NULL,
@@ -70,6 +143,7 @@ export class DatabaseService {
             FOREIGN KEY (customerId) REFERENCES customers (id)
           );`,
         },
+        // Performance indexes
         {
           query:
             "CREATE INDEX IF NOT EXISTS idx_customer_phone ON customers(phone);",
@@ -77,6 +151,26 @@ export class DatabaseService {
         {
           query:
             "CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);",
+        },
+        {
+          query:
+            "CREATE INDEX IF NOT EXISTS idx_customer_created ON customers(createdAt);",
+        },
+        {
+          query:
+            "CREATE INDEX IF NOT EXISTS idx_customer_total_spent ON customers(totalSpent);",
+        },
+        {
+          query:
+            "CREATE INDEX IF NOT EXISTS idx_customer_last_purchase ON customers(lastPurchase);",
+        },
+        {
+          query:
+            "CREATE INDEX IF NOT EXISTS idx_customer_company ON customers(company);",
+        },
+        {
+          query:
+            "CREATE INDEX IF NOT EXISTS idx_customer_contact_source ON customers(contactSource);",
         },
         {
           query:
@@ -89,6 +183,7 @@ export class DatabaseService {
       ];
 
       await executeTransaction(db, initQueries);
+
       this.isInitialized = true;
     } catch (error) {
       console.error("Database initialization failed:", error);
@@ -109,29 +204,65 @@ export class DatabaseService {
       phone: customerData.phone,
       email: customerData.email || undefined,
       address: customerData.address || undefined,
+      company: customerData.company || undefined,
+      jobTitle: customerData.jobTitle || undefined,
+      birthday: customerData.birthday || undefined,
+      notes: customerData.notes || undefined,
+      nickname: customerData.nickname || undefined,
+      photoUri: customerData.photoUri || undefined,
+      contactSource: customerData.contactSource || "manual",
+      lastContactDate: undefined,
+      preferredContactMethod: customerData.preferredContactMethod || undefined,
       totalSpent: 0,
       lastPurchase: undefined,
       createdAt: now,
       updatedAt: now,
+      customerType:
+        customerData.company && customerData.company.trim()
+          ? "business"
+          : "individual",
+      isActive: false,
     };
 
     try {
-      await executeQuery(
+      console.log("Inserting customer into database:", customer);
+      const result = await executeQuery(
         db,
-        `INSERT INTO customers (id, name, phone, email, address, totalSpent, lastPurchase, createdAt, updatedAt) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO customers (
+          id, name, phone, email, address, company, jobTitle, birthday, 
+          notes, nickname, photoUri, contactSource, lastContactDate, 
+          preferredContactMethod, totalSpent, lastPurchase, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           customer.id,
           customer.name,
           customer.phone,
           customer.email,
           customer.address,
+          customer.company,
+          customer.jobTitle,
+          customer.birthday,
+          customer.notes,
+          customer.nickname,
+          customer.photoUri,
+          customer.contactSource,
+          customer.lastContactDate,
+          customer.preferredContactMethod,
           customer.totalSpent,
           customer.lastPurchase,
           customer.createdAt,
           customer.updatedAt,
         ]
       );
+      console.log("Insert result:", result);
+
+      // Verify the insert worked by querying back
+      const verifyResult = await executeQueryForFirstResult(
+        db,
+        "SELECT * FROM customers WHERE id = ?",
+        [customer.id]
+      );
+      console.log("Verification query result:", verifyResult);
 
       return customer;
     } catch (error) {
@@ -140,26 +271,187 @@ export class DatabaseService {
     }
   }
 
-  async getCustomers(searchQuery?: string): Promise<Customer[]> {
+  // Helper method to build filter query parts
+  private buildFilterQuery(filters: CustomerFilters): FilterQueryParts {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    // Customer type filter (business vs individual)
+    if (filters.customerType && filters.customerType !== "all") {
+      if (filters.customerType === "business") {
+        conditions.push("(company IS NOT NULL AND company != '')");
+      } else {
+        conditions.push("(company IS NULL OR company = '')");
+      }
+    }
+
+    // Spending range filter
+    if (filters.spendingRange) {
+      if (filters.spendingRange.min > 0) {
+        conditions.push("totalSpent >= ?");
+        params.push(filters.spendingRange.min);
+      }
+      if (filters.spendingRange.max < Number.MAX_SAFE_INTEGER) {
+        conditions.push("totalSpent <= ?");
+        params.push(filters.spendingRange.max);
+      }
+    }
+
+    // Date range filter (created date)
+    if (filters.dateRange) {
+      conditions.push("createdAt >= ?");
+      params.push(filters.dateRange.startDate);
+      conditions.push("createdAt <= ?");
+      params.push(filters.dateRange.endDate);
+    }
+
+    // Has transactions filter
+    if (filters.hasTransactions !== undefined) {
+      if (filters.hasTransactions) {
+        conditions.push("totalSpent > 0");
+      } else {
+        conditions.push("totalSpent = 0");
+      }
+    }
+
+    // Active customer filter (based on recent purchases)
+    if (filters.isActive !== undefined) {
+      const sixtyDaysAgo = new Date(
+        Date.now() - 60 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      if (filters.isActive) {
+        conditions.push("(lastPurchase IS NOT NULL AND lastPurchase >= ?)");
+        params.push(sixtyDaysAgo);
+      } else {
+        conditions.push("(lastPurchase IS NULL OR lastPurchase < ?)");
+        params.push(sixtyDaysAgo);
+      }
+    }
+
+    // Contact source filter
+    if (filters.contactSource && filters.contactSource !== "all") {
+      conditions.push("contactSource = ?");
+      params.push(filters.contactSource);
+    }
+
+    // Preferred contact method filter
+    if (
+      filters.preferredContactMethod &&
+      filters.preferredContactMethod !== "all"
+    ) {
+      conditions.push("preferredContactMethod = ?");
+      params.push(filters.preferredContactMethod);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    return { whereClause, params };
+  }
+
+  // Helper method to build sort clause
+  private buildSortClause(sort?: SortOptions): string {
+    if (!sort) {
+      return "ORDER BY name ASC";
+    }
+
+    const direction = sort.direction.toUpperCase();
+
+    switch (sort.field) {
+      case "name":
+        return `ORDER BY name ${direction}`;
+      case "totalSpent":
+        return `ORDER BY totalSpent ${direction}`;
+      case "createdAt":
+        return `ORDER BY createdAt ${direction}`;
+      case "lastPurchase":
+        return `ORDER BY lastPurchase ${direction} NULLS LAST`;
+      case "lastContactDate":
+        return `ORDER BY lastContactDate ${direction} NULLS LAST`;
+      default:
+        return "ORDER BY name ASC";
+    }
+  }
+
+  // Helper method to augment customer data with computed fields
+  private augmentCustomerData(customer: any): Customer {
+    return {
+      ...customer,
+      customerType:
+        customer.company && customer.company.trim() ? "business" : "individual",
+      isActive: customer.lastPurchase
+        ? new Date(customer.lastPurchase) >
+          new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+        : false,
+    };
+  }
+
+  // Enhanced customer retrieval with filtering and sorting
+  async getCustomersWithFilters(
+    searchQuery?: string,
+    filters?: CustomerFilters,
+    sort?: SortOptions
+  ): Promise<Customer[]> {
     await this.initialize();
     const db = await this.getDatabase();
 
     try {
-      let sql = "SELECT * FROM customers ORDER BY name ASC";
-      let params: any[] = [];
+      let baseSql = "SELECT * FROM customers";
+      const allParams: any[] = [];
+      const allConditions: string[] = [];
 
-      if (searchQuery) {
-        sql =
-          "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC";
-        params = [`%${searchQuery}%`, `%${searchQuery}%`];
+      // Add search query conditions
+      if (searchQuery && searchQuery.trim()) {
+        allConditions.push(
+          "(name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ?)"
+        );
+        const searchPattern = `%${searchQuery.trim()}%`;
+        allParams.push(
+          searchPattern,
+          searchPattern,
+          searchPattern,
+          searchPattern
+        );
       }
 
-      const customers = await executeQueryForResults<Customer>(db, sql, params);
+      // Add filter conditions
+      if (filters) {
+        const { whereClause, params } = this.buildFilterQuery(filters);
+        if (whereClause) {
+          // Extract conditions from WHERE clause
+          const filterConditions = whereClause.replace("WHERE ", "");
+          allConditions.push(filterConditions);
+          allParams.push(...params);
+        }
+      }
+
+      // Combine all conditions
+      if (allConditions.length > 0) {
+        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
+      }
+
+      // Add sorting
+      baseSql += ` ${this.buildSortClause(sort)}`;
+
+      console.log("Executing customer query:", baseSql, allParams);
+
+      const results = await executeQueryForResults<any>(db, baseSql, allParams);
+
+      // Augment results with computed fields
+      const customers = results.map((result) =>
+        this.augmentCustomerData(result)
+      );
+
       return customers;
     } catch (error) {
-      console.error("Failed to get customers:", error);
+      console.error("Failed to get customers with filters:", error);
       throw error;
     }
+  }
+
+  async getCustomers(searchQuery?: string): Promise<Customer[]> {
+    // Use the enhanced filtering method for backward compatibility
+    return this.getCustomersWithFilters(searchQuery);
   }
 
   async getCustomerById(id: string): Promise<Customer | null> {
@@ -167,13 +459,13 @@ export class DatabaseService {
     const db = await this.getDatabase();
 
     try {
-      const customer = await executeQueryForFirstResult<Customer>(
+      const customer = await executeQueryForFirstResult<any>(
         db,
         "SELECT * FROM customers WHERE id = ?",
         [id]
       );
 
-      return customer || null;
+      return customer ? this.augmentCustomerData(customer) : null;
     } catch (error) {
       console.error("Failed to get customer by ID:", error);
       throw error;
@@ -185,13 +477,13 @@ export class DatabaseService {
     const db = await this.getDatabase();
 
     try {
-      const customer = await executeQueryForFirstResult<Customer>(
+      const customer = await executeQueryForFirstResult<any>(
         db,
         "SELECT * FROM customers WHERE phone = ?",
         [phone]
       );
 
-      return customer || null;
+      return customer ? this.augmentCustomerData(customer) : null;
     } catch (error) {
       console.error("Failed to get customer by phone:", error);
       throw error;
@@ -456,9 +748,13 @@ export class DatabaseService {
       }>(db, "SELECT COUNT(*) as count FROM transactions");
 
       // Get top customers
-      const topCustomers = await executeQueryForResults<Customer>(
+      const topCustomersResults = await executeQueryForResults<any>(
         db,
         "SELECT * FROM customers ORDER BY totalSpent DESC LIMIT 5"
+      );
+
+      const topCustomers = topCustomersResults.map((result) =>
+        this.augmentCustomerData(result)
       );
 
       return {

@@ -1,0 +1,57 @@
+flowchart TD
+    A[Database Schema & Data Modeling]
+    B[Advanced React Native Implementation]
+    C[Marketing Automation Engine]
+    D[Analytics & Reporting System]
+    E[Online Store Builder]
+
+    subgraph DB[Database]
+        A1[Customers Table]
+        A2[Customer Transactions]
+        A3[Customer Communications]
+        A4[Loyalty Programs]
+        A5[Customer Loyalty Points]
+        A1 --> A2
+        A1 --> A3
+        A1 --> A5
+        A4 --> A5
+    end
+
+    subgraph RN[React Native]
+        B1[Zustand State Management]
+        B2[Customer List Component]
+        B3[Customer Detail Component]
+        B1 --> B2
+        B1 --> B3
+    end
+
+    subgraph MAE[Marketing Automation]
+        C1[Campaign Management]
+        C2[WhatsApp API Integration]
+        C3[Nigerian SMS Service]
+        C4[Email Service]
+        C1 --> C2
+        C1 --> C3
+        C1 --> C4
+    end
+
+    subgraph ARS[Analytics & Reporting]
+        D1[Customer Analytics Engine]
+        D2[RFM Analysis]
+        D3[Reporting Dashboard]
+        D1 --> D2
+        D1 --> D3
+    end
+
+    subgraph OSB[Online Store]
+        E1[Store Builder]
+        E2[Store Management Dashboard]
+        E1 --> E2
+    end
+
+    DB --> RN
+    RN --> MAE
+    RN --> ARS
+    RN --> OSB
+    MAE --> ARS
+    ARS --> OSB

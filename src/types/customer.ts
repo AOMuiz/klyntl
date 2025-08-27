@@ -19,6 +19,9 @@ export interface Customer {
   lastPurchase?: string;
   createdAt: string;
   updatedAt: string;
+  // Computed fields for filtering
+  customerType?: "individual" | "business";
+  isActive?: boolean;
 }
 
 export interface CreateCustomerInput {

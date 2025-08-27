@@ -14,14 +14,30 @@ const mockDatabaseService = databaseService as jest.Mocked<
 describe("useCustomerStore", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset store state
-    useCustomerStore.getState().reset();
+
+    // Set up default mock implementations
+    mockDatabaseService.getCustomers = jest.fn();
+    mockDatabaseService.getCustomersWithFilters = jest.fn();
+    mockDatabaseService.createCustomer = jest.fn();
+    mockDatabaseService.updateCustomer = jest.fn();
+    mockDatabaseService.deleteCustomer = jest.fn();
+
+    // Reset store state properly
+    const { result } = renderHook(() => useCustomerStore());
+    act(() => {
+      result.current.reset();
+    });
   });
 
   describe("fetchCustomers", () => {
     it("should fetch customers successfully", async () => {
       const mockCustomers = createMockCustomers(3);
-      mockDatabaseService.getCustomers.mockResolvedValue(mockCustomers);
+      const totalCustomers = createMockCustomers(5); // More customers for total count
+
+      // Mock both calls - with parameters and without parameters
+      mockDatabaseService.getCustomersWithFilters
+        .mockResolvedValueOnce(mockCustomers) // First call with parameters
+        .mockResolvedValueOnce(totalCustomers); // Second call without parameters (total count)
 
       const { result } = renderHook(() => useCustomerStore());
 
@@ -32,12 +48,16 @@ describe("useCustomerStore", () => {
       expect(result.current.customers).toEqual(mockCustomers);
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
-      expect(mockDatabaseService.getCustomers).toHaveBeenCalledWith();
+      expect(result.current.totalCustomersCount).toBe(totalCustomers.length);
+      expect(result.current.filteredCustomersCount).toBe(mockCustomers.length);
+      expect(mockDatabaseService.getCustomersWithFilters).toHaveBeenCalledTimes(
+        2
+      );
     });
 
     it("should handle fetch errors", async () => {
       const errorMessage = "Database connection failed";
-      mockDatabaseService.getCustomers.mockRejectedValue(
+      mockDatabaseService.getCustomersWithFilters.mockRejectedValue(
         new Error(errorMessage)
       );
 
@@ -57,7 +77,9 @@ describe("useCustomerStore", () => {
       const promise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
-      mockDatabaseService.getCustomers.mockReturnValue(promise as any);
+      mockDatabaseService.getCustomersWithFilters.mockReturnValue(
+        promise as any
+      );
 
       const { result } = renderHook(() => useCustomerStore());
 
@@ -83,7 +105,11 @@ describe("useCustomerStore", () => {
     it("should search customers with query", async () => {
       const searchQuery = "John";
       const filteredCustomers = [mockCustomer];
-      mockDatabaseService.getCustomers.mockResolvedValue(filteredCustomers);
+
+      // searchCustomers only calls getCustomersWithFilters once (no total count call)
+      mockDatabaseService.getCustomersWithFilters.mockResolvedValueOnce(
+        filteredCustomers
+      );
 
       const { result } = renderHook(() => useCustomerStore());
 
@@ -93,14 +119,14 @@ describe("useCustomerStore", () => {
 
       expect(result.current.customers).toEqual(filteredCustomers);
       expect(result.current.searchQuery).toBe(searchQuery);
-      expect(mockDatabaseService.getCustomers).toHaveBeenCalledWith(
-        searchQuery
+      expect(mockDatabaseService.getCustomersWithFilters).toHaveBeenCalledTimes(
+        1
       );
     });
 
     it("should handle search errors", async () => {
       const errorMessage = "Search failed";
-      mockDatabaseService.getCustomers.mockRejectedValue(
+      mockDatabaseService.getCustomersWithFilters.mockRejectedValue(
         new Error(errorMessage)
       );
 
@@ -346,7 +372,7 @@ describe("useCustomerStore", () => {
       const { result } = renderHook(() => useCustomerStore());
 
       // Trigger an error first by making a failing call
-      mockDatabaseService.getCustomers.mockRejectedValueOnce(
+      mockDatabaseService.getCustomersWithFilters.mockRejectedValueOnce(
         new Error("Test error")
       );
 
@@ -370,7 +396,10 @@ describe("useCustomerStore", () => {
       const { result } = renderHook(() => useCustomerStore());
 
       // Set some state through actions
-      mockDatabaseService.getCustomers.mockResolvedValueOnce([mockCustomer]);
+      const totalCustomers = createMockCustomers(2);
+      mockDatabaseService.getCustomersWithFilters
+        .mockResolvedValueOnce([mockCustomer])
+        .mockResolvedValueOnce(totalCustomers);
       await act(async () => {
         await result.current.fetchCustomers();
       });

@@ -276,14 +276,12 @@ describe("ContactImportButton", () => {
   describe("props", () => {
     it("should apply custom style", () => {
       const customStyle = { backgroundColor: "red" };
-      const { getByText } = render(
+      const { getByTestId } = render(
         <ContactImportButton variant="button" style={customStyle} />
       );
 
-      const button = getByText("Import Contacts").parent;
-      expect(button?.props.style).toContainEqual(
-        expect.objectContaining(customStyle)
-      );
+      const button = getByTestId("contact-import-button");
+      expect(button.props.style).toEqual(expect.objectContaining(customStyle));
     });
 
     it("should handle different sizes", () => {

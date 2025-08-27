@@ -133,6 +133,8 @@ describe("DatabaseService", () => {
         phone: "+2348012345678",
         email: "john@example.com",
         totalSpent: 50000,
+        customerType: "individual",
+        isActive: false,
       },
       {
         id: "cust_2",
@@ -140,6 +142,8 @@ describe("DatabaseService", () => {
         phone: "+2348012345679",
         email: "jane@example.com",
         totalSpent: 75000,
+        customerType: "individual",
+        isActive: false,
       },
     ];
 
@@ -168,8 +172,8 @@ describe("DatabaseService", () => {
 
       expect(result).toEqual(filteredCustomers);
       expect(mockDb.getAllAsync).toHaveBeenCalledWith(
-        "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC",
-        ["%John%", "%John%"]
+        "SELECT * FROM customers WHERE (name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ?) ORDER BY name ASC",
+        ["%John%", "%John%", "%John%", "%John%"]
       );
     });
 
@@ -348,7 +352,13 @@ describe("DatabaseService", () => {
         totalTransactions: 50,
         totalRevenue: 500000,
         topCustomers: [
-          { id: "cust_1", name: "Top Customer", totalSpent: 100000 },
+          {
+            id: "cust_1",
+            name: "Top Customer",
+            totalSpent: 100000,
+            customerType: "individual",
+            isActive: false,
+          },
         ],
       };
 
