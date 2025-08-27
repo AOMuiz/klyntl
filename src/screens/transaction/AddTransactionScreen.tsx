@@ -2,7 +2,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
-import { useCustomers, useTransactions } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import { CreateTransactionInput } from "@/types/transaction";
 import { format } from "date-fns";
 import { useRouter } from "expo-router";
@@ -41,10 +42,12 @@ export default function AddTransactionScreen({
   // Create dynamic styles
   const dynamicStyles = createStyles(theme);
   const isDark = colorScheme === "dark";
-  const { createTransaction } = useTransactions();
-  const { getCustomers } = useCustomers();
+  
+  // Use stores
+  const { createTransaction } = useTransactionStore();
+  const { customers, fetchCustomers } = useCustomerStore();
+  
   const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
 
@@ -70,12 +73,11 @@ export default function AddTransactionScreen({
 
   const loadCustomers = useCallback(async () => {
     try {
-      const customerList = await getCustomers();
-      setCustomers(customerList);
+      await fetchCustomers();
     } catch (error) {
       console.error("Failed to load customers:", error);
     }
-  }, [getCustomers]);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     loadCustomers();

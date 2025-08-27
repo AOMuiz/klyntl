@@ -1,29 +1,28 @@
 import { FlashList } from "@shopify/flash-list";
 import React from "react";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
-import { DatabaseProvider, useAnalytics, useCustomers } from "./context";
+import { useCustomerStore } from "../../stores/customerStore";
+import { useAnalyticsStore } from "../../stores/analyticsStore";
 
-// Example component showing how to use the modern database hooks
+// Example component showing how to use the modern store hooks
 const CustomersScreen: React.FC = () => {
-  const [customers, setCustomers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  // Use the modern database hooks
-  const { getCustomers, createCustomer, deleteCustomer } = useCustomers();
-  const { getAnalytics } = useAnalytics();
+  // Use the modern store hooks
+  const { customers, createCustomer, deleteCustomer, fetchCustomers } = useCustomerStore();
+  const { analytics, fetchAnalytics } = useAnalyticsStore();
 
   const loadCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const customerList = await getCustomers();
-      setCustomers(customerList);
+      await fetchCustomers();
     } catch (err) {
       console.error("Failed to load customers:", err);
       Alert.alert("Error", "Failed to load customers");
     } finally {
       setLoading(false);
     }
-  }, [getCustomers]);
+  }, [fetchCustomers]);
 
   // Load customers when component mounts
   React.useEffect(() => {
@@ -38,9 +37,6 @@ const CustomersScreen: React.FC = () => {
         email: "john@example.com",
         address: "123 Main St",
       });
-
-      // Refresh the list
-      await loadCustomers();
 
       Alert.alert("Success", `Customer ${newCustomer.name} created!`);
     } catch (err) {
@@ -61,7 +57,6 @@ const CustomersScreen: React.FC = () => {
           onPress: async () => {
             try {
               await deleteCustomer(customerId);
-              await loadCustomers();
               Alert.alert("Success", "Customer deleted!");
             } catch (err) {
               console.error("Failed to delete customer:", err);
@@ -75,13 +70,15 @@ const CustomersScreen: React.FC = () => {
 
   const viewAnalytics = async () => {
     try {
-      const analytics = await getAnalytics();
-      Alert.alert(
-        "Analytics",
-        `Total Customers: ${analytics.totalCustomers}\n` +
-          `Total Revenue: $${analytics.totalRevenue}\n` +
-          `Total Transactions: ${analytics.totalTransactions}`
-      );
+      await fetchAnalytics();
+      if (analytics) {
+        Alert.alert(
+          "Analytics",
+          `Total Customers: ${analytics.totalCustomers}\n` +
+            `Total Revenue: $${analytics.totalRevenue}\n` +
+            `Total Transactions: ${analytics.totalTransactions}`
+        );
+      }
     } catch (err) {
       console.error("Failed to load analytics:", err);
       Alert.alert("Error", "Failed to load analytics");
@@ -174,22 +171,9 @@ const CustomersScreen: React.FC = () => {
   );
 };
 
-// Example of how to wrap your app with the modern DatabaseProvider
-export const AppWithModernDatabase: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  return (
-    <DatabaseProvider databaseName="klyntl.db">{children}</DatabaseProvider>
-  );
+// Example of a complete app structure using modern stores
+export const ModernStoreExample: React.FC = () => {
+  return <CustomersScreen />;
 };
 
-// Example of a complete app structure
-export const ModernDatabaseExample: React.FC = () => {
-  return (
-    <DatabaseProvider databaseName="klyntl.db">
-      <CustomersScreen />
-    </DatabaseProvider>
-  );
-};
-
-export default ModernDatabaseExample;
+export default ModernStoreExample;

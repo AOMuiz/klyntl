@@ -1,7 +1,8 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useCustomers, useTransactions } from "@/services/database/context";
+import { useCustomerStore } from "@/stores/customerStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import { UpdateTransactionInput } from "@/types/transaction";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -31,8 +32,8 @@ export default function EditTransactionScreen({
   transactionId,
 }: EditTransactionScreenProps) {
   const router = useRouter();
-  const { updateTransaction, getTransactions } = useTransactions();
-  const { getCustomers } = useCustomers();
+  const { updateTransaction, transactions, fetchTransactions } = useTransactionStore();
+  const { customers, fetchCustomers } = useCustomerStore();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [transaction, setTransaction] = useState<any>(null);
@@ -62,8 +63,8 @@ export default function EditTransactionScreen({
 
     try {
       setInitialLoading(true);
-      const transactions = await getTransactions();
-      const foundTransaction = transactions.find((t) => t.id === transactionId);
+      await fetchTransactions();
+      const foundTransaction = transactions.find((t: any) => t.id === transactionId);
 
       if (!foundTransaction) {
         Alert.alert("Error", "Transaction not found", [
@@ -75,9 +76,9 @@ export default function EditTransactionScreen({
       setTransaction(foundTransaction);
 
       // Load customer details
-      const customers = await getCustomers();
+      await fetchCustomers();
       const foundCustomer = customers.find(
-        (c) => c.id === foundTransaction.customerId
+        (c: any) => c.id === foundTransaction.customerId
       );
       setCustomer(foundCustomer);
 
@@ -94,7 +95,7 @@ export default function EditTransactionScreen({
     } finally {
       setInitialLoading(false);
     }
-  }, [transactionId, getTransactions, getCustomers, reset, router]);
+  }, [transactionId, fetchTransactions, fetchCustomers, transactions, customers, reset, router]);
 
   useEffect(() => {
     loadTransaction();

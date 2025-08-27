@@ -1,13 +1,13 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { useTransactions } from "../../services/database/context";
+import { useTransactionStore } from "../../stores/transactionStore";
 
-// Mock the database context
-jest.mock("../../services/database/context", () => ({
-  useTransactions: jest.fn(),
+// Mock the transaction store
+jest.mock("../../stores/transactionStore", () => ({
+  useTransactionStore: jest.fn(),
 }));
 
-const mockUseTransactions = useTransactions as jest.MockedFunction<
-  typeof useTransactions
+const mockUseTransactionStore = useTransactionStore as jest.MockedFunction<
+  typeof useTransactionStore
 >;
 
 describe("Transaction Management", () => {
@@ -18,12 +18,15 @@ describe("Transaction Management", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseTransactions.mockReturnValue({
+    mockUseTransactionStore.mockReturnValue({
       createTransaction: mockCreateTransaction,
       updateTransaction: mockUpdateTransaction,
       deleteTransaction: mockDeleteTransaction,
-      getTransactions: mockGetTransactions,
-    });
+      fetchTransactions: mockGetTransactions,
+      transactions: [],
+      isLoading: false,
+      error: null,
+    } as any);
   });
 
   describe("createTransaction", () => {
@@ -43,7 +46,7 @@ describe("Transaction Management", () => {
 
       mockCreateTransaction.mockResolvedValue(expectedTransaction);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       let createdTransaction;
       await act(async () => {
@@ -68,7 +71,7 @@ describe("Transaction Management", () => {
       const error = new Error("Transaction creation failed");
       mockCreateTransaction.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await expect(
         result.current.createTransaction(transactionData)
@@ -83,7 +86,7 @@ describe("Transaction Management", () => {
         type: "sale" as const,
       };
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       // This should be handled by form validation, but test the database call
       await act(async () => {
@@ -109,7 +112,7 @@ describe("Transaction Management", () => {
 
       mockUpdateTransaction.mockResolvedValue(undefined);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await act(async () => {
         await result.current.updateTransaction(transactionId, updates);
@@ -130,7 +133,7 @@ describe("Transaction Management", () => {
       const error = new Error("Transaction not found");
       mockUpdateTransaction.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await expect(
         result.current.updateTransaction(transactionId, updates)
@@ -145,7 +148,7 @@ describe("Transaction Management", () => {
 
       mockUpdateTransaction.mockResolvedValue(undefined);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await act(async () => {
         await result.current.updateTransaction(transactionId, updates);
@@ -164,7 +167,7 @@ describe("Transaction Management", () => {
 
       mockDeleteTransaction.mockResolvedValue(undefined);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await act(async () => {
         await result.current.deleteTransaction(transactionId);
@@ -179,7 +182,7 @@ describe("Transaction Management", () => {
       const error = new Error("Transaction not found");
       mockDeleteTransaction.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await expect(
         result.current.deleteTransaction(transactionId)
@@ -187,7 +190,7 @@ describe("Transaction Management", () => {
     });
   });
 
-  describe("getTransactions", () => {
+  describe("fetchTransactions", () => {
     it("should get all transactions", async () => {
       const mockTransactions = [
         {
@@ -210,11 +213,11 @@ describe("Transaction Management", () => {
 
       mockGetTransactions.mockResolvedValue(mockTransactions);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       let transactions;
       await act(async () => {
-        transactions = await result.current.getTransactions();
+        transactions = await result.current.fetchTransactions();
       });
 
       expect(mockGetTransactions).toHaveBeenCalledWith();
@@ -236,11 +239,11 @@ describe("Transaction Management", () => {
 
       mockGetTransactions.mockResolvedValue(mockTransactions);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       let transactions;
       await act(async () => {
-        transactions = await result.current.getTransactions(customerId);
+        transactions = await result.current.fetchTransactions(customerId);
       });
 
       expect(mockGetTransactions).toHaveBeenCalledWith(customerId);
@@ -251,9 +254,9 @@ describe("Transaction Management", () => {
       const error = new Error("Database connection failed");
       mockGetTransactions.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
-      await expect(result.current.getTransactions()).rejects.toThrow(
+      await expect(result.current.fetchTransactions()).rejects.toThrow(
         "Database connection failed"
       );
     });
@@ -279,7 +282,7 @@ describe("Transaction Management", () => {
 
         mockCreateTransaction.mockResolvedValue(expectedTransaction);
 
-        const { result } = renderHook(() => useTransactions());
+        const { result } = renderHook(() => useTransactionStore());
 
         await act(async () => {
           await result.current.createTransaction(transactionData);
@@ -308,7 +311,7 @@ describe("Transaction Management", () => {
           ...transactionData,
         });
 
-        const { result } = renderHook(() => useTransactions());
+        const { result } = renderHook(() => useTransactionStore());
 
         await act(async () => {
           await result.current.createTransaction(transactionData);
@@ -332,7 +335,7 @@ describe("Transaction Management", () => {
         ...transactionData,
       });
 
-      const { result } = renderHook(() => useTransactions());
+      const { result } = renderHook(() => useTransactionStore());
 
       await act(async () => {
         await result.current.createTransaction(transactionData);
@@ -364,7 +367,7 @@ describe("Transaction Management", () => {
           ...transactionData,
         });
 
-        const { result } = renderHook(() => useTransactions());
+        const { result } = renderHook(() => useTransactionStore());
 
         await act(async () => {
           await result.current.createTransaction(transactionData);

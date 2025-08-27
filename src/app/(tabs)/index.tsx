@@ -357,6 +357,7 @@ const styles = StyleSheet.create({
   },
   customerCount: {
     opacity: 0.7,
+    fontSize: 12,
   },
   filterDescription: {
     fontSize: 12,

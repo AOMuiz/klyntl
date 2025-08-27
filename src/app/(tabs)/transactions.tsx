@@ -3,8 +3,8 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useCustomers, useTransactions } from "@/services/database/context";
-import { Customer } from "@/types/customer";
+import { useCustomerStore } from "@/stores/customerStore";
+import { useTransactionStore } from "@/stores/transactionStore";
 import { Transaction } from "@/types/transaction";
 import { formatCurrency } from "@/utils/helpers"; // Keep this import
 import { FlashList } from "@shopify/flash-list";
@@ -26,48 +26,46 @@ interface TransactionWithCustomer extends Transaction {
 export default function TransactionsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const { getTransactions } = useTransactions();
-  const { getCustomers } = useCustomers();
+  
+  // Use stores instead of direct database calls
+  const { 
+    transactions, 
+    loading, 
+    fetchTransactions 
+  } = useTransactionStore();
+  
+  const { 
+    customers, 
+    fetchCustomers 
+  } = useCustomerStore();
 
   // Theme colors
   const colors = Colors[colorScheme ?? "light"];
 
-  const [transactions, setTransactions] = useState<TransactionWithCustomer[]>(
-    []
-  );
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Create a computed value for transactions with customer names
+  const transactionsWithCustomers: TransactionWithCustomer[] = transactions.map(
+    (transaction: Transaction) => {
+      const customer = customers.find(c => c.id === transaction.customerId);
+      return {
+        ...transaction,
+        customerName: customer?.name || "Unknown Customer",
+      };
+    }
+  );
 
   const loadTransactions = useCallback(async () => {
     try {
-      setLoading(true);
-      const [transactionList, customerList] = await Promise.all([
-        getTransactions(),
-        getCustomers(),
+      // Fetch both transactions and customers
+      await Promise.all([
+        fetchTransactions(), // Fetch all transactions
+        fetchCustomers(), // Ensure we have customer data for names
       ]);
-
-      // Create a map of customer IDs to names for quick lookup
-      const customerMap = new Map<string, string>();
-      customerList.forEach((customer: Customer) => {
-        customerMap.set(customer.id, customer.name);
-      });
-
-      // Add customer names to transactions
-      const transactionsWithCustomers = transactionList.map(
-        (transaction: Transaction) => ({
-          ...transaction,
-          customerName:
-            customerMap.get(transaction.customerId) || "Unknown Customer",
-        })
-      );
-
-      setTransactions(transactionsWithCustomers);
     } catch (error) {
       console.error("Failed to load transactions:", error);
-    } finally {
-      setLoading(false);
     }
-  }, [getTransactions, getCustomers]);
+  }, [fetchTransactions, fetchCustomers]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -200,8 +198,8 @@ export default function TransactionsScreen() {
     <View style={styles.header}>
       <ThemedText type="title">Transactions</ThemedText>
       <ThemedText style={styles.transactionCount}>
-        {transactions.length}{" "}
-        {transactions.length === 1 ? "transaction" : "transactions"}
+        {transactionsWithCustomers.length}{" "}
+        {transactionsWithCustomers.length === 1 ? "transaction" : "transactions"}
       </ThemedText>
     </View>
   );
@@ -211,11 +209,11 @@ export default function TransactionsScreen() {
       <ThemedView style={styles.content}>
         {renderHeader()}
 
-        {transactions.length === 0 && !loading ? (
+        {transactionsWithCustomers.length === 0 && !loading ? (
           renderEmptyState()
         ) : (
           <FlashList
-            data={transactions}
+            data={transactionsWithCustomers}
             renderItem={renderTransactionItem}
             keyExtractor={(item: TransactionWithCustomer) => item.id}
             refreshControl={

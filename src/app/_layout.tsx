@@ -22,7 +22,14 @@ export default function RootLayout() {
   }
 
   return (
-    <DatabaseProvider databaseName="klyntl.db">
+    <DatabaseProvider
+      databaseName="klyntl.db"
+      onError={(error) => {
+        console.error("Database error in app:", error);
+        // You can add user-friendly error handling here
+        // For example, show a toast or redirect to an error screen
+      }}
+    >
       <KlyntlThemeProvider>
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}

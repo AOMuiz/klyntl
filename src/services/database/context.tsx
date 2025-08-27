@@ -1,132 +1,75 @@
-import {
-  SQLiteProvider,
-  useSQLiteContext,
-  type SQLiteDatabase,
-} from "expo-sqlite";
+import { SQLiteProvider, type SQLiteDatabase } from "expo-sqlite";
 import React, { ReactNode, useCallback } from "react";
-import { Analytics } from "../../types/analytics";
-import {
-  CreateCustomerInput,
-  Customer,
-  UpdateCustomerInput,
-} from "../../types/customer";
-import {
-  CreateTransactionInput,
-  Transaction,
-  UpdateTransactionInput,
-} from "../../types/transaction";
+import { runMigrations } from "./migrations";
 
-// Migration function that runs when the database is first created or updated
-async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  const DATABASE_VERSION = 1;
-
+/**
+ * Enhanced database initialization with proper error handling and logging
+ */
+async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   try {
-    // Check current database version - using getFirstSync as fallback if async not available
-    let currentDbVersion = 0;
-    try {
-      const result = await db.getFirstAsync<{ user_version: number }>(
-        "PRAGMA user_version"
-      );
-      currentDbVersion = result?.user_version || 0;
-    } catch {
-      // Fallback to sync if async not available
-      const result = (db as any).getFirstSync?.("PRAGMA user_version") as {
-        user_version: number;
-      } | null;
-      currentDbVersion = result?.user_version || 0;
-    }
+    console.log("Initializing database...");
 
-    if (currentDbVersion >= DATABASE_VERSION) {
-      return;
-    }
+    // Set SQLite configuration
+    await db.execAsync(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA foreign_keys = ON;
+      PRAGMA temp_store = memory;
+      PRAGMA mmap_size = 268435456;
+    `);
 
-    // Initialize database for the first time
-    if (currentDbVersion === 0) {
-      // Try to use execAsync, fallback to runAsync or sync methods
-      const sqlCommands = `
-        PRAGMA journal_mode = WAL;
-        
-        CREATE TABLE IF NOT EXISTS customers (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          phone TEXT UNIQUE NOT NULL,
-          email TEXT,
-          address TEXT,
-          totalSpent REAL DEFAULT 0,
-          lastPurchase TEXT,
-          createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL
-        );
+    // Run all pending migrations
+    await runMigrations(db);
 
-        CREATE TABLE IF NOT EXISTS transactions (
-          id TEXT PRIMARY KEY,
-          customerId TEXT NOT NULL,
-          amount REAL NOT NULL,
-          description TEXT,
-          date TEXT NOT NULL,
-          type TEXT NOT NULL,
-          FOREIGN KEY (customerId) REFERENCES customers (id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_customer_phone ON customers(phone);
-        CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
-        CREATE INDEX IF NOT EXISTS idx_transaction_customer ON transactions(customerId);
-        CREATE INDEX IF NOT EXISTS idx_transaction_date ON transactions(date);
-      `;
-
-      try {
-        await db.execAsync(sqlCommands);
-      } catch {
-        // Fallback to individual commands
-        const commands = sqlCommands.split(";").filter((cmd) => cmd.trim());
-        for (const cmd of commands) {
-          if (cmd.trim()) {
-            try {
-              await db.runAsync(cmd.trim());
-            } catch {
-              // Final fallback to sync if available
-              (db as any).runSync?.(cmd.trim());
-            }
-          }
-        }
-      }
-
-      currentDbVersion = 1;
-    }
-
-    // Update database version
-    try {
-      await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
-    } catch {
-      try {
-        await db.runAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
-      } catch {
-        (db as any).runSync?.(`PRAGMA user_version = ${DATABASE_VERSION}`);
-      }
-    }
+    console.log("Database initialization completed successfully");
   } catch (error) {
-    console.error("Database migration failed:", error);
-    throw error;
+    console.error("Database initialization failed:", error);
+    throw new Error(
+      `Failed to initialize database: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }
 
-// Database Provider Component
+/**
+ * Database Provider with improved error handling and initialization
+ */
 interface DatabaseProviderProps {
   children: ReactNode;
   databaseName?: string;
+  onError?: (error: Error) => void;
 }
 
 export const DatabaseProvider: React.FC<DatabaseProviderProps> = React.memo(
-  ({ children, databaseName = "klyntl.db" }) => {
-    const handleError = useCallback((error: Error) => {
-      console.error("SQLiteProvider error:", error);
+  ({ children, databaseName = "klyntl.db", onError }) => {
+    const handleError = useCallback(
+      (error: Error) => {
+        console.error("SQLiteProvider error:", error);
+
+        // Call custom error handler if provided
+        if (onError) {
+          onError(error);
+        } else {
+          // Default error handling - you might want to show a user-friendly message
+          console.error("Database error occurred. Please restart the app.");
+        }
+      },
+      [onError]
+    );
+
+    const handleInit = useCallback(async (db: SQLiteDatabase) => {
+      await initializeDatabase(db);
     }, []);
 
     return (
       <SQLiteProvider
         databaseName={databaseName}
-        onInit={migrateDbIfNeeded}
+        onInit={handleInit}
         onError={handleError}
+        options={{
+          enableChangeListener: false, // Enable if you need real-time updates
+          useNewConnection: false,
+        }}
       >
         {children}
       </SQLiteProvider>
@@ -135,331 +78,3 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = React.memo(
 );
 
 DatabaseProvider.displayName = "DatabaseProvider";
-
-// Custom hooks for database operations
-export const useDatabase = () => {
-  return useSQLiteContext();
-};
-
-export const useCustomers = () => {
-  const db = useSQLiteContext();
-
-  const createCustomer = useCallback(
-    async (customerInput: CreateCustomerInput): Promise<Customer> => {
-      const id = `cust_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      const now = new Date().toISOString();
-
-      const customer: Customer = {
-        ...customerInput,
-        id,
-        totalSpent: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      try {
-        await db.runAsync(
-          `INSERT INTO customers (id, name, phone, email, address, totalSpent, lastPurchase, createdAt, updatedAt) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            customer.id,
-            customer.name,
-            customer.phone,
-            customer.email || null,
-            customer.address || null,
-            customer.totalSpent,
-            customer.lastPurchase || null,
-            customer.createdAt,
-            customer.updatedAt,
-          ]
-        );
-        return customer;
-      } catch (error) {
-        console.error("Error creating customer:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const getCustomers = useCallback(
-    async (searchQuery?: string): Promise<Customer[]> => {
-      try {
-        let sql = "SELECT * FROM customers ORDER BY name ASC";
-        let params: any[] = [];
-
-        if (searchQuery) {
-          sql =
-            "SELECT * FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name ASC";
-          params = [`%${searchQuery}%`, `%${searchQuery}%`];
-        }
-
-        const rows = (await db.getAllAsync(sql, params)) as Customer[];
-        return rows;
-      } catch (error) {
-        console.error("Error getting customers:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const getCustomerById = useCallback(
-    async (id: string): Promise<Customer | null> => {
-      try {
-        const row = (await db.getFirstAsync(
-          "SELECT * FROM customers WHERE id = ?",
-          [id]
-        )) as Customer | null;
-        return row;
-      } catch (error) {
-        console.error("Error getting customer by ID:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const updateCustomer = useCallback(
-    async (id: string, updates: UpdateCustomerInput): Promise<void> => {
-      const updatedAt = new Date().toISOString();
-      const setClause = Object.keys(updates)
-        .map((key) => `${key} = ?`)
-        .join(", ");
-      const values = [...Object.values(updates), updatedAt, id];
-
-      try {
-        await db.runAsync(
-          `UPDATE customers SET ${setClause}, updatedAt = ? WHERE id = ?`,
-          values
-        );
-      } catch (error) {
-        console.error("Error updating customer:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const deleteCustomer = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await db.withTransactionAsync(async () => {
-          // First delete all transactions for this customer
-          await db.runAsync("DELETE FROM transactions WHERE customerId = ?", [
-            id,
-          ]);
-          // Then delete the customer
-          await db.runAsync("DELETE FROM customers WHERE id = ?", [id]);
-        });
-      } catch (error) {
-        console.error("Error deleting customer:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  return {
-    createCustomer,
-    getCustomers,
-    getCustomerById,
-    updateCustomer,
-    deleteCustomer,
-  };
-};
-
-export const useTransactions = () => {
-  const db = useSQLiteContext();
-
-  const createTransaction = useCallback(
-    async (transactionInput: CreateTransactionInput): Promise<Transaction> => {
-      const id = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const transaction: Transaction = { ...transactionInput, id };
-
-      try {
-        await db.withTransactionAsync(async () => {
-          // Insert transaction
-          await db.runAsync(
-            `INSERT INTO transactions (id, customerId, amount, description, date, type) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-              transaction.id,
-              transaction.customerId,
-              transaction.amount,
-              transaction.description || null,
-              transaction.date,
-              transaction.type,
-            ]
-          );
-
-          // Update customer total spent if it's a sale
-          if (transaction.type === "sale") {
-            await db.runAsync(
-              "UPDATE customers SET totalSpent = totalSpent + ?, lastPurchase = ? WHERE id = ?",
-              [transaction.amount, transaction.date, transaction.customerId]
-            );
-          }
-        });
-
-        return transaction;
-      } catch (error) {
-        console.error("Error creating transaction:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const getTransactions = useCallback(
-    async (customerId?: string): Promise<Transaction[]> => {
-      try {
-        let sql = "SELECT * FROM transactions ORDER BY date DESC";
-        let params: any[] = [];
-
-        if (customerId) {
-          sql =
-            "SELECT * FROM transactions WHERE customerId = ? ORDER BY date DESC";
-          params = [customerId];
-        }
-
-        const rows = (await db.getAllAsync(sql, params)) as Transaction[];
-        return rows;
-      } catch (error) {
-        console.error("Error getting transactions:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const updateTransaction = useCallback(
-    async (id: string, updates: UpdateTransactionInput): Promise<void> => {
-      try {
-        await db.withTransactionAsync(async () => {
-          // Get the original transaction
-          const originalTransaction = (await db.getFirstAsync(
-            "SELECT * FROM transactions WHERE id = ?",
-            [id]
-          )) as Transaction | null;
-
-          if (!originalTransaction) {
-            throw new Error("Transaction not found");
-          }
-
-          // Update the transaction
-          const setClause = Object.keys(updates)
-            .map((key) => `${key} = ?`)
-            .join(", ");
-          const values = [...Object.values(updates), id];
-
-          await db.runAsync(
-            `UPDATE transactions SET ${setClause} WHERE id = ?`,
-            values
-          );
-
-          // Update customer totals if amount changed
-          if (updates.amount !== undefined) {
-            // Reverse the original transaction impact
-            if (originalTransaction.type === "sale") {
-              await db.runAsync(
-                "UPDATE customers SET totalSpent = totalSpent - ? WHERE id = ?",
-                [originalTransaction.amount, originalTransaction.customerId]
-              );
-            }
-
-            // Apply the new transaction impact (use new type if provided, otherwise original)
-            const newType = updates.type || originalTransaction.type;
-            if (newType === "sale") {
-              await db.runAsync(
-                "UPDATE customers SET totalSpent = totalSpent + ? WHERE id = ?",
-                [updates.amount, originalTransaction.customerId]
-              );
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Error updating transaction:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  const deleteTransaction = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await db.withTransactionAsync(async () => {
-          // Get the transaction details first
-          const transaction = (await db.getFirstAsync(
-            "SELECT * FROM transactions WHERE id = ?",
-            [id]
-          )) as Transaction | null;
-
-          if (!transaction) {
-            throw new Error("Transaction not found");
-          }
-
-          // Delete the transaction
-          await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
-
-          // Update customer total spent if it was a sale
-          if (transaction.type === "sale") {
-            await db.runAsync(
-              "UPDATE customers SET totalSpent = totalSpent - ? WHERE id = ?",
-              [transaction.amount, transaction.customerId]
-            );
-          }
-        });
-      } catch (error) {
-        console.error("Error deleting transaction:", error);
-        throw error;
-      }
-    },
-    [db]
-  );
-
-  return {
-    createTransaction,
-    getTransactions,
-    updateTransaction,
-    deleteTransaction,
-  };
-};
-
-export const useAnalytics = () => {
-  const db = useSQLiteContext();
-
-  const getAnalytics = useCallback(async (): Promise<Analytics> => {
-    try {
-      // Get total customers
-      const customerCount = (await db.getFirstAsync(
-        "SELECT COUNT(*) as count FROM customers"
-      )) as { count: number };
-
-      // Get total revenue and transactions
-      const revenueData = (await db.getFirstAsync(
-        'SELECT COUNT(*) as count, SUM(amount) as total FROM transactions WHERE type = "sale"'
-      )) as { count: number; total: number };
-
-      // Get top customers
-      const topCustomers = (await db.getAllAsync(
-        "SELECT * FROM customers ORDER BY totalSpent DESC LIMIT 5"
-      )) as Customer[];
-
-      return {
-        totalCustomers: customerCount?.count || 0,
-        totalRevenue: revenueData?.total || 0,
-        totalTransactions: revenueData?.count || 0,
-        topCustomers,
-      };
-    } catch (error) {
-      console.error("Error getting analytics:", error);
-      throw error;
-    }
-  }, [db]);
-
-  return { getAnalytics };
-};

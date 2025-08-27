@@ -178,6 +178,20 @@ describe("DatabaseService", () => {
     });
 
     it("should handle query errors", async () => {
+      // First call for table info should succeed
+      mockDb.getAllAsync.mockResolvedValueOnce([
+        { name: "id" },
+        { name: "name" },
+        { name: "phone" },
+        { name: "email" },
+        { name: "address" },
+        { name: "company" },
+        { name: "totalSpent" },
+        { name: "createdAt" },
+        { name: "updatedAt" },
+      ]);
+
+      // Second call for actual query should fail
       mockDb.getAllAsync.mockRejectedValueOnce(
         new Error("Database query failed")
       );
