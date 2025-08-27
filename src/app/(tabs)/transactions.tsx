@@ -3,12 +3,12 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useCustomerStore } from "@/stores/customerStore";
-import { useTransactionStore } from "@/stores/transactionStore";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useTransactions } from "@/hooks/useTransactions";
 import { Transaction } from "@/types/transaction";
-import { formatCurrency } from "@/utils/helpers"; // Keep this import
+import { formatCurrency } from "@/utils/helpers";
 import { FlashList } from "@shopify/flash-list";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   RefreshControl,
@@ -26,28 +26,25 @@ interface TransactionWithCustomer extends Transaction {
 export default function TransactionsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  
-  // Use stores instead of direct database calls
-  const { 
-    transactions, 
-    loading, 
-    fetchTransactions 
-  } = useTransactionStore();
-  
-  const { 
-    customers, 
-    fetchCustomers 
-  } = useCustomerStore();
+
+  // Use React Query hooks instead of Zustand stores
+  const transactionsQuery = useTransactions();
+  const customersQuery = useCustomers();
 
   // Theme colors
   const colors = Colors[colorScheme ?? "light"];
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // Extract data from queries
+  const transactions = transactionsQuery.transactions;
+  const customers = customersQuery.customers;
+  const loading = transactionsQuery.isLoading || customersQuery.isLoading;
+
   // Create a computed value for transactions with customer names
   const transactionsWithCustomers: TransactionWithCustomer[] = transactions.map(
     (transaction: Transaction) => {
-      const customer = customers.find(c => c.id === transaction.customerId);
+      const customer = customers.find((c) => c.id === transaction.customerId);
       return {
         ...transaction,
         customerName: customer?.name || "Unknown Customer",
@@ -55,31 +52,11 @@ export default function TransactionsScreen() {
     }
   );
 
-  const loadTransactions = useCallback(async () => {
-    try {
-      // Fetch both transactions and customers
-      await Promise.all([
-        fetchTransactions(), // Fetch all transactions
-        fetchCustomers(), // Ensure we have customer data for names
-      ]);
-    } catch (error) {
-      console.error("Failed to load transactions:", error);
-    }
-  }, [fetchTransactions, fetchCustomers]);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadTransactions();
+    await Promise.all([transactionsQuery.refetch(), customersQuery.refetch()]);
     setRefreshing(false);
-  }, [loadTransactions]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadTransactions();
-    }, [loadTransactions])
-  );
-
-  // ...existing code...
+  }, [transactionsQuery, customersQuery]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -199,7 +176,9 @@ export default function TransactionsScreen() {
       <ThemedText type="title">Transactions</ThemedText>
       <ThemedText style={styles.transactionCount}>
         {transactionsWithCustomers.length}{" "}
-        {transactionsWithCustomers.length === 1 ? "transaction" : "transactions"}
+        {transactionsWithCustomers.length === 1
+          ? "transaction"
+          : "transactions"}
       </ThemedText>
     </View>
   );

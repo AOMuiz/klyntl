@@ -1,11 +1,11 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useCustomerStore } from "@/stores/customerStore";
-import { useTransactionStore } from "@/stores/transactionStore";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useTransaction, useTransactions } from "@/hooks/useTransactions";
 import { UpdateTransactionInput } from "@/types/transaction";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -32,12 +32,17 @@ export default function EditTransactionScreen({
   transactionId,
 }: EditTransactionScreenProps) {
   const router = useRouter();
-  const { updateTransaction, transactions, fetchTransactions } = useTransactionStore();
-  const { customers, fetchCustomers } = useCustomerStore();
+
+  // Use React Query hooks
+  const transactionQuery = useTransaction(transactionId);
+  const { updateTransaction } = useTransactions();
+  const { customers } = useCustomers();
+
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [transaction, setTransaction] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
+
+  const transaction = transactionQuery.data;
+  const initialLoading = transactionQuery.isLoading;
 
   const {
     control,
@@ -58,48 +63,24 @@ export default function EditTransactionScreen({
   const watchedType = watch("type");
   const watchedAmount = watch("amount");
 
-  const loadTransaction = useCallback(async () => {
-    if (!transactionId) return;
-
-    try {
-      setInitialLoading(true);
-      await fetchTransactions();
-      const foundTransaction = transactions.find((t: any) => t.id === transactionId);
-
-      if (!foundTransaction) {
-        Alert.alert("Error", "Transaction not found", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-        return;
-      }
-
-      setTransaction(foundTransaction);
-
-      // Load customer details
-      await fetchCustomers();
+  // Load transaction data and set form values when transaction data is available
+  useEffect(() => {
+    if (transaction) {
+      // Find customer details
       const foundCustomer = customers.find(
-        (c: any) => c.id === foundTransaction.customerId
+        (c: any) => c.id === transaction.customerId
       );
       setCustomer(foundCustomer);
 
       // Set form values
       reset({
-        amount: foundTransaction.amount.toString(),
-        description: foundTransaction.description || "",
-        date: foundTransaction.date,
-        type: foundTransaction.type,
+        amount: transaction.amount.toString(),
+        description: transaction.description || "",
+        date: transaction.date,
+        type: transaction.type,
       });
-    } catch (error) {
-      console.error("Failed to load transaction:", error);
-      Alert.alert("Error", "Failed to load transaction details");
-    } finally {
-      setInitialLoading(false);
     }
-  }, [transactionId, fetchTransactions, fetchCustomers, transactions, customers, reset, router]);
-
-  useEffect(() => {
-    loadTransaction();
-  }, [loadTransaction]);
+  }, [transaction, customers, reset]);
 
   const validateAmount = (amount: string) => {
     const numAmount = parseFloat(amount);
@@ -157,7 +138,7 @@ export default function EditTransactionScreen({
         return;
       }
 
-      await updateTransaction(transaction.id, updates);
+      await updateTransaction({ id: transaction.id, updates });
 
       Alert.alert("Success", "Transaction has been updated successfully!", [
         {

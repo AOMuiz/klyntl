@@ -2,12 +2,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
-import { useCustomerStore } from "@/stores/customerStore";
-import { useTransactionStore } from "@/stores/transactionStore";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useTransactions } from "@/hooks/useTransactions";
 import { CreateTransactionInput } from "@/types/transaction";
 import { format } from "date-fns";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -42,11 +42,11 @@ export default function AddTransactionScreen({
   // Create dynamic styles
   const dynamicStyles = createStyles(theme);
   const isDark = colorScheme === "dark";
-  
-  // Use stores
-  const { createTransaction } = useTransactionStore();
-  const { customers, fetchCustomers } = useCustomerStore();
-  
+
+  // Use React Query hooks instead of Zustand stores
+  const { createTransaction } = useTransactions();
+  const { customers } = useCustomers();
+
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
@@ -71,18 +71,7 @@ export default function AddTransactionScreen({
   const watchedType = watch("type");
   const watchedAmount = watch("amount");
 
-  const loadCustomers = useCallback(async () => {
-    try {
-      await fetchCustomers();
-    } catch (error) {
-      console.error("Failed to load customers:", error);
-    }
-  }, [fetchCustomers]);
-
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
-
+  // Filter customers based on search query
   const filteredCustomers = customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase())
   );

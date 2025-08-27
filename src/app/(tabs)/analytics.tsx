@@ -2,10 +2,11 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useAnalyticsStore } from "@/stores/analyticsStore";
+import { useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/utils/helpers";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Dimensions,
   RefreshControl,
@@ -22,20 +23,20 @@ const screenWidth = Dimensions.get("window").width;
 
 export default function AnalyticsScreen() {
   const colorScheme = useColorScheme();
-  const {
-    analytics,
-    transactions,
-    loading,
-    fetchAnalytics,
-    fetchTransactions,
-    refreshAll,
-    clearError,
-  } = useAnalyticsStore();
+
+  // Use React Query hooks instead of Zustand store
+  const analyticsQuery = useAnalytics();
+  const transactionsQuery = useTransactions();
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<
     "week" | "month" | "year"
   >("month");
+
+  // Extract data from queries
+  const analytics = analyticsQuery.data;
+  const transactions = transactionsQuery.transactions;
+  const loading = analyticsQuery.isLoading || transactionsQuery.isLoading;
 
   // Theme-aware colors
   const isDark = colorScheme === "dark";
@@ -45,24 +46,12 @@ export default function AnalyticsScreen() {
   const gridColor = isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
   const shadowColor = isDark ? "#000000" : "#000000";
 
-  // Load data on mount only (no useFocusEffect needed)
-  useEffect(() => {
-    const loadInitialData = async () => {
-      await Promise.all([
-        fetchAnalytics(), // Uses cache if available
-        fetchTransactions(), // Uses cache if available
-      ]);
-    };
-
-    loadInitialData();
-    clearError();
-  }, [fetchAnalytics, fetchTransactions, clearError]);
-
+  // Refresh handler using React Query refetch
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshAll(); // Force refresh all data
+    await Promise.all([analyticsQuery.refetch(), transactionsQuery.refetch()]);
     setRefreshing(false);
-  }, [refreshAll]);
+  }, [analyticsQuery, transactionsQuery]);
 
   // ...existing code...
 

@@ -1,10 +1,10 @@
 import { useAppTheme } from "@/components/ThemeProvider";
-import { useCustomerStore } from "@/stores/customerStore";
-import { useTransactionStore } from "@/stores/transactionStore";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useTransactions } from "@/hooks/useTransactions";
 import { Customer } from "@/types/customer";
 import { getCustomerInitials } from "@/utils/helpers";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Alert, Linking, SafeAreaView, ScrollView, View } from "react-native";
 import {
   Button,
@@ -25,41 +25,34 @@ export default function CustomerDetailScreen({
   customerId,
 }: CustomerDetailScreenProps) {
   const router = useRouter();
-  const { getCustomerById, deleteCustomer, clearError } = useCustomerStore();
-  const { fetchTransactions, transactions } = useTransactionStore();
+
+  // Use React Query hooks
+  const customersQuery = useCustomers();
+  const transactionsQuery = useTransactions(customerId);
+  const { deleteCustomer } = useCustomers();
+
   const { colors } = useAppTheme();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadCustomerData = useCallback(async () => {
-    if (!customerId) return;
+  // Get data from React Query
+  const customers = customersQuery.customers;
+  const transactions = transactionsQuery.transactions;
+  const loading = customersQuery.isLoading || transactionsQuery.isLoading;
 
-    try {
-      setLoading(true);
-      clearError();
-
-      // Load customer and transactions in parallel
-      const [customerData] = await Promise.all([
-        getCustomerById(customerId),
-        fetchTransactions(customerId), // This updates the store's transactions state
-      ]);
-
-      setCustomer(customerData);
-    } catch (error) {
-      console.error("Failed to load customer data:", error);
-      Alert.alert("Error", "Failed to load customer information");
-    } finally {
-      setLoading(false);
+  // Find customer when data is available
+  useEffect(() => {
+    if (customerId && customers.length > 0) {
+      const foundCustomer = customers.find((c) => c.id === customerId);
+      if (foundCustomer) {
+        setCustomer(foundCustomer);
+      } else {
+        Alert.alert("Error", "Customer not found", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      }
     }
-  }, [customerId, getCustomerById, clearError, fetchTransactions]);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Only reload if customer might be stale (useful for when returning from edit screen)
-      loadCustomerData();
-    }, [loadCustomerData])
-  );
+  }, [customerId, customers, router]);
 
   const formatCurrency = (amount: number) => {
     return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
