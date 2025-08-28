@@ -17,6 +17,17 @@ interface UiStore {
     sortOrder: "asc" | "desc";
     customerType: "all" | "business" | "individual";
     isActive?: boolean;
+    spendingRange?: {
+      min: number;
+      max: number;
+    };
+    dateRange?: {
+      startDate: string;
+      endDate: string;
+    };
+    hasTransactions?: boolean;
+    contactSource?: "manual" | "imported" | "updated" | "all";
+    preferredContactMethod?: "phone" | "email" | "sms" | "all";
     showFilters: boolean;
   };
 
@@ -106,6 +117,11 @@ const initialState = {
     sortOrder: "asc" as const,
     customerType: "all" as const,
     isActive: undefined,
+    spendingRange: undefined,
+    dateRange: undefined,
+    hasTransactions: undefined,
+    contactSource: "all" as const,
+    preferredContactMethod: "all" as const,
     showFilters: false,
   },
   transactionFilters: {

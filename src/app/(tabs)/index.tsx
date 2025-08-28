@@ -10,7 +10,11 @@ import { useContactImport } from "@/hooks/useContactImport";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useCustomerFilters } from "@/stores/uiStore";
 import { Customer } from "@/types/customer";
-import { CustomerFilters, SortOptions } from "@/types/filters";
+import {
+  CustomerFilters,
+  SortOptions,
+  getFilterDescription,
+} from "@/types/filters";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -44,8 +48,18 @@ export default function CustomerListScreen() {
   } = useCustomers(
     filters.searchQuery,
     {
-      customerType: filters.customerType,
+      customerType:
+        filters.customerType !== "all" ? filters.customerType : undefined,
       isActive: filters.isActive,
+      spendingRange: filters.spendingRange,
+      dateRange: filters.dateRange,
+      hasTransactions: filters.hasTransactions,
+      contactSource:
+        filters.contactSource !== "all" ? filters.contactSource : undefined,
+      preferredContactMethod:
+        filters.preferredContactMethod !== "all"
+          ? filters.preferredContactMethod
+          : undefined,
     },
     {
       field: filters.sortBy as "name" | "totalSpent" | "createdAt",
@@ -161,11 +175,24 @@ export default function CustomerListScreen() {
           {totalCount === 1 ? "customer" : "customers"}
           {customers.length < totalCount && " (scroll for more)"}
         </ThemedText>
-        {filters.customerType !== "all" && (
-          <ThemedText style={styles.filterDescription}>
-            Filtered by: {filters.customerType}
-          </ThemedText>
-        )}
+        <ThemedText style={styles.filterDescription}>
+          {getFilterDescription({
+            customerType:
+              filters.customerType !== "all" ? filters.customerType : undefined,
+            spendingRange: filters.spendingRange,
+            dateRange: filters.dateRange,
+            hasTransactions: filters.hasTransactions,
+            isActive: filters.isActive,
+            contactSource:
+              filters.contactSource !== "all"
+                ? filters.contactSource
+                : undefined,
+            preferredContactMethod:
+              filters.preferredContactMethod !== "all"
+                ? filters.preferredContactMethod
+                : undefined,
+          })}
+        </ThemedText>
       </View>
     </View>
   );
