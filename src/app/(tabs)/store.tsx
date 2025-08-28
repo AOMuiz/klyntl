@@ -104,8 +104,13 @@ export default function StoreScreen() {
       >
         {showProductList ? (
           // Product List View - Uses FlatList internally
-          <View style={styles.productListContainer}>
-            <View style={styles.productListHeader}>
+          <ThemedView style={styles.productListContainer}>
+            <ThemedView
+              style={[
+                styles.productListHeader,
+                { borderBottomColor: colors.border },
+              ]}
+            >
               <TouchableOpacity
                 onPress={() => setShowProductList(false)}
                 style={styles.backButton}
@@ -120,17 +125,19 @@ export default function StoreScreen() {
                 onPress={() => setShowAddProduct(true)}
               >
                 <IconSymbol name="plus" size={16} color={colors.background} />
-                <ThemedText style={styles.addButtonText}>
+                <ThemedText
+                  style={[styles.addButtonText, { color: colors.background }]}
+                >
                   Add Product
                 </ThemedText>
               </TouchableOpacity>
-            </View>
+            </ThemedView>
             <ProductList
               onProductPress={handleProductPress}
               onEditProduct={handleEditProduct}
               onDeleteProduct={handleDeleteProduct}
             />
-          </View>
+          </ThemedView>
         ) : (
           // Store Overview - Uses ScrollView
           <ScrollView
@@ -359,18 +366,48 @@ export default function StoreScreen() {
           presentationStyle="pageSheet"
           onRequestClose={() => setShowAddProduct(false)}
         >
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                onPress={() => setShowAddProduct(false)}
-                style={styles.modalCloseButton}
-                accessibilityLabel="Close add product modal"
-                accessibilityRole="button"
+          <SafeAreaView
+            style={[
+              styles.modalSafeArea,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <ThemedView
+              style={[
+                styles.modalContainer,
+                { backgroundColor: colors.surface },
+              ]}
+            >
+              <ThemedView
+                style={[
+                  styles.modalHeader,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}
               >
-                <ThemedText style={styles.modalCloseText}>Cancel</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <ProductForm onProductCreated={() => setShowAddProduct(false)} />
+                <ThemedText
+                  type="subtitle"
+                  style={[styles.title, { color: colors.text }]}
+                >
+                  Add New Product
+                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => setShowAddProduct(false)}
+                  style={styles.modalCloseButton}
+                  accessibilityLabel="Close add product modal"
+                  accessibilityRole="button"
+                >
+                  <ThemedText
+                    style={[styles.modalCloseText, { color: colors.primary }]}
+                  >
+                    Cancel
+                  </ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
+              <ProductForm onProductCreated={() => setShowAddProduct(false)} />
+            </ThemedView>
           </SafeAreaView>
         </Modal>
 
@@ -386,28 +423,41 @@ export default function StoreScreen() {
         >
           {selectedProduct && (
             <SafeAreaView style={{ flex: 1 }}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  onPress={() => {
+              <ThemedView
+                style={[{ flex: 1 }, { backgroundColor: colors.background }]}
+              >
+                <ThemedView
+                  style={[
+                    styles.modalHeader,
+                    { borderBottomColor: colors.border },
+                  ]}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowEditForm(false);
+                      setSelectedProduct(null);
+                    }}
+                    style={styles.modalCloseButton}
+                  >
+                    <ThemedText
+                      style={[styles.modalCloseText, { color: colors.primary }]}
+                    >
+                      Cancel
+                    </ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
+                <EditProductForm
+                  product={selectedProduct}
+                  onProductUpdated={() => {
                     setShowEditForm(false);
                     setSelectedProduct(null);
                   }}
-                  style={styles.modalCloseButton}
-                >
-                  <ThemedText style={styles.modalCloseText}>Cancel</ThemedText>
-                </TouchableOpacity>
-              </View>
-              <EditProductForm
-                product={selectedProduct}
-                onProductUpdated={() => {
-                  setShowEditForm(false);
-                  setSelectedProduct(null);
-                }}
-                onCancel={() => {
-                  setShowEditForm(false);
-                  setSelectedProduct(null);
-                }}
-              />
+                  onCancel={() => {
+                    setShowEditForm(false);
+                    setSelectedProduct(null);
+                  }}
+                />
+              </ThemedView>
             </SafeAreaView>
           )}
         </Modal>
@@ -456,6 +506,9 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
+  title: {
+    textAlign: "center",
+  },
   subtitle: {
     marginTop: 4,
     opacity: 0.7,
@@ -476,14 +529,12 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#007AFF",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
     gap: 6,
   },
   addButtonText: {
-    color: "white",
     fontSize: 14,
     fontWeight: "600",
   },
@@ -501,22 +552,19 @@ const styles = StyleSheet.create({
   statValue: {
     fontWeight: "bold",
     fontSize: 20,
-    color: "#007AFF",
   },
   statLabel: {
-    opacity: 0.7,
     marginTop: 4,
     textAlign: "center",
+    opacity: 0.7,
   },
   statDivider: {
     width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
     marginHorizontal: 16,
   },
   featureCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -530,22 +578,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   featureDescription: {
-    opacity: 0.7,
     fontSize: 14,
+    opacity: 0.7,
   },
   comingSoonBadge: {
-    backgroundColor: "#FF9500",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   comingSoonText: {
-    color: "white",
     fontSize: 12,
     fontWeight: "600",
   },
   ctaCard: {
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
     borderRadius: 16,
     padding: 24,
     alignItems: "center",
@@ -563,13 +608,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   ctaButton: {
-    backgroundColor: "#007AFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   ctaButtonText: {
-    color: "white",
     fontWeight: "600",
   },
   viewAllButton: {
@@ -595,19 +638,26 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   modalCloseButton: {
     padding: 8,
   },
   modalCloseText: {
-    color: "#007AFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalSafeArea: {
+    flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: "hidden",
   },
   productListContainer: {
     flex: 1,
@@ -618,7 +668,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   backButton: {
     flexDirection: "row",

@@ -1,3 +1,5 @@
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useProducts } from "@/hooks/useProducts";
 import { CreateProductInput } from "@/types/product";
@@ -18,6 +20,9 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ onProductCreated }: ProductFormProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
   const [formData, setFormData] = useState<Partial<CreateProductInput>>({
     name: "",
     description: "",
@@ -79,32 +84,47 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="subtitle" style={styles.title}>
-        Add New Product
-      </ThemedText>
-
+    <ThemedView style={[styles.container, { backgroundColor: colors.surface }]}>
       <View style={styles.formGroup}>
-        <ThemedText style={styles.label}>Product Name *</ThemedText>
+        <ThemedText style={[styles.label, { color: colors.text }]}>
+          Product Name *
+        </ThemedText>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.secondarySurface,
+              color: colors.text,
+            },
+          ]}
           value={formData.name}
           onChangeText={(text) => setFormData({ ...formData, name: text })}
           placeholder="Enter product name"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textSecondary}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <ThemedText style={styles.label}>Description</ThemedText>
+        <ThemedText style={[styles.label, { color: colors.text }]}>
+          Description
+        </ThemedText>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[
+            styles.input,
+            styles.textArea,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.secondarySurface,
+              color: colors.text,
+            },
+          ]}
           value={formData.description}
           onChangeText={(text) =>
             setFormData({ ...formData, description: text })
           }
           placeholder="Enter product description"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textSecondary}
           multiline
           numberOfLines={3}
         />
@@ -112,70 +132,115 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
 
       <View style={styles.row}>
         <View style={[styles.formGroup, styles.halfWidth]}>
-          <ThemedText style={styles.label}>Price (NGN) *</ThemedText>
+          <ThemedText style={[styles.label, { color: colors.text }]}>
+            Price (NGN) *
+          </ThemedText>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.secondarySurface,
+                color: colors.text,
+              },
+            ]}
             value={formData.price?.toString()}
             onChangeText={(text) =>
               setFormData({ ...formData, price: Number(text) || 0 })
             }
             placeholder="0.00"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
           />
         </View>
 
         <View style={[styles.formGroup, styles.halfWidth]}>
-          <ThemedText style={styles.label}>Cost Price (NGN)</ThemedText>
+          <ThemedText style={[styles.label, { color: colors.text }]}>
+            Cost Price (NGN)
+          </ThemedText>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.secondarySurface,
+                color: colors.text,
+              },
+            ]}
             value={formData.costPrice?.toString()}
             onChangeText={(text) =>
               setFormData({ ...formData, costPrice: Number(text) || 0 })
             }
             placeholder="0.00"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
           />
         </View>
       </View>
 
       <View style={styles.formGroup}>
-        <ThemedText style={styles.label}>SKU</ThemedText>
+        <ThemedText style={[styles.label, { color: colors.text }]}>
+          SKU
+        </ThemedText>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.secondarySurface,
+              color: colors.text,
+            },
+          ]}
           value={formData.sku}
           onChangeText={(text) => setFormData({ ...formData, sku: text })}
           placeholder="Enter SKU (optional)"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textSecondary}
         />
       </View>
 
       <View style={styles.row}>
         <View style={[styles.formGroup, styles.halfWidth]}>
-          <ThemedText style={styles.label}>Stock Quantity</ThemedText>
+          <ThemedText style={[styles.label, { color: colors.text }]}>
+            Stock Quantity
+          </ThemedText>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.secondarySurface,
+                color: colors.text,
+              },
+            ]}
             value={formData.stockQuantity?.toString()}
             onChangeText={(text) =>
               setFormData({ ...formData, stockQuantity: Number(text) || 0 })
             }
             placeholder="0"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
           />
         </View>
 
         <View style={[styles.formGroup, styles.halfWidth]}>
-          <ThemedText style={styles.label}>Low Stock Alert</ThemedText>
+          <ThemedText style={[styles.label, { color: colors.text }]}>
+            Low Stock Alert
+          </ThemedText>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.secondarySurface,
+                color: colors.text,
+              },
+            ]}
             value={formData.lowStockThreshold?.toString()}
             onChangeText={(text) =>
               setFormData({ ...formData, lowStockThreshold: Number(text) || 5 })
             }
             placeholder="5"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
           />
         </View>
@@ -183,10 +248,16 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, isCreating && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: colors.primary },
+            isCreating && styles.buttonDisabled,
+          ]}
           onPress={!isCreating ? handleSubmit : undefined}
         >
-          {isCreating ? "Creating..." : "Create Product"}
+          <ThemedText style={[styles.buttonText, { color: colors.background }]}>
+            {isCreating ? "Creating..." : "Create Product"}
+          </ThemedText>
         </TouchableOpacity>
       </View>
     </ThemedView>
@@ -196,7 +267,6 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: "white",
     borderRadius: 12,
     margin: 16,
   },
@@ -211,15 +281,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
-    color: "#333",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: "#f9f9f9",
   },
   textArea: {
     height: 80,
@@ -236,15 +303,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   button: {
-    backgroundColor: "#2E7D32",
-    color: "white",
-    textAlign: "center",
     padding: 16,
     borderRadius: 8,
+    alignItems: "center",
+  },
+  buttonText: {
     fontSize: 16,
     fontWeight: "600",
   },
   buttonDisabled: {
-    backgroundColor: "#ccc",
+    opacity: 0.6,
   },
 });

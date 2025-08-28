@@ -1,3 +1,5 @@
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { useProducts } from "@/hooks/useProducts";
 import { Product } from "@/types/product";
 import { useState } from "react";
@@ -5,7 +7,6 @@ import {
   Alert,
   FlatList,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -68,9 +69,12 @@ export function ProductList({
     }
   };
 
+  const theme = useColorScheme();
+  const colors = Colors[theme ?? "light"];
+
   const renderProduct = ({ item }: { item: Product }) => (
     <TouchableOpacity
-      style={styles.productCard}
+      style={[styles.productCard, { backgroundColor: colors.surfaceVariant }]}
       onPress={() => onProductPress?.(item)}
       activeOpacity={0.7}
     >
@@ -78,62 +82,106 @@ export function ProductList({
         <ThemedText type="defaultSemiBold" style={styles.productName}>
           {item.name}
         </ThemedText>
-        <ThemedText style={styles.productPrice}>
+        <ThemedText style={[styles.productPrice, { color: colors.success }]}>
           ₦{item.price.toLocaleString()}
         </ThemedText>
       </View>
 
       {item.description && (
-        <ThemedText style={styles.productDescription} numberOfLines={2}>
+        <ThemedText
+          style={[styles.productDescription, { color: colors.textSecondary }]}
+          numberOfLines={2}
+        >
           {item.description}
         </ThemedText>
       )}
 
       <View style={styles.productDetails}>
-        {item.sku && <Text style={styles.sku}>SKU: {item.sku}</Text>}
+        {item.sku && (
+          <ThemedText style={[styles.sku, { color: colors.textSecondary }]}>
+            SKU: {item.sku}
+          </ThemedText>
+        )}
         <View style={styles.stockInfo}>
-          <Text
+          <ThemedText
             style={[
               styles.stockText,
-              item.stockQuantity <= item.lowStockThreshold
-                ? styles.lowStock
-                : styles.inStock,
+              {
+                color:
+                  item.stockQuantity <= item.lowStockThreshold
+                    ? colors.warning
+                    : colors.success,
+              },
             ]}
           >
             Stock: {item.stockQuantity}
-          </Text>
+          </ThemedText>
           {item.category && (
-            <Text style={styles.category}>{item.category}</Text>
+            <ThemedText
+              style={[
+                styles.category,
+                {
+                  backgroundColor: colors.surface,
+                  color: colors.textSecondary,
+                },
+              ]}
+            >
+              {item.category}
+            </ThemedText>
           )}
         </View>
       </View>
 
       {/* Action buttons */}
       {showActions && (
-        <View style={styles.actionButtons}>
+        <ThemedView
+          style={[styles.actionButtons, { borderTopColor: colors.border }]}
+        >
           <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.success + "20",
+                borderColor: colors.success,
+              },
+            ]}
             onPress={() => onEditProduct?.(item)}
           >
-            <IconSymbol name="pencil" size={16} color="#2E7D32" />
-            <Text style={styles.editButtonText}>Edit</Text>
+            <IconSymbol name="pencil" size={16} color={colors.success} />
+            <ThemedText
+              style={[styles.editButtonText, { color: colors.success }]}
+            >
+              Edit
+            </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.error + "20",
+                borderColor: colors.error,
+              },
+            ]}
             disabled={deletingProductId === item.id}
             onPress={() => handleDeleteProduct(item)}
           >
-            <IconSymbol name="trash" size={16} color="#f44336" />
-            <Text style={styles.deleteButtonText}>
+            <IconSymbol name="trash" size={16} color={colors.error} />
+            <ThemedText
+              style={[styles.deleteButtonText, { color: colors.error }]}
+            >
               {isDeleting ? "..." : "Delete"}
-            </Text>
+            </ThemedText>
           </TouchableOpacity>
-        </View>
+        </ThemedView>
       )}
 
       {!item.isActive && (
-        <View style={styles.inactiveBadge}>
-          <Text style={styles.inactiveText}>Inactive</Text>
+        <View style={[styles.inactiveBadge, { backgroundColor: colors.error }]}>
+          <ThemedText
+            style={[styles.inactiveText, { color: colors.background }]}
+          >
+            Inactive
+          </ThemedText>
         </View>
       )}
     </TouchableOpacity>
@@ -144,13 +192,13 @@ export function ProductList({
 
     return (
       <TouchableOpacity
-        style={styles.loadMoreButton}
+        style={[styles.loadMoreButton, { backgroundColor: colors.primary }]}
         onPress={() => fetchNextPage()}
         disabled={isFetchingNextPage}
       >
-        <Text style={styles.loadMoreText}>
+        <ThemedText style={[styles.loadMoreText, { color: colors.background }]}>
           {isFetchingNextPage ? "Loading..." : "Load More"}
-        </Text>
+        </ThemedText>
       </TouchableOpacity>
     );
   };
@@ -158,7 +206,7 @@ export function ProductList({
   if (error) {
     return (
       <ThemedView style={styles.centerContainer}>
-        <ThemedText style={styles.errorText}>
+        <ThemedText style={[styles.errorText, { color: colors.error }]}>
           Error loading products: {error.message}
         </ThemedText>
       </ThemedView>
@@ -168,7 +216,9 @@ export function ProductList({
   if (isLoading) {
     return (
       <ThemedView style={styles.centerContainer}>
-        <ThemedText>Loading products...</ThemedText>
+        <ThemedText style={{ color: colors.textSecondary }}>
+          Loading products...
+        </ThemedText>
       </ThemedView>
     );
   }
@@ -176,7 +226,7 @@ export function ProductList({
   if (products.length === 0) {
     return (
       <ThemedView style={styles.centerContainer}>
-        <ThemedText style={styles.emptyText}>
+        <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
           No products found. Add your first product to get started!
         </ThemedText>
       </ThemedView>
@@ -200,7 +250,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   productCard: {
-    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -225,11 +274,9 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2E7D32",
   },
   productDescription: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -240,7 +287,6 @@ const styles = StyleSheet.create({
   },
   sku: {
     fontSize: 12,
-    color: "#999",
     fontFamily: "monospace",
   },
   stockInfo: {
@@ -252,43 +298,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  inStock: {
-    color: "#4CAF50",
-  },
-  lowStock: {
-    color: "#FF9800",
-  },
   category: {
     fontSize: 12,
-    backgroundColor: "#f0f0f0",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    color: "#666",
   },
   inactiveBadge: {
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "#f44336",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   inactiveText: {
-    color: "white",
     fontSize: 10,
     fontWeight: "600",
   },
   loadMoreButton: {
-    backgroundColor: "#2E7D32",
     padding: 16,
     borderRadius: 8,
     marginTop: 16,
     alignItems: "center",
   },
   loadMoreText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -299,12 +333,10 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   errorText: {
-    color: "#f44336",
     textAlign: "center",
   },
   emptyText: {
     textAlign: "center",
-    color: "#666",
     fontSize: 16,
   },
   actionButtons: {
@@ -314,7 +346,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
   },
   actionButton: {
     flexDirection: "row",
@@ -323,24 +354,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     gap: 4,
-  },
-  editButton: {
-    backgroundColor: "#E8F5E8",
     borderWidth: 1,
-    borderColor: "#2E7D32",
-  },
-  deleteButton: {
-    backgroundColor: "#FFEBEE",
-    borderWidth: 1,
-    borderColor: "#f44336",
   },
   editButtonText: {
-    color: "#2E7D32",
     fontSize: 12,
     fontWeight: "600",
   },
   deleteButtonText: {
-    color: "#f44336",
     fontSize: 12,
     fontWeight: "600",
   },

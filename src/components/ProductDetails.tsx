@@ -1,12 +1,8 @@
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Product } from "@/types/product";
 import { formatCurrency } from "@/utils/helpers";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ThemedText } from "./ThemedText";
 import { ThemedView } from "./ThemedView";
 import { IconSymbol } from "./ui/IconSymbol";
@@ -24,20 +20,22 @@ export function ProductDetails({
   onDelete,
   onClose,
 }: ProductDetailsProps) {
+  const theme = useColorScheme();
+  const colors = Colors[theme ?? "light"];
+
   const getStockStatus = () => {
     if (product.stockQuantity === 0)
-      return { text: "Out of Stock", color: "#f44336" };
+      return { text: "Out of Stock", color: colors.error };
     if (product.stockQuantity <= product.lowStockThreshold)
-      return { text: "Low Stock", color: "#FF9800" };
-    return { text: "In Stock", color: "#4CAF50" };
+      return { text: "Low Stock", color: colors.warning };
+    return { text: "In Stock", color: colors.success };
   };
-
   const stockStatus = getStockStatus();
 
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <ThemedView style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
             onPress={onClose}
@@ -46,7 +44,7 @@ export function ProductDetails({
             accessibilityLabel="Close product details"
             accessibilityRole="button"
           >
-            <IconSymbol name="xmark" size={20} color="#666" />
+            <IconSymbol name="xmark" size={20} color={colors.text} />
           </TouchableOpacity>
           <ThemedText type="subtitle" style={styles.title}>
             Product Details
@@ -58,87 +56,134 @@ export function ProductDetails({
             accessible={true}
             accessibilityLabel="Edit product details"
             accessibilityRole="button"
-            style={styles.editButton}
+            style={[
+              styles.editButton,
+              { backgroundColor: colors.success + "20" },
+            ]}
           >
-            <IconSymbol name="pencil" size={16} color="#2E7D32" />
-            <Text style={styles.editButtonText}>Edit</Text>
+            <IconSymbol name="pencil" size={16} color={colors.success} />
+            <ThemedText
+              style={[styles.editButtonText, { color: colors.success }]}
+            >
+              Edit
+            </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onDelete}
             accessible={true}
             accessibilityLabel="Delete product"
             accessibilityRole="button"
-            style={styles.deleteButton}
+            style={[
+              styles.deleteButton,
+              { backgroundColor: colors.error + "20" },
+            ]}
           >
-            <IconSymbol name="trash" size={16} color="#f44336" />
-            <Text style={styles.deleteButtonText}>Delete</Text>
+            <IconSymbol name="trash" size={16} color={colors.error} />
+            <ThemedText
+              style={[styles.deleteButtonText, { color: colors.error }]}
+            >
+              Delete
+            </ThemedText>
           </TouchableOpacity>
         </View>
-      </View>
+      </ThemedView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Product Status */}
         {!product.isActive && (
-          <View style={styles.inactiveWarning}>
+          <ThemedView
+            style={[
+              styles.inactiveWarning,
+              { backgroundColor: colors.warning + "20" },
+            ]}
+          >
             <IconSymbol
               name="exclamationmark.triangle"
               size={20}
-              color="#FF9800"
+              color={colors.warning}
             />
-            <ThemedText style={styles.inactiveText}>
+            <ThemedText
+              style={[styles.inactiveText, { color: colors.warning }]}
+            >
               This product is currently inactive and will not appear in your
               store
             </ThemedText>
-          </View>
+          </ThemedView>
         )}
 
         {/* Main Info */}
-        <View style={styles.section}>
+        <ThemedView
+          style={[styles.section, { borderBottomColor: colors.border }]}
+        >
           <ThemedText type="defaultSemiBold" style={styles.productName}>
             {product.name}
           </ThemedText>
           {product.description && (
-            <ThemedText style={styles.description}>
+            <ThemedText
+              style={[styles.description, { color: colors.textSecondary }]}
+            >
               {product.description}
             </ThemedText>
           )}
-        </View>
+        </ThemedView>
 
         {/* Pricing */}
-        <View style={styles.section}>
+        <ThemedView
+          style={[styles.section, { borderBottomColor: colors.border }]}
+        >
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Pricing
           </ThemedText>
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Selling Price</ThemedText>
-              <ThemedText style={styles.priceValue}>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Selling Price
+              </ThemedText>
+              <ThemedText
+                style={[styles.priceValue, { color: colors.success }]}
+              >
                 {formatCurrency(product.price)}
               </ThemedText>
             </View>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Cost Price</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Cost Price
+              </ThemedText>
               <ThemedText style={styles.infoValue}>
                 {formatCurrency(product.costPrice)}
               </ThemedText>
             </View>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Profit Margin</ThemedText>
-              <ThemedText style={[styles.infoValue, styles.profitValue]}>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Profit Margin
+              </ThemedText>
+              <ThemedText style={[styles.infoValue, { color: colors.success }]}>
                 {formatCurrency(product.price - product.costPrice)}
               </ThemedText>
             </View>
           </View>
-        </View>
+        </ThemedView>
 
         {/* Inventory */}
-        <View style={styles.section}>
+        <ThemedView
+          style={[styles.section, { borderBottomColor: colors.border }]}
+        >
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Inventory
           </ThemedText>
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Stock Quantity</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Stock Quantity
+              </ThemedText>
               <ThemedText
                 style={[styles.infoValue, { color: stockStatus.color }]}
               >
@@ -146,7 +191,11 @@ export function ProductDetails({
               </ThemedText>
             </View>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Status</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Status
+              </ThemedText>
               <View style={styles.stockStatusContainer}>
                 <View
                   style={[
@@ -162,50 +211,78 @@ export function ProductDetails({
               </View>
             </View>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Low Stock Alert</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Low Stock Alert
+              </ThemedText>
               <ThemedText style={styles.infoValue}>
                 {product.lowStockThreshold} units
               </ThemedText>
             </View>
           </View>
-        </View>
+        </ThemedView>
 
         {/* Product Info */}
-        <View style={styles.section}>
+        <ThemedView
+          style={[styles.section, { borderBottomColor: colors.border }]}
+        >
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Product Information
           </ThemedText>
           <View style={styles.infoGrid}>
             {product.sku && (
               <View style={styles.infoItem}>
-                <ThemedText style={styles.infoLabel}>SKU</ThemedText>
-                <ThemedText style={[styles.infoValue, styles.skuValue]}>
+                <ThemedText
+                  style={[styles.infoLabel, { color: colors.textSecondary }]}
+                >
+                  SKU
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.infoValue,
+                    styles.skuValue,
+                    { backgroundColor: colors.surfaceVariant },
+                  ]}
+                >
                   {product.sku}
                 </ThemedText>
               </View>
             )}
             {product.category && (
               <View style={styles.infoItem}>
-                <ThemedText style={styles.infoLabel}>Category</ThemedText>
+                <ThemedText
+                  style={[styles.infoLabel, { color: colors.textSecondary }]}
+                >
+                  Category
+                </ThemedText>
                 <ThemedText style={styles.infoValue}>
                   {product.category}
                 </ThemedText>
               </View>
             )}
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Created</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Created
+              </ThemedText>
               <ThemedText style={styles.infoValue}>
                 {new Date(product.createdAt).toLocaleDateString()}
               </ThemedText>
             </View>
             <View style={styles.infoItem}>
-              <ThemedText style={styles.infoLabel}>Last Updated</ThemedText>
+              <ThemedText
+                style={[styles.infoLabel, { color: colors.textSecondary }]}
+              >
+                Last Updated
+              </ThemedText>
               <ThemedText style={styles.infoValue}>
                 {new Date(product.updatedAt).toLocaleDateString()}
               </ThemedText>
             </View>
           </View>
-        </View>
+        </ThemedView>
       </ScrollView>
     </ThemedView>
   );
@@ -214,7 +291,6 @@ export function ProductDetails({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
   },
   header: {
     flexDirection: "row",
@@ -222,7 +298,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   headerLeft: {
     flexDirection: "row",
@@ -243,7 +318,6 @@ const styles = StyleSheet.create({
   editButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E8F5E8",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -252,19 +326,16 @@ const styles = StyleSheet.create({
   deleteButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFEBEE",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     gap: 4,
   },
   editButtonText: {
-    color: "#2E7D32",
     fontSize: 12,
     fontWeight: "600",
   },
   deleteButtonText: {
-    color: "#f44336",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -274,7 +345,6 @@ const styles = StyleSheet.create({
   inactiveWarning: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF3E0",
     padding: 12,
     margin: 16,
     borderRadius: 8,
@@ -282,30 +352,25 @@ const styles = StyleSheet.create({
   },
   inactiveText: {
     flex: 1,
-    color: "#F57C00",
     fontSize: 14,
   },
   section: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#333",
   },
   productName: {
     fontSize: 20,
     fontWeight: "700",
     marginBottom: 8,
-    color: "#333",
   },
   description: {
     fontSize: 16,
     lineHeight: 22,
-    color: "#666",
   },
   infoGrid: {
     gap: 12,
@@ -318,22 +383,16 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: "#666",
     flex: 1,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
     textAlign: "right",
   },
   priceValue: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#2E7D32",
-  },
-  profitValue: {
-    color: "#4CAF50",
   },
   stockStatusContainer: {
     flexDirection: "row",
@@ -351,7 +410,6 @@ const styles = StyleSheet.create({
   },
   skuValue: {
     fontFamily: "monospace",
-    backgroundColor: "#f8f8f8",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
