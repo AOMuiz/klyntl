@@ -223,15 +223,16 @@ const migration003: Migration = {
         name TEXT NOT NULL,
         description TEXT,
         price REAL NOT NULL,
-        costPrice REAL DEFAULT 0,
+        costPrice REAL NOT NULL DEFAULT 0,
         sku TEXT UNIQUE,
-        category TEXT,
+        categoryId TEXT,
         imageUrl TEXT,
-        stockQuantity INTEGER DEFAULT 0,
-        lowStockThreshold INTEGER DEFAULT 5,
-        isActive INTEGER DEFAULT 1,
+        stockQuantity INTEGER NOT NULL DEFAULT 0,
+        lowStockThreshold INTEGER NOT NULL DEFAULT 5,
+        isActive INTEGER NOT NULL DEFAULT 1 CHECK(isActive IN (0,1)),
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (categoryId) REFERENCES product_categories(id) ON DELETE SET NULL
       );
 
       -- Create store configuration table
@@ -259,13 +260,13 @@ const migration003: Migration = {
         FOREIGN KEY (parentId) REFERENCES product_categories (id) ON DELETE SET NULL
       );
 
-      -- Add indexes for products
-      CREATE INDEX IF NOT EXISTS idx_product_category ON products(category);
-      CREATE INDEX IF NOT EXISTS idx_product_sku ON products(sku);
-      CREATE INDEX IF NOT EXISTS idx_product_active ON products(isActive);
-      CREATE INDEX IF NOT EXISTS idx_product_price ON products(price);
-      CREATE INDEX IF NOT EXISTS idx_product_stock ON products(stockQuantity);
-      CREATE INDEX IF NOT EXISTS idx_product_name ON products(name);
+  -- Add indexes for products
+  CREATE INDEX IF NOT EXISTS idx_product_categoryId ON products(categoryId);
+  CREATE INDEX IF NOT EXISTS idx_product_sku ON products(sku);
+  CREATE INDEX IF NOT EXISTS idx_product_active ON products(isActive);
+  CREATE INDEX IF NOT EXISTS idx_product_price ON products(price);
+  CREATE INDEX IF NOT EXISTS idx_product_stock ON products(stockQuantity);
+  CREATE INDEX IF NOT EXISTS idx_product_name ON products(name);
 
       -- Add indexes for categories
       CREATE INDEX IF NOT EXISTS idx_category_parent ON product_categories(parentId);

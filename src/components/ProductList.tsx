@@ -1,5 +1,6 @@
 import { useProducts } from "@/hooks/useProducts";
 import { Product } from "@/types/product";
+import { useState } from "react";
 import {
   Alert,
   FlatList,
@@ -36,19 +37,31 @@ export function ProductList({
     isDeleting,
   } = useProducts();
 
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(
+    null
+  );
+
   const handleDeleteProduct = (product: Product) => {
     if (onDeleteProduct) {
       onDeleteProduct(product);
     } else {
+      setDeletingProductId(product.id);
       Alert.alert(
         "Delete Product",
         `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
         [
-          { text: "Cancel", style: "cancel" },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setDeletingProductId(null),
+          },
           {
             text: "Delete",
             style: "destructive",
-            onPress: () => deleteProduct(product.id),
+            onPress: async () => {
+              deleteProduct(product.id);
+              setDeletingProductId(null);
+            },
           },
         ]
       );
@@ -107,8 +120,8 @@ export function ProductList({
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
+            disabled={deletingProductId === item.id}
             onPress={() => handleDeleteProduct(item)}
-            disabled={isDeleting}
           >
             <IconSymbol name="trash" size={16} color="#f44336" />
             <Text style={styles.deleteButtonText}>

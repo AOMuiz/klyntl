@@ -49,10 +49,19 @@ export default function AnalyticsScreen() {
   // Refresh handler using React Query refetch
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([analyticsQuery.refetch(), transactionsQuery.refetch()]);
-    setRefreshing(false);
+    try {
+      const results = await Promise.allSettled([
+        analyticsQuery.refetch(),
+        transactionsQuery.refetch(),
+      ]);
+      const rejected = results.filter((r) => r.status === "rejected");
+      if (rejected.length) {
+        console.warn("Refresh failed for some queries", rejected);
+      }
+    } finally {
+      setRefreshing(false);
+    }
   }, [analyticsQuery, transactionsQuery]);
-
   // ...existing code...
 
   const getTransactionTypeData = () => {

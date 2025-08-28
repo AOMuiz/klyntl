@@ -7,7 +7,7 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { CreateTransactionInput } from "@/types/transaction";
 import { format } from "date-fns";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -72,8 +72,14 @@ export default function AddTransactionScreen({
   const watchedAmount = watch("amount");
 
   // Filter customers based on search query
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCustomers = useMemo(
+    () =>
+      (customers ?? []).filter((customer) =>
+        (customer.name ?? "")
+          .toLowerCase()
+          .includes(searchQuery.trim().toLowerCase())
+      ),
+    [customers, searchQuery]
   );
 
   const validateAmount = (amount: string) => {

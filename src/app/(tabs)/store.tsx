@@ -335,6 +335,13 @@ export default function StoreScreen() {
                     styles.ctaButton,
                     { backgroundColor: colors.primary },
                   ]}
+                  onPress={() => {
+                    Alert.alert(
+                      "Coming Soon!",
+                      "We'll notify you when the online store features are ready. Stay tuned!",
+                      [{ text: "OK", style: "default" }]
+                    );
+                  }}
                 >
                   <ThemedText style={styles.ctaButtonText}>
                     Get Notified
@@ -357,6 +364,8 @@ export default function StoreScreen() {
               <TouchableOpacity
                 onPress={() => setShowAddProduct(false)}
                 style={styles.modalCloseButton}
+                accessibilityLabel="Close add product modal"
+                accessibilityRole="button"
               >
                 <ThemedText style={styles.modalCloseText}>Cancel</ThemedText>
               </TouchableOpacity>

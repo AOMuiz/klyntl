@@ -25,16 +25,18 @@ export function useProducts(
 
   // Use infinite query for pagination
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ["products", { searchQuery, filters, sort, pageSize }],
+    queryKey: [
+      "products",
+      { searchQuery, filters, sort, pageSize },
+      db ? "main" : "default",
+    ],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!databaseService) throw new Error("Database not available");
-
       const productFilters = {
         ...filters,
         searchQuery,
       };
 
-      const products = await databaseService.getProducts(
+      const products = await databaseService!.getProducts(
         productFilters,
         sort,
         pageParam, // page number
@@ -47,23 +49,26 @@ export function useProducts(
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
-    enabled: !!db,
+    enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
   });
 
   // Separate query for total count
   const countQuery = useQuery({
-    queryKey: ["products", "count", { searchQuery, filters }],
+    queryKey: [
+      "products",
+      "count",
+      { searchQuery, filters },
+      db ? "main" : "default",
+    ],
     queryFn: () => {
-      if (!databaseService) throw new Error("Database not available");
-
       const productFilters = {
         ...filters,
         searchQuery,
       };
-      return databaseService.getProductsCount(productFilters);
+      return databaseService!.getProductsCount(productFilters);
     },
-    enabled: !!db,
+    enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
   });
 
@@ -74,8 +79,7 @@ export function useProducts(
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: (productData: CreateProductInput) => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.createProduct(productData);
+      return databaseService!.createProduct(productData);
     },
     onSuccess: (newProduct) => {
       // Add to first page
@@ -116,8 +120,7 @@ export function useProducts(
       id: string;
       updates: UpdateProductInput;
     }) => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.updateProduct(id, updates);
+      return databaseService!.updateProduct(id, updates);
     },
     onSuccess: (_, { id, updates }) => {
       // Update across all pages
@@ -146,8 +149,7 @@ export function useProducts(
   // Delete product mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.deleteProduct(id);
+      return databaseService!.deleteProduct(id);
     },
     onSuccess: (_, deletedId) => {
       // Remove from all pages
@@ -202,8 +204,7 @@ export function useProducts(
 
     // Utilities
     refetch: () => {
-      infiniteQuery.refetch();
-      countQuery.refetch();
+      return Promise.all([infiniteQuery.refetch(), countQuery.refetch()]);
     },
   };
 }
@@ -214,13 +215,12 @@ export function useProduct(id?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["products", "detail", id],
+    queryKey: ["products", "detail", id, db ? "main" : "default"],
     queryFn: async () => {
-      if (!databaseService || !id)
-        throw new Error("Database not available or no ID provided");
-      return databaseService.getProductById(id);
+      if (!id) throw new Error("No ID provided");
+      return databaseService!.getProductById(id);
     },
-    enabled: !!db && !!id,
+    enabled: Boolean(databaseService) && Boolean(id),
     staleTime: 5 * 60 * 1000, // Individual product data can be stale for 5 minutes
     retry: 3,
   });
@@ -232,13 +232,12 @@ export function useProductBySku(sku?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["products", "sku", sku],
+    queryKey: ["products", "sku", sku, db ? "main" : "default"],
     queryFn: async () => {
-      if (!databaseService || !sku)
-        throw new Error("Database not available or no SKU provided");
-      return databaseService.getProductBySku(sku);
+      if (!sku) throw new Error("No SKU provided");
+      return databaseService!.getProductBySku(sku);
     },
-    enabled: !!db && !!sku,
+    enabled: Boolean(databaseService) && Boolean(sku),
     staleTime: 1 * 60 * 1000, // SKU searches should be relatively fresh
     retry: 2,
   });
@@ -250,12 +249,11 @@ export function useLowStockProducts() {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["products", "low-stock"],
+    queryKey: ["products", "low-stock", db ? "main" : "default"],
     queryFn: async () => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.getLowStockProducts();
+      return databaseService!.getLowStockProducts();
     },
-    enabled: !!db,
+    enabled: Boolean(databaseService),
     staleTime: 1 * 60 * 1000, // Low stock alerts should be fresh
     refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
     retry: 3,

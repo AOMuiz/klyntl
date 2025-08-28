@@ -9,12 +9,11 @@ export function useProductCategories() {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   const categoriesQuery = useQuery({
-    queryKey: ["product-categories"],
+    queryKey: ["product-categories", db ? "main" : "default"],
     queryFn: async () => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.getCategories();
+      return databaseService!.getCategories();
     },
-    enabled: !!db,
+    enabled: Boolean(databaseService),
     staleTime: 5 * 60 * 1000, // Categories can be stale for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     retry: 3,
@@ -22,8 +21,7 @@ export function useProductCategories() {
 
   const createMutation = useMutation({
     mutationFn: async (categoryData: CreateCategoryInput) => {
-      if (!databaseService) throw new Error("Database not available");
-      return databaseService.createCategory(categoryData);
+      return databaseService!.createCategory(categoryData);
     },
     onSuccess: (newCategory) => {
       // Add to categories cache
@@ -73,13 +71,12 @@ export function useProductCategory(id?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["product-categories", "detail", id],
+    queryKey: ["product-categories", "detail", id, db ? "main" : "default"],
     queryFn: async () => {
-      if (!databaseService || !id)
-        throw new Error("Database not available or no ID provided");
-      return databaseService.getCategoryById(id);
+      if (!id) throw new Error("No ID provided");
+      return databaseService!.getCategoryById(id);
     },
-    enabled: !!db && !!id,
+    enabled: Boolean(databaseService) && Boolean(id),
     staleTime: 5 * 60 * 1000, // Individual category data can be stale for 5 minutes
     retry: 3,
   });

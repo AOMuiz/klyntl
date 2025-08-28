@@ -39,7 +39,13 @@ export function ProductDetails({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeButton}
+            accessible={true}
+            accessibilityLabel="Close product details"
+            accessibilityRole="button"
+          >
             <IconSymbol name="xmark" size={20} color="#666" />
           </TouchableOpacity>
           <ThemedText type="subtitle" style={styles.title}>
@@ -47,11 +53,23 @@ export function ProductDetails({
           </ThemedText>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={onEdit} style={styles.editButton}>
+          <TouchableOpacity
+            onPress={onEdit}
+            accessible={true}
+            accessibilityLabel="Edit product details"
+            accessibilityRole="button"
+            style={styles.editButton}
+          >
             <IconSymbol name="pencil" size={16} color="#2E7D32" />
             <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+          <TouchableOpacity
+            onPress={onDelete}
+            accessible={true}
+            accessibilityLabel="Delete product"
+            accessibilityRole="button"
+            style={styles.deleteButton}
+          >
             <IconSymbol name="trash" size={16} color="#f44336" />
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>

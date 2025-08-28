@@ -17,18 +17,17 @@ export function useCustomers(
 ) {
   const { db } = useDatabase();
   const queryClient = useQueryClient();
-
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  const databaseService = createDatabaseService(db);
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   // Use infinite query for pagination
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ["customers", { searchQuery, filters, sort, pageSize }],
+    queryKey: [
+      "customers",
+      { searchQuery, filters, sort, pageSize },
+      db ? "main" : "default",
+    ],
     queryFn: async ({ pageParam = 0 }) => {
-      const customers = await databaseService.getCustomersWithFilters(
+      const customers = await databaseService!.getCustomersWithFilters(
         searchQuery,
         filters,
         sort,
@@ -42,16 +41,21 @@ export function useCustomers(
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
-    enabled: !!db,
+    enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
   });
 
   // Separate query for total count
   const countQuery = useQuery({
-    queryKey: ["customers", "count", { searchQuery, filters }],
+    queryKey: [
+      "customers",
+      "count",
+      { searchQuery, filters },
+      db ? "main" : "default",
+    ],
     queryFn: () =>
-      databaseService.getCustomersCountWithFilters(searchQuery, filters),
-    enabled: !!db,
+      databaseService!.getCustomersCountWithFilters(searchQuery, filters),
+    enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
   });
 
@@ -62,7 +66,7 @@ export function useCustomers(
   // Create customer mutation
   const createMutation = useMutation({
     mutationFn: (customerData: CreateCustomerInput) =>
-      databaseService.createCustomer(customerData),
+      databaseService!.createCustomer(customerData),
     onSuccess: (newCustomer) => {
       // Add to first page
       queryClient.setQueryData(
@@ -101,7 +105,7 @@ export function useCustomers(
     }: {
       id: string;
       updates: UpdateCustomerInput;
-    }) => databaseService.updateCustomer(id, updates),
+    }) => databaseService!.updateCustomer(id, updates),
     onSuccess: (_, { id, updates }) => {
       // Update across all pages
       queryClient.setQueryData(
@@ -128,7 +132,7 @@ export function useCustomers(
 
   // Delete customer mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => databaseService.deleteCustomer(id),
+    mutationFn: (id: string) => databaseService!.deleteCustomer(id),
     onSuccess: (_, deletedId) => {
       // Remove from all pages
       queryClient.setQueryData(
@@ -192,15 +196,15 @@ export function useCustomers(
 // Hook for getting a single customer
 export function useCustomer(id?: string) {
   const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["customers", "detail", id],
+    queryKey: ["customers", "detail", id, db ? "main" : "default"],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      const databaseService = createDatabaseService(db);
-      return databaseService.getCustomerById(id);
+      return databaseService!.getCustomerById(id);
     },
-    enabled: !!db && !!id,
+    enabled: Boolean(databaseService) && Boolean(id),
     staleTime: 5 * 60 * 1000, // Individual customer data can be stale for 5 minutes
     retry: 3,
   });
@@ -209,15 +213,15 @@ export function useCustomer(id?: string) {
 // Hook for searching customers by phone
 export function useCustomerByPhone(phone?: string) {
   const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["customers", "phone", phone],
+    queryKey: ["customers", "phone", phone, db ? "main" : "default"],
     queryFn: async () => {
       if (!phone) throw new Error("No phone provided");
-      const databaseService = createDatabaseService(db);
-      return databaseService.getCustomerByPhone(phone);
+      return databaseService!.getCustomerByPhone(phone);
     },
-    enabled: !!db && !!phone,
+    enabled: Boolean(databaseService) && Boolean(phone),
     staleTime: 1 * 60 * 1000, // Phone searches should be relatively fresh
     retry: 2,
   });

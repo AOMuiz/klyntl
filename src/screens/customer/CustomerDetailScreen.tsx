@@ -37,9 +37,8 @@ export default function CustomerDetailScreen({
 
   // Get data from React Query
   const customers = customersQuery.customers;
-  const transactions = transactionsQuery.transactions;
+  const transactions = transactionsQuery.transactions ?? [];
   const loading = customersQuery.isLoading || transactionsQuery.isLoading;
-
   // Find customer when data is available
   useEffect(() => {
     if (customerId && customers.length > 0) {

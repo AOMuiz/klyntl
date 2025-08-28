@@ -1,8 +1,15 @@
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useProducts } from "@/hooks/useProducts";
 import { CreateProductInput } from "@/types/product";
+import { validateNumber, validatePositiveInteger } from "@/utils/validations";
 import { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { ThemedText } from "./ThemedText";
 import { ThemedView } from "./ThemedView";
 
@@ -26,7 +33,11 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
   const { categories } = useProductCategories();
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.price) {
+    if (
+      !formData.name ||
+      formData.price === null ||
+      formData.price === undefined
+    ) {
       Alert.alert("Error", "Please fill in required fields (Name, Price)");
       return;
     }
@@ -35,12 +46,15 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
       {
         name: formData.name,
         description: formData.description,
-        price: Number(formData.price),
-        costPrice: Number(formData.costPrice) || 0,
+        price: validateNumber(formData.price, 0),
+        costPrice: validateNumber(formData.costPrice ?? 0, 0),
         sku: formData.sku,
         category: formData.category,
-        stockQuantity: Number(formData.stockQuantity) || 0,
-        lowStockThreshold: Number(formData.lowStockThreshold) || 5,
+        stockQuantity: validatePositiveInteger(formData.stockQuantity ?? 0, 0),
+        lowStockThreshold: validatePositiveInteger(
+          formData.lowStockThreshold ?? 0,
+          5
+        ),
       },
       {
         onSuccess: () => {
@@ -168,12 +182,12 @@ export function ProductForm({ onProductCreated }: ProductFormProps) {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Text
+        <TouchableOpacity
           style={[styles.button, isCreating && styles.buttonDisabled]}
           onPress={!isCreating ? handleSubmit : undefined}
         >
           {isCreating ? "Creating..." : "Create Product"}
-        </Text>
+        </TouchableOpacity>
       </View>
     </ThemedView>
   );

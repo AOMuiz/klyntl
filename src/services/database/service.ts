@@ -603,6 +603,70 @@ export class DatabaseService {
     }
   }
 
+  // Helper method to build product filter query parts
+  private buildProductFilters(filters?: ProductFilters): {
+    sql: string;
+    params: any[];
+  } {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters) {
+      // Category filter
+      if (filters.category) {
+        conditions.push("category = ?");
+        params.push(filters.category);
+      }
+
+      // Price range filter
+      if (filters.priceRange) {
+        if (filters.priceRange.min > 0) {
+          conditions.push("price >= ?");
+          params.push(filters.priceRange.min);
+        }
+        if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
+          conditions.push("price <= ?");
+          params.push(filters.priceRange.max);
+        }
+      }
+
+      // Stock status filter
+      if (filters.stockStatus && filters.stockStatus !== "all") {
+        switch (filters.stockStatus) {
+          case "in_stock":
+            conditions.push("stockQuantity > lowStockThreshold");
+            break;
+          case "low_stock":
+            conditions.push(
+              "stockQuantity > 0 AND stockQuantity <= lowStockThreshold"
+            );
+            break;
+          case "out_of_stock":
+            conditions.push("stockQuantity = 0");
+            break;
+        }
+      }
+
+      // Active status filter
+      if (filters.isActive !== undefined) {
+        conditions.push("isActive = ?");
+        params.push(filters.isActive ? 1 : 0);
+      }
+
+      // Search query filter
+      if (filters.searchQuery && filters.searchQuery.trim()) {
+        conditions.push("(name LIKE ? OR description LIKE ? OR sku LIKE ?)");
+        const searchPattern = `%${filters.searchQuery.trim()}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+      }
+    }
+
+    return {
+      sql: conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "",
+      params,
+    };
+  }
+
   // Product CRUD Operations
   async createProduct(productData: CreateProductInput): Promise<Product> {
     const id = generateId("prod");
@@ -662,66 +726,10 @@ export class DatabaseService {
   ): Promise<Product[]> {
     try {
       let baseSql = "SELECT * FROM products";
-      const allParams: any[] = [];
-      const allConditions: string[] = [];
 
-      // Add filter conditions
-      if (filters) {
-        // Category filter
-        if (filters.category) {
-          allConditions.push("category = ?");
-          allParams.push(filters.category);
-        }
-
-        // Price range filter
-        if (filters.priceRange) {
-          if (filters.priceRange.min > 0) {
-            allConditions.push("price >= ?");
-            allParams.push(filters.priceRange.min);
-          }
-          if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
-            allConditions.push("price <= ?");
-            allParams.push(filters.priceRange.max);
-          }
-        }
-
-        // Stock status filter
-        if (filters.stockStatus && filters.stockStatus !== "all") {
-          switch (filters.stockStatus) {
-            case "in_stock":
-              allConditions.push("stockQuantity > lowStockThreshold");
-              break;
-            case "low_stock":
-              allConditions.push(
-                "stockQuantity > 0 AND stockQuantity <= lowStockThreshold"
-              );
-              break;
-            case "out_of_stock":
-              allConditions.push("stockQuantity = 0");
-              break;
-          }
-        }
-
-        // Active status filter
-        if (filters.isActive !== undefined) {
-          allConditions.push("isActive = ?");
-          allParams.push(filters.isActive ? 1 : 0);
-        }
-
-        // Search query filter
-        if (filters.searchQuery && filters.searchQuery.trim()) {
-          allConditions.push(
-            "(name LIKE ? OR description LIKE ? OR sku LIKE ?)"
-          );
-          const searchPattern = `%${filters.searchQuery.trim()}%`;
-          allParams.push(searchPattern, searchPattern, searchPattern);
-        }
-      }
-
-      // Combine all conditions
-      if (allConditions.length > 0) {
-        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
-      }
+      // Apply filters
+      const { sql: filterSql, params } = this.buildProductFilters(filters);
+      baseSql += filterSql;
 
       // Add sorting
       if (sort) {
@@ -753,10 +761,10 @@ export class DatabaseService {
       if (page != null && pageSize != null && pageSize > 0) {
         const offset = page * pageSize;
         baseSql += ` LIMIT ? OFFSET ?`;
-        allParams.push(pageSize, offset);
+        params.push(pageSize, offset);
       }
 
-      const results = await this.db.getAllAsync<any>(baseSql, allParams);
+      const results = await this.db.getAllAsync<any>(baseSql, params);
 
       return results.map((result) => ({
         ...result,
@@ -771,64 +779,14 @@ export class DatabaseService {
   async getProductsCount(filters?: ProductFilters): Promise<number> {
     try {
       let baseSql = "SELECT COUNT(*) as count FROM products";
-      const allParams: any[] = [];
-      const allConditions: string[] = [];
 
-      // Add filter conditions (same as getProducts)
-      if (filters) {
-        if (filters.category) {
-          allConditions.push("category = ?");
-          allParams.push(filters.category);
-        }
-
-        if (filters.priceRange) {
-          if (filters.priceRange.min > 0) {
-            allConditions.push("price >= ?");
-            allParams.push(filters.priceRange.min);
-          }
-          if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
-            allConditions.push("price <= ?");
-            allParams.push(filters.priceRange.max);
-          }
-        }
-
-        if (filters.stockStatus && filters.stockStatus !== "all") {
-          switch (filters.stockStatus) {
-            case "in_stock":
-              allConditions.push("stockQuantity > lowStockThreshold");
-              break;
-            case "low_stock":
-              allConditions.push(
-                "stockQuantity > 0 AND stockQuantity <= lowStockThreshold"
-              );
-              break;
-            case "out_of_stock":
-              allConditions.push("stockQuantity = 0");
-              break;
-          }
-        }
-
-        if (filters.isActive !== undefined) {
-          allConditions.push("isActive = ?");
-          allParams.push(filters.isActive ? 1 : 0);
-        }
-
-        if (filters.searchQuery && filters.searchQuery.trim()) {
-          allConditions.push(
-            "(name LIKE ? OR description LIKE ? OR sku LIKE ?)"
-          );
-          const searchPattern = `%${filters.searchQuery.trim()}%`;
-          allParams.push(searchPattern, searchPattern, searchPattern);
-        }
-      }
-
-      if (allConditions.length > 0) {
-        baseSql += ` WHERE ${allConditions.join(" AND ")}`;
-      }
+      // Apply filters
+      const { sql: filterSql, params } = this.buildProductFilters(filters);
+      baseSql += filterSql;
 
       const result = await this.db.getFirstAsync<{ count: number }>(
         baseSql,
-        allParams
+        params
       );
       return result?.count || 0;
     } catch (error) {
