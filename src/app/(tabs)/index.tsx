@@ -6,6 +6,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useContactImport } from "@/hooks/useContactImport";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useCustomerFilters } from "@/stores/uiStore";
 import { Customer } from "@/types/customer";
@@ -35,7 +36,6 @@ export default function CustomerListScreen() {
     customers,
     totalCount,
     isLoading,
-    isFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -56,6 +56,7 @@ export default function CustomerListScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const { importFromContacts, isImporting } = useContactImport();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -232,18 +233,40 @@ export default function CustomerListScreen() {
               icon: "account-multiple-plus",
               label: "Import Contacts",
               onPress: async () => {
-                try {
-                  // For now, show a simple message
+                if (isImporting) {
                   Alert.alert(
-                    "Contact Import",
-                    "Contact import functionality will be available soon. For now, you can add customers manually.",
-                    [{ text: "OK" }]
+                    "Import in Progress",
+                    "Please wait for the current import to complete."
+                  );
+                  return;
+                }
+
+                try {
+                  const result = await importFromContacts(true);
+
+                  // Show import results
+                  Alert.alert(
+                    "Import Complete",
+                    `Successfully imported ${result.imported} contacts.\n${result.skipped} contacts were skipped.`,
+                    [
+                      {
+                        text: "OK",
+                        onPress: () => {
+                          // Refresh the customer list
+                          refetch();
+                          // Close the FAB
+                          setFabOpen(false);
+                        },
+                      },
+                    ]
                   );
                 } catch (error) {
                   console.error("Contact import error:", error);
                   Alert.alert(
-                    "Error",
-                    "Failed to import contacts. Please try again."
+                    "Import Error",
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to import contacts. Please try again."
                   );
                 }
               },

@@ -133,6 +133,57 @@ const migration001: Migration = {
 };
 
 /**
+ * Migration 4: Add audit log table for tracking data changes
+ */
+const migration004: Migration = {
+  version: 4,
+  name: "audit_log",
+  up: async (db) => {
+    await db.execAsync(`
+      -- Create audit log table
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id TEXT PRIMARY KEY,
+        tableName TEXT NOT NULL,
+        operation TEXT NOT NULL CHECK(operation IN ('CREATE', 'UPDATE', 'DELETE')),
+        recordId TEXT NOT NULL,
+        oldValues TEXT, -- JSON string of old values
+        newValues TEXT, -- JSON string of new values
+        timestamp TEXT NOT NULL
+      );
+
+      -- Add indexes for audit log queries
+      CREATE INDEX IF NOT EXISTS idx_audit_table ON audit_log(tableName);
+      CREATE INDEX IF NOT EXISTS idx_audit_record ON audit_log(recordId);
+      CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_audit_operation ON audit_log(operation);
+    `);
+  },
+  down: async (db) => {
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_audit_operation;
+      DROP INDEX IF EXISTS idx_audit_timestamp;
+      DROP INDEX IF EXISTS idx_audit_record;
+      DROP INDEX IF EXISTS idx_audit_table;
+      DROP TABLE IF EXISTS audit_log;
+    `);
+  },
+};
+
+// Add this to your migrations array
+export const auditLogMigration = migration004;
+
+// Usage example - add to your migrations.ts file:
+/*
+export const migrations: Migration[] = [
+  migration000,
+  migration001,
+  migration002,
+  migration003,
+  migration004, // Add the audit log migration
+];
+*/
+
+/**
  * Helper function to safely add columns that may already exist
  */
 async function addColumnIfNotExists(
@@ -302,6 +353,7 @@ export const migrations: Migration[] = [
   migration001,
   migration002,
   migration003,
+  migration004,
 ];
 
 /**

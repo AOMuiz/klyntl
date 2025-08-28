@@ -3,13 +3,14 @@ export function validateNumber(
   value: string | number,
   defaultValue: number = 0
 ): number {
-  if (typeof value === "number") return isNaN(value) ? defaultValue : value;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : defaultValue;
 
   const trimmed = String(value).trim();
   if (trimmed === "") return defaultValue;
 
-  const parsed = parseFloat(trimmed);
-  return isNaN(parsed) ? defaultValue : parsed;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
 }
 
 export function validatePositiveInteger(

@@ -1,5 +1,5 @@
-import { useCustomerStore } from "@/stores/customerStore";
-import React, { useState } from "react";
+import { useContactImport } from "@/hooks/useContactImport";
+import React from "react";
 import { Alert, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { IconSymbol } from "./ui/IconSymbol";
@@ -19,14 +19,15 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   variant = "button",
   size = "medium",
 }) => {
-  const { importFromContacts, clearImportCache, checkContactAccess } =
-    useCustomerStore();
-  const [importing, setImporting] = useState(false);
+  const {
+    importFromContacts,
+    clearImportCache,
+    checkContactAccess,
+    isImporting,
+  } = useContactImport();
 
   const handleImportContacts = async () => {
     try {
-      setImporting(true);
-
       // Check current contact access status
       const accessStatus = await checkContactAccess();
 
@@ -50,7 +51,6 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
       buttons.push({
         text: "Cancel",
         style: "cancel" as const,
-        onPress: () => setImporting(false),
       });
 
       // If limited access, offer option to grant more access
@@ -78,8 +78,6 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
                   ? error.message
                   : "Failed to import contacts"
               );
-            } finally {
-              setImporting(false);
             }
           },
         });
@@ -108,15 +106,12 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
                 ? error.message
                 : "Failed to import contacts"
             );
-          } finally {
-            setImporting(false);
           }
         },
       });
 
       Alert.alert(alertTitle, alertMessage, buttons);
     } catch (error) {
-      setImporting(false);
       console.error("Failed to start contact import:", error);
       Alert.alert("Error", "Failed to start contact import");
     }
@@ -138,7 +133,7 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
       <TouchableOpacity
         style={[styles.fab, size === "small" && styles.fabSmall, style]}
         onPress={handleImportContacts}
-        disabled={disabled || importing}
+        disabled={disabled || isImporting}
       >
         <IconSymbol
           name="person.badge.plus"
@@ -154,10 +149,10 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
       <TouchableOpacity
         style={[styles.textButton, style]}
         onPress={handleImportContacts}
-        disabled={disabled || importing}
+        disabled={disabled || isImporting}
       >
         <Text style={styles.textButtonText}>
-          {importing ? "Importing..." : "Import Contacts"}
+          {isImporting ? "Importing..." : "Import Contacts"}
         </Text>
       </TouchableOpacity>
     );
@@ -170,11 +165,11 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
         styles.button,
         size === "small" && styles.buttonSmall,
         size === "large" && styles.buttonLarge,
-        (disabled || importing) && styles.buttonDisabled,
+        (disabled || isImporting) && styles.buttonDisabled,
         style,
       ]}
       onPress={handleImportContacts}
-      disabled={disabled || importing}
+      disabled={disabled || isImporting}
     >
       <IconSymbol
         name="person.badge.plus"
@@ -183,7 +178,7 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
         style={styles.buttonIcon}
       />
       <Text style={styles.buttonText}>
-        {importing ? "Importing..." : "Import Contacts"}
+        {isImporting ? "Importing..." : "Import Contacts"}
       </Text>
     </TouchableOpacity>
   );
