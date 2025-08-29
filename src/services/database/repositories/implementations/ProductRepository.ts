@@ -332,13 +332,9 @@ export class ProductRepository
       reason: string;
     }[]
   > {
-    try {
-      // This would require a more sophisticated audit log structure
-      // For now, return empty array - implement based on actual audit log schema
-      return [];
-    } catch (error) {
-      throw new DatabaseError("getStockHistory", error as Error);
-    }
+    // This would require a more sophisticated audit log structure
+    // For now, return empty array - implement based on actual audit log schema
+    return [];
   }
 
   // Business logic methods

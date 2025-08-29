@@ -1,36 +1,16 @@
 import { KlyntlThemeProvider } from "@/components/ThemeProvider";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { DatabaseProvider } from "@/services/database/context";
+import { queryClient } from "@/services/query-client";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import "react-native-reanimated";
-
-// Create a stable query client instance
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Global query defaults
-      retry: 3,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes by default
-      gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes by default
-      refetchOnWindowFocus: false, // Don't refetch on window focus by default
-      refetchOnReconnect: true, // Refetch when reconnecting to internet
-      refetchOnMount: true, // Refetch when component mounts
-    },
-    mutations: {
-      // Global mutation defaults
-      retry: 1,
-      retryDelay: 1000,
-    },
-  },
-});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
