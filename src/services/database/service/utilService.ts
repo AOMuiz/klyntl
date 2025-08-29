@@ -1,17 +1,21 @@
 // Custom Error Types
 export class DatabaseError extends Error {
   public readonly operation: string;
-  public readonly cause?: Error;
 
   constructor(operation: string, cause?: Error) {
     super(
       `Database operation '${operation}' failed${
         cause ? `: ${cause.message}` : ""
-      }`
+      }
+      }`,
+      cause ? { cause } : undefined
     );
     this.name = "DatabaseError";
     this.operation = operation;
-    this.cause = cause;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 
@@ -24,6 +28,10 @@ export class NotFoundError extends Error {
     this.name = "NotFoundError";
     this.resource = resource;
     this.identifier = identifier;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 
@@ -32,10 +40,12 @@ export class DuplicateError extends Error {
   public readonly value: string;
 
   constructor(field: string, value: string) {
-    super(`Duplicate value '${value}' for field '${field}'`);
+    super(`Duplicate value for field '${field}'`);
     this.name = "DuplicateError";
     this.field = field;
     this.value = value;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) Error.captureStackTrace(this, DuplicateError);
   }
 }
 
@@ -49,6 +59,10 @@ export class ValidationError extends Error {
     this.name = "ValidationError";
     this.field = field;
     this.code = code;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 
@@ -61,6 +75,10 @@ export class BusinessRuleError extends Error {
     this.name = "BusinessRuleError";
     this.rule = rule;
     this.context = context;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 
@@ -73,5 +91,9 @@ export class ConcurrencyError extends Error {
     this.name = "ConcurrencyError";
     this.recordId = recordId;
     this.tableName = tableName;
+    Object.setPrototypeOf(this, new.target.prototype);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }

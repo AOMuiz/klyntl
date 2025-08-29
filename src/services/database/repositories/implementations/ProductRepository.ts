@@ -363,6 +363,10 @@ export class ProductRepository
       throw new DatabaseError("getProductsByCategory", error as Error);
     }
   }
+  // Escapes %, _, and \ for safe LIKE queries
+  private escapeLikePattern(input: string): string {
+    return input.replace(/([%_\\])/g, "\\$1");
+  }
 
   async searchProducts(
     searchQuery: string,
@@ -373,15 +377,17 @@ export class ProductRepository
     }
 
     try {
-      const searchPattern = `%${searchQuery.trim()}%`;
+      const escapedQuery = this.escapeLikePattern(searchQuery.trim());
+      const searchPattern = `%${escapedQuery}%`;
+      const startsWithPattern = `${escapedQuery}%`;
       const query = `
         SELECT * FROM products 
-        WHERE (name LIKE ? OR description LIKE ? OR sku LIKE ?) AND isActive = 1
+        WHERE (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR sku LIKE ? ESCAPE '\\') AND isActive = 1
         ORDER BY 
           CASE 
-            WHEN name LIKE ? THEN 1
+            WHEN name LIKE ? ESCAPE '\\' THEN 1
             WHEN sku = ? THEN 2
-            WHEN sku LIKE ? THEN 3
+            WHEN sku LIKE ? ESCAPE '\\' THEN 3
             ELSE 4
           END,
           name ASC
@@ -392,9 +398,9 @@ export class ProductRepository
         searchPattern,
         searchPattern,
         searchPattern,
-        `${searchQuery.trim()}%`,
+        startsWithPattern,
         searchQuery.trim(),
-        `${searchQuery.trim()}%`,
+        startsWithPattern,
         limit,
       ]);
 
@@ -534,7 +540,12 @@ export class ProductRepository
     searchQuery?: string,
     filters?: ProductFilters
   ): { sql: string; params: any[] } {
-    const conditions: { field: string; operator: string; value: any }[] = [];
+    const conditions: {
+      field: string;
+      operator: string;
+      value?: any;
+      compareToColumn?: string;
+    }[] = [];
 
     if (filters) {
       if (filters.category && filters.category !== "all") {
@@ -575,7 +586,7 @@ export class ProductRepository
             conditions.push({
               field: "stockQuantity",
               operator: "<=",
-              value: "lowStockThreshold",
+              compareToColumn: "lowStockThreshold",
             });
             conditions.push({
               field: "stockQuantity",

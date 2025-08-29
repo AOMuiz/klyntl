@@ -1,17 +1,37 @@
-// New IAuditRepository for audit logging
+/**
+ * IAuditRepository for audit logging
+ *
+ * @warning
+ * Do NOT pass unredacted PII/secrets in oldValues/newValues. Always mask sensitive fields (e.g., password, token, apiKey, ssn, email, phone, creditCard, privateKey) before logging.
+ */
+
+export type AuditOperation = "CREATE" | "UPDATE" | "DELETE";
+
 export interface IAuditLogEntry {
   id: string;
   tableName: string;
-  operation: "CREATE" | "UPDATE" | "DELETE";
+  operation: AuditOperation;
   recordId: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
+  oldValues?: Partial<Record<string, unknown>>;
+  newValues?: Partial<Record<string, unknown>>;
   timestamp: string;
   userId?: string; // For future user tracking
+  /**
+   * List of fields that were redacted in this entry (optional, for audit traceability)
+   */
+  redactedFields?: string[];
 }
 
 export interface IAuditRepository {
-  log(entry: Omit<IAuditLogEntry, "id" | "timestamp">): Promise<void>;
+  /**
+   * Log an audit entry, enforcing redaction of sensitive fields.
+   * @param entry Audit log entry (oldValues/newValues will be redacted)
+   * @param redactedFields Optional explicit list of redacted fields
+   */
+  log(
+    entry: Omit<IAuditLogEntry, "id" | "timestamp" | "redactedFields">,
+    redactedFields?: string[]
+  ): Promise<void>;
   getAuditLog(
     tableName?: string,
     recordId?: string,

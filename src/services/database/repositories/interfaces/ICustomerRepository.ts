@@ -33,7 +33,7 @@ export interface ICustomerRepository extends IBaseRepository<Customer> {
   searchCustomers(searchQuery: string, limit?: number): Promise<Customer[]>;
 
   // Business logic methods
-  markAsContacted(id: string, contactDate?: string): Promise<void>;
+  markAsContacted(id: string, contactDate?: Date | string): Promise<void>;
   getCustomerStats(id: string): Promise<{
     totalTransactions: number;
     totalSpent: number;

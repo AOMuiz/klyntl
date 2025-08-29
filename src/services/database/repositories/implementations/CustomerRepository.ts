@@ -4,6 +4,7 @@ import {
   UpdateCustomerInput,
 } from "@/types/customer";
 import { CustomerFilters, SortOptions } from "@/types/filters";
+import { randomUUID } from "expo-crypto";
 import { SQLiteDatabase } from "expo-sqlite";
 import {
   DatabaseError,
@@ -62,7 +63,7 @@ export class CustomerRepository
   }
 
   protected generateId(): string {
-    return `cust_${crypto.randomUUID()}`;
+    return `cust_${randomUUID()}`;
   }
 
   protected async validateCreateData(
@@ -77,13 +78,7 @@ export class CustomerRepository
     id: string,
     entity: Partial<Customer>
   ): Promise<void> {
-    // Check for phone uniqueness if phone is being updated
-    if (entity.phone) {
-      const existing = await this.findByPhone(entity.phone);
-      if (existing && existing.id !== id) {
-        throw new DuplicateError("phone", entity.phone);
-      }
-    }
+    // No need to check for phone uniqueness here; rely on DB constraint
     await this.validationService.validateCustomer(
       entity as UpdateCustomerInput
     );
@@ -274,7 +269,16 @@ export class CustomerRepository
 
   async createWithValidation(data: CreateCustomerInput): Promise<Customer> {
     await this.validateCreate(data);
-    return this.create(data as Omit<Customer, "id">);
+    try {
+      return await this.create(data as Omit<Customer, "id">);
+    } catch (error: any) {
+      if (
+        error?.message?.includes("UNIQUE constraint failed: customers.phone")
+      ) {
+        throw new DuplicateError("phone", (data as any).phone);
+      }
+      throw error;
+    }
   }
 
   async updateWithValidation(
@@ -282,7 +286,16 @@ export class CustomerRepository
     data: UpdateCustomerInput
   ): Promise<void> {
     await this.validateUpdate(id, data);
-    return this.update(id, data as Partial<Customer>);
+    try {
+      return await this.update(id, data as Partial<Customer>);
+    } catch (error: any) {
+      if (
+        error?.message?.includes("UNIQUE constraint failed: customers.phone")
+      ) {
+        throw new DuplicateError("phone", (data as any).phone);
+      }
+      throw error;
+    }
   }
 
   // New enhanced query methods
@@ -364,7 +377,7 @@ export class CustomerRepository
         searchPattern,
         searchPattern,
         `${searchQuery.trim()}%`,
-        searchQuery.trim(),
+        `${searchQuery.trim()}%`,
         `${searchQuery.trim()}%`,
         limit,
       ]);
@@ -376,7 +389,7 @@ export class CustomerRepository
   }
 
   // New business logic methods
-  async markAsContacted(id: string, contactDate?: string): Promise<void> {
+  async markAsContacted(id: string, contactDate?: Date): Promise<void> {
     try {
       const date = contactDate || new Date().toISOString();
       await this.update(id, {
@@ -460,10 +473,16 @@ export class CustomerRepository
           conditions.push({
             field: "company",
             operator: "IS NOT NULL",
-            value: "",
+            // value: "",
+            value: null,
           });
         } else {
-          conditions.push({ field: "company", operator: "IS NULL", value: "" });
+          // conditions.push({ field: "company", operator: "IS NULL", value: "" });
+          conditions.push({
+            field: "company",
+            operator: "IS NULL",
+            value: null,
+          });
         }
       }
 

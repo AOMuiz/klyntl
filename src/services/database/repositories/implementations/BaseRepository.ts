@@ -365,7 +365,12 @@ export abstract class BaseRepository<T extends { id: string }>
 
   // Helper method for building WHERE conditions safely
   protected buildWhereClause(
-    conditions: { field: string; operator: string; value: any }[],
+    conditions: {
+      field: string;
+      operator: string;
+      value?: any;
+      compareToColumn?: string;
+    }[],
     searchFields?: string[],
     searchQuery?: string
   ): { sql: string; params: any[] } {
@@ -384,8 +389,15 @@ export abstract class BaseRepository<T extends { id: string }>
 
     // Add filter conditions
     for (const condition of conditions) {
-      clauses.push(`${condition.field} ${condition.operator} ?`);
-      params.push(condition.value);
+      if ("compareToColumn" in condition && condition.compareToColumn) {
+        clauses.push(
+          `${condition.field} ${condition.operator} ${condition.compareToColumn}`
+        );
+        // No param needed for column comparison
+      } else {
+        clauses.push(`${condition.field} ${condition.operator} ?`);
+        params.push(condition.value);
+      }
     }
 
     return {

@@ -1,4 +1,7 @@
 // // Complete Enhanced RepositoryFactory Implementation
+import { Customer } from "@/types/customer";
+import { CreateProductInput, Product } from "@/types/product";
+import { CreateTransactionInput, Transaction } from "@/types/transaction";
 import { SQLiteDatabase } from "expo-sqlite";
 import { DatabaseError, ValidationError } from "../service/utilService";
 import { RepositoryConfig } from "./implementations/BaseRepository";
@@ -49,6 +52,8 @@ import { ITransactionRepository } from "./interfaces/ITransactionRepository";
 
 export class EnhancedRepositoryFactory {
   private static instances = new Map<string, any>();
+  private static dbInstanceKeys = new WeakMap<SQLiteDatabase, string>();
+  private static dbInstanceCounter = 0;
   private static config: RepositoryConfig = {
     enableAuditLog: false,
     maxBatchSize: 100,
@@ -257,17 +262,12 @@ export class EnhancedRepositoryFactory {
    * Generate a unique key for database instance caching
    */
   private static getDbKey(db: SQLiteDatabase): string {
-    // Use a simple hash of the database instance
-    // In a real implementation, you might use database file path or connection string
-    return Math.abs(
-      db
-        .toString()
-        .split("")
-        .reduce((a, b) => {
-          a = (a << 5) - a + b.charCodeAt(0);
-          return a & a;
-        }, 0)
-    ).toString(36);
+    // Use a WeakMap to assign a unique key to each db instance
+    if (!this.dbInstanceKeys.has(db)) {
+      const key = `db_${++this.dbInstanceCounter}`;
+      this.dbInstanceKeys.set(db, key);
+    }
+    return this.dbInstanceKeys.get(db)!;
   }
 
   /**
@@ -373,17 +373,17 @@ export class EnhancedRepositoryFactory {
     operations: {
       customers?: {
         operation: "create" | "update" | "delete";
-        data: any;
+        data: Partial<Customer>; // Import the Customer type
         id?: string;
       }[];
       products?: {
         operation: "create" | "update" | "delete";
-        data: any;
+        data: Partial<Product>;
         id?: string;
       }[];
       transactions?: {
         operation: "create" | "update" | "delete";
-        data: any;
+        data: Partial<Transaction>;
         id?: string;
       }[];
     }
@@ -407,6 +407,13 @@ export class EnhancedRepositoryFactory {
       await db.withTransactionAsync(async () => {
         const repos = this.getAllRepositories(db);
 
+        // Helper to throw on any error for rollback
+        function throwOnError(err: any, context: string) {
+          throw new ValidationError(
+            `${context}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+
         // Process customer operations
         if (operations.customers) {
           for (const op of operations.customers) {
@@ -415,7 +422,7 @@ export class EnhancedRepositoryFactory {
                 case "create":
                   const customer =
                     await repos.customerRepository.createWithValidation(
-                      op.data
+                      op.data as Customer
                     );
                   results.customers.push(customer);
                   break;
@@ -436,11 +443,7 @@ export class EnhancedRepositoryFactory {
                   break;
               }
             } catch (error) {
-              errors.push(
-                `Customer ${op.operation}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`
-              );
+              throwOnError(error, `Customer ${op.operation}`);
             }
           }
         }
@@ -452,7 +455,9 @@ export class EnhancedRepositoryFactory {
               switch (op.operation) {
                 case "create":
                   const product =
-                    await repos.productRepository.createWithValidation(op.data);
+                    await repos.productRepository.createWithValidation(
+                      op.data as CreateProductInput
+                    );
                   results.products.push(product);
                   break;
                 case "update":
@@ -472,11 +477,7 @@ export class EnhancedRepositoryFactory {
                   break;
               }
             } catch (error) {
-              errors.push(
-                `Product ${op.operation}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`
-              );
+              throwOnError(error, `Product ${op.operation}`);
             }
           }
         }
@@ -489,7 +490,7 @@ export class EnhancedRepositoryFactory {
                 case "create":
                   const transaction =
                     await repos.transactionRepository.createWithValidation(
-                      op.data
+                      op.data as CreateTransactionInput
                     );
                   results.transactions.push(transaction);
                   break;
@@ -510,18 +511,14 @@ export class EnhancedRepositoryFactory {
                   break;
               }
             } catch (error) {
-              errors.push(
-                `Transaction ${op.operation}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`
-              );
+              throwOnError(error, `Transaction ${op.operation}`);
             }
           }
         }
       });
 
       return {
-        success: errors.length === 0,
+        success: true,
         results,
         errors,
       };
@@ -530,7 +527,6 @@ export class EnhancedRepositoryFactory {
         success: false,
         results,
         errors: [
-          ...errors,
           `Bulk operation failed: ${
             error instanceof Error ? error.message : String(error)
           }`,

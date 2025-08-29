@@ -1,5 +1,6 @@
 // Complete StoreConfigRepository Implementation
 import { StoreConfig, UpdateStoreConfigInput } from "@/types/store";
+import { randomUUID } from "expo-crypto";
 import { SQLiteDatabase } from "expo-sqlite";
 import {
   DatabaseError,
@@ -37,7 +38,7 @@ export class StoreConfigRepository
   }
 
   protected generateId(): string {
-    return `config_${crypto.randomUUID()}`;
+    return `config_${randomUUID()}`;
   }
 
   protected async validateCreateData(
@@ -123,6 +124,16 @@ export class StoreConfigRepository
       throw new ValidationError("Store config ID is required", "id");
     }
 
+    // Only allow updates to these columns
+    const allowedFields = [
+      "storeName",
+      "description",
+      "logoUrl",
+      "primaryColor",
+      "secondaryColor",
+      "currency",
+      "isActive",
+    ];
     try {
       await this.db.withTransactionAsync(async () => {
         // Check if config exists
@@ -134,8 +145,22 @@ export class StoreConfigRepository
         // Validate the settings
         await this.validateUpdateData(id, settings);
 
-        const fields = Object.keys(settings).filter((key) => key !== "id");
+        const fields = Object.keys(settings).filter(
+          (key) => key !== "id" && allowedFields.includes(key)
+        );
         if (fields.length === 0) return;
+
+        // If any field is not allowed, throw error
+        const invalidFields = Object.keys(settings).filter(
+          (key) => key !== "id" && !allowedFields.includes(key)
+        );
+        if (invalidFields.length > 0) {
+          throw new ValidationError(
+            `Invalid field(s) for update: ${invalidFields.join(", ")}`,
+            invalidFields[0],
+            "invalid_field"
+          );
+        }
 
         const setClause = fields.map((field) => `${field} = ?`).join(", ");
 

@@ -6,17 +6,74 @@ import { IAuditLogEntry } from "../interfaces/IAuditRepository";
 export class AuditRepository {
   constructor(private db: SQLiteDatabase) {}
 
-  async log(entry: Omit<IAuditLogEntry, "id" | "timestamp">): Promise<void> {
+  /**
+   * Redact sensitive fields in an object using denylist and regex
+   */
+  private redact(obj?: Record<string, any>): {
+    redacted: Record<string, any> | undefined;
+    fields: string[];
+  } {
+    if (!obj) return { redacted: undefined, fields: [] };
+    const denylist = [
+      "password",
+      "token",
+      "apiKey",
+      "ssn",
+      "email",
+      "phone",
+      "creditCard",
+      "privateKey",
+    ];
+    const regexes = [
+      /pass(word)?/i,
+      /token/i,
+      /api[_-]?key/i,
+      /ssn/i,
+      /email/i,
+      /phone/i,
+      /credit(card)?/i,
+      /private[_-]?key/i,
+    ];
+    const redacted: Record<string, any> = {};
+    const fields: string[] = [];
+    for (const key of Object.keys(obj)) {
+      if (denylist.includes(key) || regexes.some((r) => r.test(key))) {
+        redacted[key] = "[REDACTED]";
+        fields.push(key);
+      } else {
+        redacted[key] = obj[key];
+      }
+    }
+    return { redacted, fields };
+  }
+
+  async log(
+    entry: Omit<IAuditLogEntry, "id" | "timestamp" | "redactedFields">,
+    redactedFields?: string[]
+  ): Promise<void> {
     try {
-      const auditEntry = {
+      // Redact sensitive fields in oldValues and newValues
+      const { redacted: oldValuesRedacted, fields: oldFields } = this.redact(
+        entry.oldValues
+      );
+      const { redacted: newValuesRedacted, fields: newFields } = this.redact(
+        entry.newValues
+      );
+      const allRedacted = Array.from(
+        new Set([...(redactedFields || []), ...oldFields, ...newFields])
+      );
+      const auditEntry: IAuditLogEntry = {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         ...entry,
+        oldValues: oldValuesRedacted,
+        newValues: newValuesRedacted,
+        redactedFields: allRedacted.length > 0 ? allRedacted : undefined,
       };
 
       await this.db.runAsync(
-        `INSERT INTO audit_log (id, tableName, operation, recordId, oldValues, newValues, timestamp, userId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO audit_log (id, tableName, operation, recordId, oldValues, newValues, timestamp, userId, redactedFields)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           auditEntry.id,
           auditEntry.tableName,
@@ -26,6 +83,9 @@ export class AuditRepository {
           auditEntry.newValues ? JSON.stringify(auditEntry.newValues) : null,
           auditEntry.timestamp,
           entry.userId || null,
+          auditEntry.redactedFields
+            ? JSON.stringify(auditEntry.redactedFields)
+            : null,
         ]
       );
     } catch (error) {
