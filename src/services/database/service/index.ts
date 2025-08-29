@@ -22,57 +22,12 @@ import type {
 } from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import type { SQLiteDatabase } from "expo-sqlite";
-
-// Custom Error Types
-export class DatabaseError extends Error {
-  public readonly operation: string;
-  public readonly cause?: Error;
-
-  constructor(operation: string, cause?: Error) {
-    super(
-      `Database operation '${operation}' failed${
-        cause ? `: ${cause.message}` : ""
-      }`
-    );
-    this.name = "DatabaseError";
-    this.operation = operation;
-    this.cause = cause;
-  }
-}
-
-export class ValidationError extends Error {
-  public readonly field?: string;
-
-  constructor(message: string, field?: string) {
-    super(message);
-    this.name = "ValidationError";
-    this.field = field;
-  }
-}
-
-export class NotFoundError extends Error {
-  public readonly resource: string;
-  public readonly identifier: string;
-
-  constructor(resource: string, identifier: string) {
-    super(`${resource} with identifier '${identifier}' not found`);
-    this.name = "NotFoundError";
-    this.resource = resource;
-    this.identifier = identifier;
-  }
-}
-
-export class DuplicateError extends Error {
-  public readonly field: string;
-  public readonly value: string;
-
-  constructor(field: string, value: string) {
-    super(`Duplicate value '${value}' for field '${field}'`);
-    this.name = "DuplicateError";
-    this.field = field;
-    this.value = value;
-  }
-}
+import {
+  DatabaseError,
+  DuplicateError,
+  NotFoundError,
+  ValidationError,
+} from "./utilService";
 
 // Configuration interface
 export interface DatabaseConfig {
