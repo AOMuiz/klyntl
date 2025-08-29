@@ -215,7 +215,11 @@ export default function CustomerListScreen() {
           <View style={styles.errorState}>
             <ThemedText style={styles.errorText}>
               Error loading customers:{" "}
-              {error?.message || "An unexpected error occurred"}
+              {error instanceof Error
+                ? error.message || "An unexpected error occurred"
+                : typeof error === "string"
+                ? error
+                : "An unexpected error occurred"}
             </ThemedText>
             <TouchableOpacity
               onPress={() => refetch()}

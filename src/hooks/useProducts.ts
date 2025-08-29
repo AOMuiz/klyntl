@@ -93,19 +93,22 @@ export function useProducts(
             };
 
           const firstPage = old.pages[0];
+          const updatedProducts = [newProduct, ...firstPage.products];
+          const trimmedProducts = updatedProducts.slice(0, pageSize);
+
           return {
             ...old,
             pages: [
               {
                 ...firstPage,
-                products: [newProduct, ...firstPage.products],
+                products: trimmedProducts,
+                nextPage: trimmedProducts.length === pageSize ? 1 : undefined,
               },
               ...old.pages.slice(1),
             ],
           };
         }
       );
-
       queryClient.invalidateQueries({ queryKey: ["products", "count"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
@@ -122,7 +125,7 @@ export function useProducts(
     }) => {
       return databaseService!.updateProduct(id, updates);
     },
-    onSuccess: (_, { id, updates }) => {
+    onSuccess: (updatedProduct, { id, updates }) => {
       // Update across all pages
       queryClient.setQueryData(
         ["products", { searchQuery, filters, sort, pageSize }],
@@ -134,7 +137,8 @@ export function useProducts(
             pages: old.pages.map((page: any) => ({
               ...page,
               products: page.products.map((product: any) =>
-                product.id === id ? { ...product, ...updates } : product
+                // use the full updatedProduct instead of shallow-spreading `updates`
+                product.id === id ? updatedProduct : product
               ),
             })),
           };

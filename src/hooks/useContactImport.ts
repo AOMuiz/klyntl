@@ -5,9 +5,7 @@ import { validateNigerianPhone } from "@/utils/helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
 import { useState } from "react";
-import { useCustomers } from "./useCustomers";
-
-// const databaseService = createDatabaseService(db);
+// Helper interface for contact import results
 
 interface ContactImportResult {
   imported: number;
@@ -26,14 +24,13 @@ export function useContactImport() {
 
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { refetch } = useCustomers();
 
   // Get contact access history
   const getContactAccessHistory = async () => {
     try {
       const historyData = await AsyncStorage.getItem("contactAccessHistory");
       if (historyData) {
-        const { contactCount, timestamp } = JSON.parse(historyData);
+        const { contactCount } = JSON.parse(historyData);
         return {
           previousContactCount: contactCount,
           hasAccessHistory: true,
@@ -122,7 +119,7 @@ export function useContactImport() {
     try {
       // Check permission status with built-in limited access detection
       const permissionResponse = await Contacts.getPermissionsAsync();
-      const { status, accessPrivileges } = permissionResponse;
+      const { status } = permissionResponse;
 
       if (status !== "granted") {
         return {
@@ -165,7 +162,7 @@ export function useContactImport() {
 
   const clearImportCache = async () => {
     try {
-      await AsyncStorage.removeItem("@contact_import_history");
+      await AsyncStorage.removeItem("contactAccessHistory");
     } catch (error) {
       console.warn("Failed to clear import cache:", error);
     }
@@ -251,7 +248,9 @@ export function useContactImport() {
       // Get fresh customer list from database to check for existing phone numbers
       const latestCustomers = await databaseService.getCustomersWithFilters();
       const existingPhones = new Set(
-        latestCustomers.map((c: Customer) => c.phone.replace(/\D/g, ""))
+        latestCustomers
+          .filter((c: Customer) => c.phone)
+          .map((c: Customer) => c.phone.replace(/\D/g, ""))
       );
 
       let imported = 0;
@@ -306,9 +305,6 @@ export function useContactImport() {
           }
         }
       }
-
-      // Refresh customer list to reflect imports
-      refetch();
 
       console.log(
         `Contact import completed. Imported: ${imported}, Skipped: ${skipped}`

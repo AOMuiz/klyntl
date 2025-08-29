@@ -99,8 +99,7 @@ interface FilterQueryParts {
   params: any[];
 }
 
-export // Moved to types/database.ts
-type BatchOperation<T> = {
+export type BatchOperation<T> = {
   operation: "create" | "update" | "delete";
   data: T;
   id?: string;
@@ -171,8 +170,16 @@ export class DatabaseService {
       if (typeof data.amount !== "number" || isNaN(data.amount)) {
         throw new ValidationError("Amount must be a valid number", "amount");
       }
-      if (data.amount === 0) {
-        throw new ValidationError("Amount cannot be zero", "amount");
+      // Allow zero for specific transaction types
+      const zeroAllowedTypes = ["adjustment", "complimentary", "free_sample"];
+      if (
+        data.amount === 0 &&
+        (!data.type || !zeroAllowedTypes.includes(data.type))
+      ) {
+        throw new ValidationError(
+          "Amount cannot be zero for this transaction type",
+          "amount"
+        );
       }
     }
 
@@ -368,14 +375,6 @@ export class DatabaseService {
     this.validateCustomerInput(customerData);
 
     try {
-      // Check for duplicate phone
-      const existingCustomer = await this.getCustomerByPhone(
-        customerData.phone
-      );
-      if (existingCustomer) {
-        throw new DuplicateError("phone", customerData.phone);
-      }
-
       const id = generateId("cust");
       const now = new Date().toISOString();
 
@@ -408,33 +407,40 @@ export class DatabaseService {
         isActive: false,
       };
 
-      await this.db.runAsync(
-        `INSERT INTO customers (
-          id, name, phone, email, address, company, jobTitle, birthday, 
-          notes, nickname, photoUri, contactSource, lastContactDate, 
-          preferredContactMethod, totalSpent, lastPurchase, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          customer.id,
-          customer.name,
-          customer.phone,
-          customer.email ?? null,
-          customer.address ?? null,
-          customer.company ?? null,
-          customer.jobTitle ?? null,
-          customer.birthday ?? null,
-          customer.notes ?? null,
-          customer.nickname ?? null,
-          customer.photoUri ?? null,
-          customer.contactSource || "manual",
-          customer.lastContactDate ?? null,
-          customer.preferredContactMethod ?? null,
-          customer.totalSpent,
-          customer.lastPurchase ?? null,
-          customer.createdAt,
-          customer.updatedAt,
-        ]
-      );
+      try {
+        await this.db.runAsync(
+          `INSERT INTO customers (
+            id, name, phone, email, address, company, jobTitle, birthday, 
+            notes, nickname, photoUri, contactSource, lastContactDate, 
+            preferredContactMethod, totalSpent, lastPurchase, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            customer.id,
+            customer.name,
+            customer.phone,
+            customer.email ?? null,
+            customer.address ?? null,
+            customer.company ?? null,
+            customer.jobTitle ?? null,
+            customer.birthday ?? null,
+            customer.notes ?? null,
+            customer.nickname ?? null,
+            customer.photoUri ?? null,
+            customer.contactSource || "manual",
+            customer.lastContactDate ?? null,
+            customer.preferredContactMethod ?? null,
+            customer.totalSpent,
+            customer.lastPurchase ?? null,
+            customer.createdAt,
+            customer.updatedAt,
+          ]
+        );
+      } catch (dbError: any) {
+        if (dbError?.message?.includes("UNIQUE") || dbError?.code === 2067) {
+          throw new DuplicateError("phone", customerData.phone);
+        }
+        throw dbError;
+      }
 
       await this.logAuditEntry({
         tableName: "customers",
@@ -599,21 +605,21 @@ export class DatabaseService {
     this.validateCustomerInput(updates);
 
     try {
-      // Check if customer exists and get current data for audit
-      const currentCustomer = await this.getCustomerById(id);
-      if (!currentCustomer) {
-        throw new NotFoundError("Customer", id);
-      }
-
-      // Check for duplicate phone if phone is being updated
-      if (updates.phone && updates.phone !== currentCustomer.phone) {
-        const existingCustomer = await this.getCustomerByPhone(updates.phone);
-        if (existingCustomer && existingCustomer.id !== id) {
-          throw new DuplicateError("phone", updates.phone);
-        }
-      }
-
       await this.db.withTransactionAsync(async () => {
+        // Check if customer exists and get current data for audit
+        const currentCustomer = await this.getCustomerById(id);
+        if (!currentCustomer) {
+          throw new NotFoundError("Customer", id);
+        }
+
+        // Check for duplicate phone if phone is being updated
+        if (updates.phone && updates.phone !== currentCustomer.phone) {
+          const existingCustomer = await this.getCustomerByPhone(updates.phone);
+          if (existingCustomer && existingCustomer.id !== id) {
+            throw new DuplicateError("phone", updates.phone);
+          }
+        }
+
         const now = new Date().toISOString();
         const fields = Object.keys(updates).filter((key) => key !== "id");
 
@@ -939,13 +945,23 @@ export class DatabaseService {
 
       // Price range filter
       if (filters.priceRange) {
-        if (filters.priceRange.min > 0) {
+        const { min, max } = filters.priceRange;
+        // Normalize inverted ranges
+        if (Number.isFinite(min) && Number.isFinite(max) && min > max) {
+          // Swap
           conditions.push("price >= ?");
-          params.push(filters.priceRange.min);
-        }
-        if (filters.priceRange.max < Number.MAX_SAFE_INTEGER) {
+          params.push(max);
           conditions.push("price <= ?");
-          params.push(filters.priceRange.max);
+          params.push(min);
+        } else {
+          if (Number.isFinite(min)) {
+            conditions.push("price >= ?");
+            params.push(min);
+          }
+          if (Number.isFinite(max)) {
+            conditions.push("price <= ?");
+            params.push(max);
+          }
         }
       }
 
@@ -974,7 +990,9 @@ export class DatabaseService {
 
       // Search query filter
       if (filters.searchQuery?.trim()) {
-        conditions.push("(name LIKE ? OR description LIKE ? OR sku LIKE ?)");
+        conditions.push(
+          "(name LIKE ? COLLATE NOCASE OR description LIKE ? COLLATE NOCASE OR sku LIKE ? COLLATE NOCASE)"
+        );
         const searchPattern = `%${filters.searchQuery.trim()}%`;
         params.push(searchPattern, searchPattern, searchPattern);
       }
@@ -1625,22 +1643,25 @@ export class DatabaseService {
         tables.some((t) => t.name === table)
       );
 
-      // Get record counts for each table
+      // Whitelist table names to avoid SQL injection
+      const validTableNames = tables
+        .map((t) => t.name)
+        .filter((name) => /^[a-zA-Z0-9_]+$/.test(name));
       const recordCounts: Record<string, number> = {};
-      for (const table of tables) {
+      for (const tableName of validTableNames) {
         try {
           const result = await this.db.getFirstAsync<{ count: number }>(
-            `SELECT COUNT(*) as count FROM ${table.name}`
+            `SELECT COUNT(*) as count FROM "${tableName}"`
           );
-          recordCounts[table.name] = result?.count || 0;
+          recordCounts[tableName] = result?.count || 0;
         } catch {
-          recordCounts[table.name] = -1; // Error getting count
+          recordCounts[tableName] = -1; // Error getting count
         }
       }
 
       return {
         isHealthy: hasRequiredTables,
-        tables: tables.map((t) => t.name),
+        tables: validTableNames,
         indexCount: indexes.length,
         version: version?.user_version || 0,
         recordCounts,
