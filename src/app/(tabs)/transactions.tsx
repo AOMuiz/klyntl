@@ -1,5 +1,5 @@
+import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -18,7 +18,6 @@ import {
 } from "react-native";
 
 import { rs } from "react-native-full-responsive";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 interface TransactionWithCustomer extends Transaction {
   customerName?: string;
@@ -185,36 +184,39 @@ export default function TransactionsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
-        {renderHeader()}
+    <ScreenContainer
+      containerStyle={styles.container}
+      contentStyle={styles.content}
+      scrollable={false}
+      withPadding={false}
+    >
+      {renderHeader()}
 
-        {transactionsWithCustomers.length === 0 && !loading ? (
-          renderEmptyState()
-        ) : (
-          <FlashList
-            data={transactionsWithCustomers}
-            renderItem={renderTransactionItem}
-            keyExtractor={(item: TransactionWithCustomer) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+      {transactionsWithCustomers.length === 0 && !loading ? (
+        renderEmptyState()
+      ) : (
+        <FlashList
+          data={transactionsWithCustomers}
+          renderItem={renderTransactionItem}
+          keyExtractor={(item: TransactionWithCustomer) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { backgroundColor: colors.primary, shadowColor: colors.text },
-          ]}
-          onPress={handleAddTransaction}
-        >
-          <IconSymbol name="plus" size={24} color="white" />
-        </TouchableOpacity>
-      </ThemedView>
-    </SafeAreaView>
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          { backgroundColor: colors.primary, shadowColor: colors.text },
+        ]}
+        onPress={handleAddTransaction}
+      >
+        <IconSymbol name="plus" size={24} color="white" />
+      </TouchableOpacity>
+    </ScreenContainer>
   );
 }
 

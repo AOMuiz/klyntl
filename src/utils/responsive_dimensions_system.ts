@@ -40,9 +40,9 @@ class ResponsiveDesignSystem {
   private subscribers = new Set<() => void>();
 
   // Configuration
-  private designWidth = 390;
-  private designHeight = 844;
-  private defaultModerateFactor = 0.5;
+  private designWidth = 375;
+  private designHeight = 812;
+  private defaultModerateFactor = 0.45;
   private maxFontScale = 1.25;
   private minFontScale = 0.85;
   private androidFontAdjustment = 1;

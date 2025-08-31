@@ -515,7 +515,7 @@ export default function AddTransactionScreen({
                         setDatePickerVisible(false);
                       }}
                       presentationStyle="pageSheet"
-                      locale="en-GB"
+                      locale="en"
                     />
                   </>
                 )}

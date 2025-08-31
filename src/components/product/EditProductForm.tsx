@@ -2,8 +2,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { Product, UpdateProductInput } from "@/types/product";
 import { useState } from "react";
 import { Alert, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { ThemedText } from "./ThemedText";
-import { ThemedView } from "./ThemedView";
+import { ThemedText } from "../ThemedText";
+import { ThemedView } from "../ThemedView";
 
 interface EditProductFormProps {
   product: Product;

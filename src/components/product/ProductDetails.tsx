@@ -3,9 +3,9 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Product } from "@/types/product";
 import { formatCurrency } from "@/utils/helpers";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { ThemedText } from "./ThemedText";
-import { ThemedView } from "./ThemedView";
-import { IconSymbol } from "./ui/IconSymbol";
+import { ThemedText } from "../ThemedText";
+import { ThemedView } from "../ThemedView";
+import { IconSymbol } from "../ui/IconSymbol";
 
 interface ProductDetailsProps {
   product: Product;

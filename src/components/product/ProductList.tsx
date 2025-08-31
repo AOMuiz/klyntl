@@ -10,9 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ThemedText } from "./ThemedText";
-import { ThemedView } from "./ThemedView";
-import { IconSymbol } from "./ui/IconSymbol";
+import { ThemedText } from "../ThemedText";
+import { ThemedView } from "../ThemedView";
+import { IconSymbol } from "../ui/IconSymbol";
 
 interface ProductListProps {
   onProductPress?: (product: Product) => void;

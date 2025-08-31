@@ -5,7 +5,19 @@ import { StyleSheet, Text, type TextProps } from "react-native";
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: "default" | "title" | "defaultSemiBold" | "subtitle" | "link";
+  type?:
+    | "default"
+    | "title"
+    | "defaultSemiBold"
+    | "subtitle"
+    | "link"
+    | "caption"
+    | "button"
+    | "h1"
+    | "h2"
+    | "h3"
+    | "body1"
+    | "body2";
 };
 
 export function ThemedText({
@@ -21,11 +33,7 @@ export function ThemedText({
     <Text
       style={[
         { color },
-        type === "default" ? styles.default : undefined,
-        type === "title" ? styles.title : undefined,
-        type === "defaultSemiBold" ? styles.defaultSemiBold : undefined,
-        type === "subtitle" ? styles.subtitle : undefined,
-        type === "link" ? styles.link : undefined,
+        styles[type], // much cleaner mapping
         style,
       ]}
       {...rest}
@@ -34,27 +42,81 @@ export function ThemedText({
 }
 
 const styles = StyleSheet.create({
+  // Standard text variants
   default: {
-    fontSize: fontSize(16),
-    lineHeight: fontSize(24),
+    fontSize: fontSize(16), // Proper responsive text scaling
+    lineHeight: fontSize(24), // Scaled line height
+    fontWeight: "400",
   },
+
   defaultSemiBold: {
     fontSize: fontSize(16),
     lineHeight: fontSize(24),
     fontWeight: "600",
   },
+
+  // Headings with proper scaling limits
   title: {
-    fontSize: fontSize(32),
-    fontWeight: "bold",
-    lineHeight: fontSize(32),
+    fontSize: fontSize(32, { maxScale: 1.2 }), // Limit large text scaling
+    lineHeight: fontSize(40, { maxScale: 1.2 }),
+    fontWeight: "700",
   },
+
   subtitle: {
-    fontSize: fontSize(20),
-    fontWeight: "bold",
+    fontSize: fontSize(20, { maxScale: 1.25 }),
+    lineHeight: fontSize(28, { maxScale: 1.25 }),
+    fontWeight: "600",
   },
+
+  // UI elements with conservative scaling
   link: {
-    lineHeight: fontSize(30),
     fontSize: fontSize(16),
-    color: "#0a7ea4",
+    lineHeight: fontSize(24),
+    fontWeight: "500",
+    color: "#0a7ea4", // You might want to move this to theme colors
+  },
+
+  caption: {
+    fontSize: fontSize(12),
+    lineHeight: fontSize(16),
+    fontWeight: "400",
+  },
+
+  button: {
+    fontSize: fontSize(16, { maxScale: 1.1 }), // Buttons shouldn't scale too much
+    lineHeight: fontSize(24, { maxScale: 1.1 }),
+    fontWeight: "500",
+    letterSpacing: 0.25,
+  },
+
+  // Extended heading variants
+  h1: {
+    fontSize: fontSize(28, { maxScale: 1.15 }),
+    lineHeight: fontSize(36, { maxScale: 1.15 }),
+    fontWeight: "700",
+  },
+
+  h2: {
+    fontSize: fontSize(24, { maxScale: 1.2 }),
+    lineHeight: fontSize(32, { maxScale: 1.2 }),
+    fontWeight: "700",
+  },
+
+  h3: {
+    fontSize: fontSize(20, { maxScale: 1.25 }),
+    lineHeight: fontSize(28, { maxScale: 1.25 }),
+    fontWeight: "600",
+  },
+
+  body1: {
+    fontSize: fontSize(16),
+    lineHeight: fontSize(24),
+    fontWeight: "400",
+  },
+
+  body2: {
+    fontSize: fontSize(14),
+    lineHeight: fontSize(20),
+    fontWeight: "400",
   },
 });

@@ -2,6 +2,8 @@
  * Utility functions for the application
  */
 
+import { Platform } from "react-native";
+
 // import { CURRENCY, VALIDATION_RULES } from '@/constants/app';
 
 // Temporary inline constants until path resolution is working
@@ -178,3 +180,10 @@ export const debounce = <T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait);
   };
 };
+
+export const blurhash =
+  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
+
+export const isIOS = (): boolean => Platform.OS === "ios";
+export const isAndroid = (): boolean => Platform.OS === "android";
+export const isWeb = (): boolean => Platform.OS === "web";

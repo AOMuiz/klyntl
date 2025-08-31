@@ -1,5 +1,5 @@
+import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -10,7 +10,6 @@ import { useCallback, useState } from "react";
 import {
   Dimensions,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -18,7 +17,6 @@ import {
 import { rs } from "react-native-full-responsive";
 
 import { BarChart, LineChart, PieChart } from "react-native-gifted-charts";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -243,290 +241,269 @@ export default function AnalyticsScreen() {
 
   if (loading && !analytics) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ThemedView style={styles.loadingContainer}>
-          <ThemedText>Loading analytics...</ThemedText>
-        </ThemedView>
-      </SafeAreaView>
+      <ScreenContainer
+        useThemedView={true}
+        withPadding={false}
+        contentStyle={styles.loadingContainer}
+      >
+        <ThemedText>Loading analytics...</ThemedText>
+      </ScreenContainer>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <ScrollView
-          style={styles.scrollView}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
+    <ScreenContainer
+      useThemedView={true} // Enable themed functionality
+      scrollable={true} // Enable scrolling
+      withPadding={false} // We'll handle padding manually for different sections
+      scrollViewProps={{
+        refreshControl: (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        ),
+        showsVerticalScrollIndicator: false,
+      }}
+    >
+      <View style={styles.header}>
+        <ThemedText type="title">Analytics</ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Business insights and performance
+        </ThemedText>
+      </View>
+
+      {/* Period Selector */}
+      {renderPeriodSelector()}
+
+      {/* Stats Grid */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statsRow}>
+          {renderStatCard(
+            "Customers",
+            analytics?.totalCustomers || 0,
+            "person.2.fill",
+            "#007AFF",
+            "Total registered"
+          )}
+          {renderStatCard(
+            "Revenue",
+            formatCurrency(analytics?.totalRevenue || 0),
+            "dollarsign.circle.fill",
+            "#34C759",
+            "Total sales"
+          )}
+        </View>
+        <View style={styles.statsRow}>
+          {renderStatCard(
+            "Transactions",
+            analytics?.totalTransactions || 0,
+            "list.bullet",
+            "#FF9500",
+            "Completed"
+          )}
+          {renderStatCard(
+            "Avg. Order",
+            analytics?.totalTransactions
+              ? formatCurrency(
+                  (analytics.totalRevenue || 0) / analytics.totalTransactions
+                )
+              : formatCurrency(0),
+            "chart.bar.fill",
+            "#FF3B30",
+            "Per transaction"
+          )}
+        </View>
+      </View>
+
+      {/* Revenue Trend Chart */}
+      {transactions.length > 0 && (
+        <View
+          style={[
+            styles.chartContainer,
+            { backgroundColor: containerBg, shadowColor: shadowColor },
+          ]}
         >
-          <View style={styles.header}>
-            <ThemedText type="title">Analytics</ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Business insights and performance
+          <View style={styles.chartHeader}>
+            <ThemedText type="subtitle">Revenue Trend</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Last 7 days</ThemedText>
+          </View>
+          <View
+            style={[styles.chartWrapper, { backgroundColor: chartWrapperBg }]}
+          >
+            <LineChart
+              data={getRevenueData()}
+              width={screenWidth - 80}
+              height={220}
+              curved
+              isAnimated
+              animationDuration={1200}
+              color="#007AFF"
+              thickness={3}
+              dataPointsColor="#007AFF"
+              dataPointsRadius={5}
+              textColor1={textColor}
+              textFontSize={11}
+              hideDataPoints={false}
+              showVerticalLines={false}
+              verticalLinesColor={gridColor}
+              rulesColor={gridColor}
+              rulesType="solid"
+              initialSpacing={20}
+              endSpacing={20}
+              yAxisColor={gridColor}
+              xAxisColor={gridColor}
+              yAxisTextStyle={{
+                color: textColor,
+                fontSize: 11,
+              }}
+              xAxisLabelTextStyle={{
+                color: textColor,
+                fontSize: 11,
+              }}
+              areaChart
+              startFillColor="#007AFF"
+              startOpacity={0.3}
+              endFillColor="#007AFF"
+              endOpacity={0.1}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Monthly Bar Chart */}
+      {transactions.length > 0 && (
+        <View
+          style={[
+            styles.chartContainer,
+            { backgroundColor: containerBg, shadowColor: shadowColor },
+          ]}
+        >
+          <View style={styles.chartHeader}>
+            <ThemedText type="subtitle">Monthly Performance</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Last 6 months</ThemedText>
+          </View>
+          <View
+            style={[styles.chartWrapper, { backgroundColor: chartWrapperBg }]}
+          >
+            <BarChart
+              data={getMonthlyBarData()}
+              width={screenWidth - 80}
+              height={220}
+              isAnimated
+              animationDuration={1200}
+              showGradient
+              gradientColor="#007AFF"
+              frontColor="#007AFF"
+              spacing={32}
+              roundedTop
+              roundedBottom
+              hideRules={false}
+              rulesColor={gridColor}
+              rulesType="solid"
+              yAxisColor={gridColor}
+              xAxisColor={gridColor}
+              yAxisTextStyle={{
+                color: textColor,
+                fontSize: 11,
+              }}
+              xAxisLabelTextStyle={{
+                color: textColor,
+                fontSize: 11,
+              }}
+              yAxisLabelPrefix="₦"
+              initialSpacing={20}
+              endSpacing={20}
+              barWidth={24}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Transaction Types Pie Chart */}
+      {transactions.length > 0 && getTransactionTypeData().length > 0 && (
+        <View
+          style={[
+            styles.chartContainer,
+            { backgroundColor: containerBg, shadowColor: shadowColor },
+          ]}
+        >
+          <View style={styles.chartHeader}>
+            <ThemedText type="subtitle">Transaction Types</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>
+              Distribution breakdown
             </ThemedText>
           </View>
-
-          {/* Period Selector */}
-          {renderPeriodSelector()}
-
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statsRow}>
-              {renderStatCard(
-                "Customers",
-                analytics?.totalCustomers || 0,
-                "person.2.fill",
-                "#007AFF",
-                "Total registered"
+          <View
+            style={[styles.chartWrapper, { backgroundColor: chartWrapperBg }]}
+          >
+            <PieChart
+              data={getTransactionTypeData()}
+              radius={90}
+              isAnimated
+              animationDuration={1200}
+              showText
+              textColor={textColor}
+              textSize={12}
+              showTextBackground
+              textBackgroundColor={
+                isDark ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)"
+              }
+              textBackgroundRadius={12}
+              showValuesAsLabels
+              labelsPosition="onBorder"
+              strokeColor={containerBg}
+              strokeWidth={2}
+              centerLabelComponent={() => (
+                <View
+                  style={{ justifyContent: "center", alignItems: "center" }}
+                >
+                  <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
+                    {transactions.length}
+                  </ThemedText>
+                  <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
+                    Total
+                  </ThemedText>
+                </View>
               )}
-              {renderStatCard(
-                "Revenue",
-                formatCurrency(analytics?.totalRevenue || 0),
-                "dollarsign.circle.fill",
-                "#34C759",
-                "Total sales"
-              )}
-            </View>
-            <View style={styles.statsRow}>
-              {renderStatCard(
-                "Transactions",
-                analytics?.totalTransactions || 0,
-                "list.bullet",
-                "#FF9500",
-                "Completed"
-              )}
-              {renderStatCard(
-                "Avg. Order",
-                analytics?.totalTransactions
-                  ? formatCurrency(
-                      (analytics.totalRevenue || 0) /
-                        analytics.totalTransactions
-                    )
-                  : formatCurrency(0),
-                "chart.bar.fill",
-                "#FF3B30",
-                "Per transaction"
-              )}
-            </View>
+            />
           </View>
+        </View>
+      )}
 
-          {/* Revenue Trend Chart */}
-          {transactions.length > 0 && (
-            <View
-              style={[
-                styles.chartContainer,
-                { backgroundColor: containerBg, shadowColor: shadowColor },
-              ]}
-            >
-              <View style={styles.chartHeader}>
-                <ThemedText type="subtitle">Revenue Trend</ThemedText>
-                <ThemedText style={styles.chartSubtitle}>
-                  Last 7 days
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.chartWrapper,
-                  { backgroundColor: chartWrapperBg },
-                ]}
-              >
-                <LineChart
-                  data={getRevenueData()}
-                  width={screenWidth - 80}
-                  height={220}
-                  curved
-                  isAnimated
-                  animationDuration={1200}
-                  color="#007AFF"
-                  thickness={3}
-                  dataPointsColor="#007AFF"
-                  dataPointsRadius={5}
-                  textColor1={textColor}
-                  textFontSize={11}
-                  hideDataPoints={false}
-                  showVerticalLines={false}
-                  verticalLinesColor={gridColor}
-                  rulesColor={gridColor}
-                  rulesType="solid"
-                  initialSpacing={20}
-                  endSpacing={20}
-                  yAxisColor={gridColor}
-                  xAxisColor={gridColor}
-                  yAxisTextStyle={{
-                    color: textColor,
-                    fontSize: 11,
-                  }}
-                  xAxisLabelTextStyle={{
-                    color: textColor,
-                    fontSize: 11,
-                  }}
-                  areaChart
-                  startFillColor="#007AFF"
-                  startOpacity={0.3}
-                  endFillColor="#007AFF"
-                  endOpacity={0.1}
-                />
-              </View>
-            </View>
-          )}
+      {/* Empty State for No Data */}
+      {transactions.length === 0 && (
+        <View style={styles.emptyChartState}>
+          <IconSymbol
+            name="chart.bar.fill"
+            size={64}
+            color={Colors[colorScheme ?? "light"].tabIconDefault}
+          />
+          <ThemedText type="subtitle" style={styles.emptyChartTitle}>
+            No Data Available
+          </ThemedText>
+          <ThemedText style={styles.emptyChartSubtitle}>
+            Start adding transactions to see detailed analytics and charts
+          </ThemedText>
+        </View>
+      )}
 
-          {/* Monthly Bar Chart */}
-          {transactions.length > 0 && (
-            <View
-              style={[
-                styles.chartContainer,
-                { backgroundColor: containerBg, shadowColor: shadowColor },
-              ]}
-            >
-              <View style={styles.chartHeader}>
-                <ThemedText type="subtitle">Monthly Performance</ThemedText>
-                <ThemedText style={styles.chartSubtitle}>
-                  Last 6 months
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.chartWrapper,
-                  { backgroundColor: chartWrapperBg },
-                ]}
-              >
-                <BarChart
-                  data={getMonthlyBarData()}
-                  width={screenWidth - 80}
-                  height={220}
-                  isAnimated
-                  animationDuration={1200}
-                  showGradient
-                  gradientColor="#007AFF"
-                  frontColor="#007AFF"
-                  spacing={32}
-                  roundedTop
-                  roundedBottom
-                  hideRules={false}
-                  rulesColor={gridColor}
-                  rulesType="solid"
-                  yAxisColor={gridColor}
-                  xAxisColor={gridColor}
-                  yAxisTextStyle={{
-                    color: textColor,
-                    fontSize: 11,
-                  }}
-                  xAxisLabelTextStyle={{
-                    color: textColor,
-                    fontSize: 11,
-                  }}
-                  yAxisLabelPrefix="₦"
-                  initialSpacing={20}
-                  endSpacing={20}
-                  barWidth={24}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Transaction Types Pie Chart */}
-          {transactions.length > 0 && getTransactionTypeData().length > 0 && (
-            <View
-              style={[
-                styles.chartContainer,
-                { backgroundColor: containerBg, shadowColor: shadowColor },
-              ]}
-            >
-              <View style={styles.chartHeader}>
-                <ThemedText type="subtitle">Transaction Types</ThemedText>
-                <ThemedText style={styles.chartSubtitle}>
-                  Distribution breakdown
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.chartWrapper,
-                  { backgroundColor: chartWrapperBg },
-                ]}
-              >
-                <PieChart
-                  data={getTransactionTypeData()}
-                  radius={90}
-                  isAnimated
-                  animationDuration={1200}
-                  showText
-                  textColor={textColor}
-                  textSize={12}
-                  showTextBackground
-                  textBackgroundColor={
-                    isDark ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)"
-                  }
-                  textBackgroundRadius={12}
-                  showValuesAsLabels
-                  labelsPosition="onBorder"
-                  strokeColor={containerBg}
-                  strokeWidth={2}
-                  centerLabelComponent={() => (
-                    <View
-                      style={{ justifyContent: "center", alignItems: "center" }}
-                    >
-                      <ThemedText style={{ fontSize: 18, fontWeight: "bold" }}>
-                        {transactions.length}
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
-                        Total
-                      </ThemedText>
-                    </View>
-                  )}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Empty State for No Data */}
-          {transactions.length === 0 && (
-            <View style={styles.emptyChartState}>
-              <IconSymbol
-                name="chart.bar.fill"
-                size={64}
-                color={Colors[colorScheme ?? "light"].tabIconDefault}
-              />
-              <ThemedText type="subtitle" style={styles.emptyChartTitle}>
-                No Data Available
-              </ThemedText>
-              <ThemedText style={styles.emptyChartSubtitle}>
-                Start adding transactions to see detailed analytics and charts
-              </ThemedText>
-            </View>
-          )}
-
-          {/* Top Customers Section */}
-          <View style={styles.topCustomersContainer}>
-            <View style={styles.chartHeader}>
-              <ThemedText type="subtitle">Top Customers</ThemedText>
-              <ThemedText style={styles.chartSubtitle}>
-                Highest spending customers
-              </ThemedText>
-            </View>
-            {renderTopCustomers()}
-          </View>
-        </ScrollView>
-      </ThemedView>
-    </SafeAreaView>
+      {/* Top Customers Section */}
+      <View style={styles.topCustomersContainer}>
+        <View style={styles.chartHeader}>
+          <ThemedText type="subtitle">Top Customers</ThemedText>
+          <ThemedText style={styles.chartSubtitle}>
+            Highest spending customers
+          </ThemedText>
+        </View>
+        {renderTopCustomers()}
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  scrollView: {
-    flex: 1,
   },
   header: {
     padding: rs(16),
@@ -654,7 +631,6 @@ const styles = StyleSheet.create({
     padding: rs(48),
     alignItems: "center",
     margin: rs(16),
-    // backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: rs(16),
   },
   emptyChartTitle: {

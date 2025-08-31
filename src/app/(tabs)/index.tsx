@@ -1,8 +1,8 @@
 import { ContactImportButton } from "@/components/ContactImportButton";
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterBar } from "@/components/FilterBar";
+import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -15,23 +15,25 @@ import {
   SortOptions,
   getFilterDescription,
 } from "@/types/filters";
-import { ds } from "@/utils/responsive_dimensions_system";
+import { ds, fontSize } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
+  Platform,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { FAB, Searchbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerListScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   // UI state management
   const { filters, updateFilters } = useCustomerFilters();
@@ -76,7 +78,7 @@ export default function CustomerListScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      refetch();
     } catch (error) {
       console.error("Failed to refresh customers:", error);
       Alert.alert("Error", "Failed to refresh customers");
@@ -104,7 +106,7 @@ export default function CustomerListScreen() {
     imported: number;
     skipped: number;
   }) => {
-    await refetch(); // Reload the customer list
+    refetch(); // Reload the customer list
   };
 
   const handleFiltersChange = async (
@@ -145,7 +147,7 @@ export default function CustomerListScreen() {
     <View style={styles.emptyState}>
       <IconSymbol
         name="person.2.fill"
-        size={64}
+        size={ds(64)}
         color={Colors[colorScheme ?? "light"].tabIconDefault}
       />
       <ThemedText type="title" style={styles.emptyTitle}>
@@ -199,141 +201,139 @@ export default function CustomerListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
-        {renderHeader()}
+    <ScreenContainer
+      withPadding={false} // Handle padding manually for different sections
+      edges={["left", "right", "top"]} // Standard edges for this screen
+    >
+      {renderHeader()}
 
-        <Searchbar
-          placeholder="Search customers..."
-          onChangeText={handleSearch}
-          value={filters.searchQuery}
-          style={styles.searchbar}
+      <Searchbar
+        placeholder="Search customers..."
+        onChangeText={handleSearch}
+        value={filters.searchQuery}
+        style={styles.searchbar}
+      />
+
+      <FilterBar onFiltersChange={handleFiltersChange} />
+
+      {error && (
+        <View style={styles.errorState}>
+          <ThemedText style={styles.errorText}>
+            Error loading customers:{" "}
+            {error instanceof Error
+              ? error.message || "An unexpected error occurred"
+              : typeof error === "string"
+              ? error
+              : "An unexpected error occurred"}
+          </ThemedText>
+          <TouchableOpacity
+            onPress={() => refetch()}
+            style={styles.retryButton}
+          >
+            <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {customers.length === 0 && !isLoading ? (
+        renderEmptyState()
+      ) : (
+        <FlashList
+          data={customers}
+          renderItem={renderCustomerItem}
+          keyExtractor={(item: Customer) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderLoadingFooter}
         />
+      )}
+      {/* <Portal> */}
+      {/* FAB Group for Add and Import actions */}
+      <FAB.Group
+        visible={true}
+        open={fabOpen}
+        icon={fabOpen ? "close" : "plus"}
+        actions={[
+          {
+            icon: "account-plus",
+            label: "Add Customer",
+            onPress: handleAddCustomer,
+            color: "#007AFF",
+          },
+          {
+            icon: "account-multiple-plus",
+            label: "Import Contacts",
+            onPress: async () => {
+              if (isImporting) {
+                Alert.alert(
+                  "Import in Progress",
+                  "Please wait for the current import to complete."
+                );
+                return;
+              }
 
-        <FilterBar onFiltersChange={handleFiltersChange} />
+              try {
+                const result = await importFromContacts(true);
 
-        {error && (
-          <View style={styles.errorState}>
-            <ThemedText style={styles.errorText}>
-              Error loading customers:{" "}
-              {error instanceof Error
-                ? error.message || "An unexpected error occurred"
-                : typeof error === "string"
-                ? error
-                : "An unexpected error occurred"}
-            </ThemedText>
-            <TouchableOpacity
-              onPress={() => refetch()}
-              style={styles.retryButton}
-            >
-              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {customers.length === 0 && !isLoading ? (
-          renderEmptyState()
-        ) : (
-          <FlashList
-            data={customers}
-            renderItem={renderCustomerItem}
-            keyExtractor={(item: Customer) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={renderLoadingFooter}
-          />
-        )}
-        {/* <Portal> */}
-        {/* FAB Group for Add and Import actions */}
-        <FAB.Group
-          visible={true}
-          open={fabOpen}
-          icon={fabOpen ? "close" : "plus"}
-          actions={[
-            {
-              icon: "account-plus",
-              label: "Add Customer",
-              onPress: handleAddCustomer,
-              color: "#007AFF",
-            },
-            {
-              icon: "account-multiple-plus",
-              label: "Import Contacts",
-              onPress: async () => {
-                if (isImporting) {
-                  Alert.alert(
-                    "Import in Progress",
-                    "Please wait for the current import to complete."
-                  );
-                  return;
-                }
-
-                try {
-                  const result = await importFromContacts(true);
-
-                  // Show import results
-                  Alert.alert(
-                    "Import Complete",
-                    `Successfully imported ${result.imported} contacts.\n${result.skipped} contacts were skipped.`,
-                    [
-                      {
-                        text: "OK",
-                        onPress: () => {
-                          // Refresh the customer list
-                          refetch();
-                          // Close the FAB
-                          setFabOpen(false);
-                        },
+                // Show import results
+                Alert.alert(
+                  "Import Complete",
+                  `Successfully imported ${result.imported} contacts.\n${result.skipped} contacts were skipped.`,
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {
+                        // Refresh the customer list
+                        refetch();
+                        // Close the FAB
+                        setFabOpen(false);
                       },
-                    ]
-                  );
-                } catch (error) {
-                  console.error("Contact import error:", error);
-                  Alert.alert(
-                    "Import Error",
-                    error instanceof Error
-                      ? error.message
-                      : "Failed to import contacts. Please try again."
-                  );
-                }
-              },
-              color: "#007AFF",
+                    },
+                  ]
+                );
+              } catch (error) {
+                console.error("Contact import error:", error);
+                Alert.alert(
+                  "Import Error",
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to import contacts. Please try again."
+                );
+              }
             },
-          ]}
-          onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
-          style={styles.fabGroup}
-        />
-        {/* </Portal> */}
-      </ThemedView>
-    </SafeAreaView>
+            color: "#007AFF",
+          },
+        ]}
+        onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
+        style={[
+          styles.fabGroup,
+          // { bottom: insets.bottom + ds(16) }, // 👈 dynamic padding
+        ]}
+      />
+      {/* </Portal> */}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   fabGroup: {
-    bottom: ds(4),
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+    bottom: Platform.OS === "ios" ? ds(40) : ds(4),
   },
   header: {
     padding: ds(16),
     paddingBottom: ds(8),
   },
   headerInfo: {
-    marginTop: ds(4),
+    // marginTop: ds(4),
   },
   customerCount: {
     opacity: 0.7,
-    fontSize: ds(12, "text"),
+    fontSize: fontSize(12),
   },
   filterDescription: {
     fontSize: ds(12, "text"),
@@ -363,11 +363,13 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "white",
     fontWeight: "600",
+    fontSize: ds(14, "text"),
   },
   list: {
     flex: 1,
   },
   listContent: {
+    marginTop: ds(8),
     paddingBottom: ds(100),
   },
   emptyState: {
@@ -399,6 +401,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: "white",
     fontWeight: "600",
+    fontSize: ds(16, "text"),
   },
   fab: {
     position: "absolute",
