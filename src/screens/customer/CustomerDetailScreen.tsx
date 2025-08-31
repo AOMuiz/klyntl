@@ -5,7 +5,7 @@ import { Customer } from "@/types/customer";
 import { getCustomerInitials } from "@/utils/helpers";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Linking, SafeAreaView, ScrollView, View } from "react-native";
+import { Alert, Linking, ScrollView, View } from "react-native";
 import {
   Button,
   Card,
@@ -15,6 +15,7 @@ import {
   Surface,
   Text,
 } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "./CustomerDetailScreen.styles";
 
 interface CustomerDetailScreenProps {

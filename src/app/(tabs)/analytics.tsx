@@ -10,14 +10,15 @@ import { useCallback, useState } from "react";
 import {
   Dimensions,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { rs } from "react-native-full-responsive";
 
 import { BarChart, LineChart, PieChart } from "react-native-gifted-charts";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -62,7 +63,6 @@ export default function AnalyticsScreen() {
       setRefreshing(false);
     }
   }, [analyticsQuery, transactionsQuery]);
-  // ...existing code...
 
   const getTransactionTypeData = () => {
     const saleCount = transactions.filter((t) => t.type === "sale").length;
@@ -212,7 +212,7 @@ export default function AnalyticsScreen() {
       return (
         <View style={styles.emptyState}>
           <IconSymbol
-            name="person.2"
+            name="person.2.fill"
             size={32}
             color={Colors[colorScheme ?? "light"].tabIconDefault}
           />
@@ -529,34 +529,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: rs(16),
+    paddingBottom: rs(8),
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: rs(4),
     opacity: 0.7,
   },
   periodSelector: {
     flexDirection: "row",
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 8,
+    margin: rs(16),
+    marginTop: rs(8),
+    marginBottom: rs(8),
     backgroundColor: "rgba(128, 128, 128, 0.1)",
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: rs(12),
+    padding: rs(4),
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: rs(8),
+    paddingHorizontal: rs(12),
+    borderRadius: rs(8),
     alignItems: "center",
   },
   periodButtonActive: {
     backgroundColor: "#007AFF",
   },
   periodButtonText: {
-    fontSize: 14,
+    fontSize: rs(14),
     fontWeight: "500",
     opacity: 0.8,
   },
@@ -566,129 +566,129 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   statsGrid: {
-    padding: 16,
-    paddingTop: 8,
+    padding: rs(16),
+    paddingTop: rs(8),
   },
   statsRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
+    gap: rs(12),
+    marginBottom: rs(12),
   },
   statCard: {
     flex: 1,
     backgroundColor: "rgba(128, 128, 128, 0.1)",
-    padding: 16,
-    borderRadius: 12,
+    padding: rs(16),
+    borderRadius: rs(12),
     borderWidth: 1,
   },
   statHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: rs(12),
   },
   statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: rs(32),
+    height: rs(32),
+    borderRadius: rs(16),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: rs(8),
   },
   statTextContainer: {
     flex: 1,
   },
   statTitle: {
-    fontSize: 12,
+    fontSize: rs(12),
     fontWeight: "600",
     opacity: 0.8,
     textTransform: "uppercase",
   },
   statSubtitle: {
-    fontSize: 10,
+    fontSize: rs(10),
     opacity: 0.6,
   },
   statValue: {
     fontWeight: "bold",
-    fontSize: 20,
+    fontSize: rs(20),
   },
   chartContainer: {
-    marginHorizontal: 15,
-    marginTop: 20,
-    marginBottom: 32,
-    borderRadius: 20,
-    padding: 20,
-    shadowOffset: { width: 0, height: 2 },
+    marginHorizontal: rs(15),
+    marginTop: rs(20),
+    marginBottom: rs(32),
+    borderRadius: rs(20),
+    padding: rs(20),
+    shadowOffset: { width: 0, height: rs(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowRadius: rs(5),
     elevation: 4,
   },
   chartHeader: {
-    marginBottom: 18,
+    marginBottom: rs(18),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   chartTitle: {
-    marginBottom: 16,
+    marginBottom: rs(16),
   },
   chartSubtitle: {
-    fontSize: 12,
+    fontSize: rs(12),
     opacity: 0.6,
-    marginTop: 4,
+    marginTop: rs(4),
   },
   chartWrapper: {
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 8,
+    borderRadius: rs(16),
+    paddingVertical: rs(20),
+    paddingHorizontal: rs(12),
+    marginTop: rs(8),
+    marginBottom: rs(8),
   },
   chart: {
-    borderRadius: 16,
+    borderRadius: rs(16),
     backgroundColor: "transparent",
   },
   emptyChartState: {
-    padding: 48,
+    padding: rs(48),
     alignItems: "center",
-    margin: 16,
+    margin: rs(16),
     // backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 16,
+    borderRadius: rs(16),
   },
   emptyChartTitle: {
     textAlign: "center",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: rs(16),
+    marginBottom: rs(8),
   },
   emptyChartSubtitle: {
     textAlign: "center",
     opacity: 0.7,
-    lineHeight: 20,
+    lineHeight: rs(20),
   },
   topCustomersContainer: {
-    padding: 16,
-    marginTop: 8,
+    padding: rs(16),
+    marginTop: rs(8),
   },
   sectionTitle: {
-    marginBottom: 16,
+    marginBottom: rs(16),
   },
   customerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: rs(12),
     borderBottomWidth: 1,
     borderBottomColor: "rgba(128, 128, 128, 0.1)",
   },
   customerRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: rs(32),
+    height: rs(32),
+    borderRadius: rs(16),
     backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: rs(12),
   },
   rankNumber: {
     color: "white",
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   },
   customerPhone: {
     opacity: 0.7,
-    marginTop: 2,
+    marginTop: rs(2),
   },
   customerAmount: {
     alignItems: "flex-end",
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     color: "#34C759",
   },
   emptyState: {
-    padding: 32,
+    padding: rs(32),
     alignItems: "center",
   },
 });

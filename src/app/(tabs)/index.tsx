@@ -15,6 +15,7 @@ import {
   SortOptions,
   getFilterDescription,
 } from "@/types/filters";
+import { ds } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -247,7 +248,7 @@ export default function CustomerListScreen() {
             ListFooterComponent={renderLoadingFooter}
           />
         )}
-
+        {/* <Portal> */}
         {/* FAB Group for Add and Import actions */}
         <FAB.Group
           visible={true}
@@ -307,6 +308,7 @@ export default function CustomerListScreen() {
           onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
           style={styles.fabGroup}
         />
+        {/* </Portal> */}
       </ThemedView>
     </SafeAreaView>
   );
@@ -314,8 +316,7 @@ export default function CustomerListScreen() {
 
 const styles = StyleSheet.create({
   fabGroup: {
-    position: "absolute",
-    bottom: 16,
+    bottom: ds(4),
   },
   container: {
     flex: 1,
@@ -324,40 +325,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: ds(16),
+    paddingBottom: ds(8),
   },
   headerInfo: {
-    marginTop: 4,
+    marginTop: ds(4),
   },
   customerCount: {
     opacity: 0.7,
-    fontSize: 12,
+    fontSize: ds(12, "text"),
   },
   filterDescription: {
-    fontSize: 12,
+    fontSize: ds(12, "text"),
     opacity: 0.6,
-    marginTop: 2,
+    marginTop: ds(2),
     fontStyle: "italic",
   },
   searchbar: {
-    margin: 16,
-    marginTop: 8,
+    margin: ds(16),
+    marginTop: ds(8),
   },
   errorState: {
-    padding: 20,
+    padding: ds(20),
     alignItems: "center",
   },
   errorText: {
     color: "#ff4444",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: ds(10),
   },
   retryButton: {
     backgroundColor: "#007AFF",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: ds(20),
+    paddingVertical: ds(10),
+    borderRadius: ds(8),
   },
   retryButtonText: {
     color: "white",
@@ -367,33 +368,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: ds(100),
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: ds(32),
   },
   emptyTitle: {
     textAlign: "center",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: ds(16),
+    marginBottom: ds(8),
   },
   emptySubtitle: {
     textAlign: "center",
     opacity: 0.7,
-    marginBottom: 24,
+    marginBottom: ds(24),
   },
   emptyActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: ds(12),
   },
   addButton: {
     backgroundColor: "#007AFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: ds(24),
+    paddingVertical: ds(12),
+    borderRadius: ds(8),
   },
   addButtonText: {
     color: "white",
@@ -401,27 +402,27 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    width: 56,
-    height: 56,
+    width: ds(56),
+    height: ds(56),
     alignItems: "center",
     justifyContent: "center",
-    right: 16,
-    bottom: 70, // Increased from 16 to avoid tab bar
+    right: ds(16),
+    bottom: ds(70), // Increased from 16 to avoid tab bar
     backgroundColor: "#007AFF",
-    borderRadius: 28,
+    borderRadius: ds(28),
     elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: ds(2) },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: ds(4),
   },
   importFab: {
     position: "absolute",
-    right: 16,
-    bottom: 140, // Position above main FAB
+    right: ds(16),
+    bottom: ds(140), // Position above main FAB
   },
   loadingFooter: {
-    padding: 16,
+    padding: ds(16),
     alignItems: "center",
   },
   loadingText: {

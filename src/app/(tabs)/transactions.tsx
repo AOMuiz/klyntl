@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 
+import { rs } from "react-native-full-responsive";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface TransactionWithCustomer extends Transaction {
@@ -225,28 +226,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: rs(16),
+    paddingBottom: rs(8),
   },
   transactionCount: {
-    marginTop: 4,
+    marginTop: rs(4),
     opacity: 0.7,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingBottom: 100,
-    paddingHorizontal: 16,
+    paddingBottom: rs(100),
+    paddingHorizontal: rs(16),
   },
   transactionCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: rs(12),
+    padding: rs(16),
+    marginBottom: rs(12),
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: rs(1) },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: rs(2),
     elevation: 2,
   },
   transactionHeader: {
@@ -254,25 +255,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: rs(12),
   },
   transactionInfo: {
     flex: 1,
   },
   customerName: {
     fontWeight: "600",
-    fontSize: 16,
+    fontSize: rs(16),
   },
   transactionDate: {
-    marginTop: 2,
+    marginTop: rs(2),
   },
   description: {
-    marginTop: 4,
+    marginTop: rs(4),
     fontStyle: "italic",
   },
   transactionAmount: {
@@ -280,33 +281,33 @@ const styles = StyleSheet.create({
   },
   amountText: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: rs(16),
   },
   typeText: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: rs(2),
+    fontSize: rs(12),
     textTransform: "uppercase",
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: rs(32),
   },
   emptyTitle: {
     textAlign: "center",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: rs(16),
+    marginBottom: rs(8),
   },
   emptySubtitle: {
     textAlign: "center",
     opacity: 0.7,
-    marginBottom: 24,
+    marginBottom: rs(24),
   },
   addButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: rs(24),
+    paddingVertical: rs(12),
+    borderRadius: rs(8),
   },
   addButtonText: {
     color: "white",
@@ -314,16 +315,16 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    width: 56,
-    height: 56,
+    width: rs(56),
+    height: rs(56),
     alignItems: "center",
     justifyContent: "center",
-    right: 16,
-    bottom: 70,
-    borderRadius: 28,
+    right: rs(16),
+    bottom: rs(70),
+    borderRadius: rs(28),
     elevation: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: rs(2) },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: rs(4),
   },
 });
