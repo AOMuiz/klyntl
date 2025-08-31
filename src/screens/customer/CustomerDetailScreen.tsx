@@ -1,3 +1,7 @@
+import ScreenContainer, {
+  edgesHorizontal,
+} from "@/components/screen-container";
+import { ThemedText } from "@/components/ThemedText";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -159,9 +163,7 @@ export default function CustomerDetailScreen({
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
       <Surface style={styles.content} elevation={0}>
         <ScrollView
           style={styles.scrollView}
@@ -189,21 +191,20 @@ export default function CustomerDetailScreen({
                 </Text>
               </Surface>
               <View style={styles.customerInfo}>
-                <Text
-                  variant="headlineSmall"
+                <ThemedText
+                  type="h2"
                   style={{ color: colors.text, fontWeight: "700" }}
                 >
                   {customer.name}
-                </Text>
-                <Text
-                  variant="bodyLarge"
+                </ThemedText>
+                <ThemedText
                   style={[
                     styles.customerPhone,
                     { color: colors.textSecondary },
                   ]}
                 >
                   {customer.phone}
-                </Text>
+                </ThemedText>
                 {customer.email && (
                   <Text
                     variant="bodyMedium"
@@ -548,6 +549,6 @@ export default function CustomerDetailScreen({
           </View>
         </ScrollView>
       </Surface>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }

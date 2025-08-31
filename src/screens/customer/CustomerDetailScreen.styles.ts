@@ -1,3 +1,4 @@
+import { wp } from "@/utils/responsive_dimensions_system";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -52,7 +53,7 @@ export const styles = StyleSheet.create({
   avatarText: {
     fontWeight: "700",
     letterSpacing: 0.5,
-    fontSize: 24,
+    fontSize: wp(24),
   },
   customerInfo: {
     flex: 1,
@@ -61,11 +62,11 @@ export const styles = StyleSheet.create({
   customerPhone: {
     marginTop: 6,
     fontWeight: "500",
-    fontSize: 16,
+    fontSize: wp(16),
   },
   customerEmail: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: wp(14),
   },
   customerAddress: {
     marginTop: 4,
@@ -98,11 +99,11 @@ export const styles = StyleSheet.create({
   statValue: {
     fontWeight: "700",
     marginBottom: 6,
-    fontSize: 18,
+    fontSize: wp(13),
   },
   statLabel: {
     textAlign: "center",
-    fontSize: 12,
+    fontSize: wp(12),
     lineHeight: 16,
     fontWeight: "500",
   },
@@ -119,7 +120,7 @@ export const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: "700",
-    fontSize: 22,
+    fontSize: wp(20),
   },
   addTransactionButton: {
     borderRadius: 20,
@@ -149,7 +150,7 @@ export const styles = StyleSheet.create({
   },
   transactionAmount: {
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: wp(16),
   },
   viewAllButton: {
     marginVertical: 8,
@@ -166,7 +167,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   detailLabel: {
-    fontSize: 15,
+    fontSize: wp(15),
     fontWeight: "500",
   },
   detailValue: {

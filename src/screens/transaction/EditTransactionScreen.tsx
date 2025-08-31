@@ -1,3 +1,7 @@
+import ScreenContainer, {
+  edgesHorizontal,
+  edgesVertical,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -248,397 +252,392 @@ export default function EditTransactionScreen({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <ThemedText style={styles.cancelText}>Cancel</ThemedText>
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Edit Transaction
-          </ThemedText>
-          <View style={styles.placeholder} />
-        </View>
+    <ScreenContainer
+      withPadding={false}
+      edges={[...edgesHorizontal, ...edgesVertical]}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+          <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+        </TouchableOpacity>
+        <ThemedText type="title" style={styles.headerTitle}>
+          Edit Transaction
+        </ThemedText>
+        <View style={styles.placeholder} />
+      </View>
 
-        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-          <View style={styles.formContent}>
-            <View style={styles.iconContainer}>
-              <IconSymbol
-                name={getTypeIcon(watchedType)}
-                size={32}
-                color={getTypeColor(watchedType)}
-              />
-              <ThemedText style={styles.subtitle}>
-                Update transaction details
-              </ThemedText>
-            </View>
+      <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+        <View style={styles.formContent}>
+          <View style={styles.iconContainer}>
+            <IconSymbol
+              name={getTypeIcon(watchedType)}
+              size={32}
+              color={getTypeColor(watchedType)}
+            />
+            <ThemedText style={styles.subtitle}>
+              Update transaction details
+            </ThemedText>
+          </View>
 
-            {/* Customer Info (Read-only) */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>Customer</ThemedText>
-              <View style={styles.customerInfo}>
-                <View style={styles.customerAvatar}>
-                  <ThemedText style={styles.customerAvatarText}>
-                    {customer.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </ThemedText>
-                </View>
-                <View>
-                  <ThemedText style={styles.customerName}>
-                    {customer.name}
-                  </ThemedText>
-                  <ThemedText style={styles.customerPhone}>
-                    {customer.phone}
-                  </ThemedText>
-                </View>
+          {/* Customer Info (Read-only) */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>Customer</ThemedText>
+            <View style={styles.customerInfo}>
+              <View style={styles.customerAvatar}>
+                <ThemedText style={styles.customerAvatarText}>
+                  {customer.name
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </ThemedText>
+              </View>
+              <View>
+                <ThemedText style={styles.customerName}>
+                  {customer.name}
+                </ThemedText>
+                <ThemedText style={styles.customerPhone}>
+                  {customer.phone}
+                </ThemedText>
               </View>
             </View>
+          </View>
 
-            {/* Transaction Type */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>
-                Transaction Type *
-              </ThemedText>
-              <Controller
-                control={control}
-                name="type"
-                rules={{ required: "Transaction type is required" }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.typeSelector}>
-                    {["sale", "payment", "refund"].map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        style={[
-                          styles.typeOption,
-                          value === type && styles.typeOptionSelected,
-                          { borderColor: getTypeColor(type) },
-                          value === type && {
-                            backgroundColor: getTypeColor(type) + "20",
-                          },
-                        ]}
-                        onPress={() => onChange(type)}
-                      >
-                        <IconSymbol
-                          name={getTypeIcon(type)}
-                          size={20}
-                          color={
-                            value === type ? getTypeColor(type) : "#8E8E93"
-                          }
-                        />
-                        <ThemedText
-                          style={[
-                            styles.typeOptionText,
-                            value === type && { color: getTypeColor(type) },
-                          ]}
-                        >
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              />
-              <HelperText type="error" visible={!!errors.type}>
-                {errors.type?.message}
-              </HelperText>
-            </View>
-
-            {/* Amount Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>Amount *</ThemedText>
-
-              {/* Quick Amount Presets */}
-              <View style={styles.quickAmountsContainer}>
-                <ThemedText style={styles.quickAmountsLabel}>
-                  Quick amounts:
-                </ThemedText>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.quickAmountsScroll}
-                >
-                  {quickAmountPresets.map((preset) => (
+          {/* Transaction Type */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>
+              Transaction Type *
+            </ThemedText>
+            <Controller
+              control={control}
+              name="type"
+              rules={{ required: "Transaction type is required" }}
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.typeSelector}>
+                  {["sale", "payment", "refund"].map((type) => (
                     <TouchableOpacity
-                      key={preset}
+                      key={type}
                       style={[
-                        styles.quickAmountButton,
-                        watchedAmount === preset.toString() &&
-                          styles.quickAmountButtonSelected,
+                        styles.typeOption,
+                        value === type && styles.typeOptionSelected,
+                        { borderColor: getTypeColor(type) },
+                        value === type && {
+                          backgroundColor: getTypeColor(type) + "20",
+                        },
                       ]}
-                      onPress={() => handleQuickAmount(preset)}
+                      onPress={() => onChange(type)}
                     >
+                      <IconSymbol
+                        name={getTypeIcon(type)}
+                        size={20}
+                        color={value === type ? getTypeColor(type) : "#8E8E93"}
+                      />
                       <ThemedText
                         style={[
-                          styles.quickAmountText,
-                          watchedAmount === preset.toString() &&
-                            styles.quickAmountTextSelected,
+                          styles.typeOptionText,
+                          value === type && { color: getTypeColor(type) },
                         ]}
                       >
-                        ₦{preset.toLocaleString()}
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
                       </ThemedText>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
-              </View>
+                </View>
+              )}
+            />
+            <HelperText type="error" visible={!!errors.type}>
+              {errors.type?.message}
+            </HelperText>
+          </View>
 
-              <Controller
-                control={control}
-                name="amount"
-                rules={{
-                  required: "Amount is required",
-                  validate: validateAmount,
-                }}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput
-                      label="Amount *"
-                      mode="outlined"
-                      value={value}
-                      onChangeText={(text) => onChange(formatAmountInput(text))}
-                      onBlur={onBlur}
-                      error={!!errors.amount}
-                      style={styles.input}
-                      keyboardType="numeric"
-                      placeholder="0.00"
-                      left={<TextInput.Icon icon="currency-ngn" />}
-                    />
-                    {value && !errors.amount && (
-                      <View style={styles.amountPreviewContainer}>
-                        <ThemedText
-                          style={[
-                            styles.amountPreview,
-                            { color: getTypeColor(watchedType) },
-                          ]}
-                        >
-                          {formatCurrency(value)}
-                        </ThemedText>
-                        <ThemedText style={styles.amountPreviewLabel}>
-                          {watchedType === "refund"
-                            ? "Refund Amount"
-                            : watchedType === "payment"
-                            ? "Payment Received"
-                            : "Sale Amount"}
-                        </ThemedText>
-                      </View>
-                    )}
-                  </View>
-                )}
-              />
-              <HelperText type="error" visible={!!errors.amount}>
-                {errors.amount?.message}
-              </HelperText>
+          {/* Amount Field */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>Amount *</ThemedText>
+
+            {/* Quick Amount Presets */}
+            <View style={styles.quickAmountsContainer}>
+              <ThemedText style={styles.quickAmountsLabel}>
+                Quick amounts:
+              </ThemedText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.quickAmountsScroll}
+              >
+                {quickAmountPresets.map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.quickAmountButton,
+                      watchedAmount === preset.toString() &&
+                        styles.quickAmountButtonSelected,
+                    ]}
+                    onPress={() => handleQuickAmount(preset)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.quickAmountText,
+                        watchedAmount === preset.toString() &&
+                          styles.quickAmountTextSelected,
+                      ]}
+                    >
+                      ₦{preset.toLocaleString()}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
-            {/* Date Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>Date *</ThemedText>
-              <Controller
-                control={control}
-                name="date"
-                rules={{ required: "Date is required" }}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput
-                      label="Transaction Date *"
-                      mode="outlined"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      error={!!errors.date}
-                      style={styles.input}
-                      placeholder="YYYY-MM-DD"
-                      left={<TextInput.Icon icon="calendar" />}
-                      right={
-                        <TextInput.Icon
-                          icon="calendar-today"
-                          onPress={() => {
-                            const today = new Date()
-                              .toISOString()
-                              .split("T")[0];
-                            onChange(today);
-                          }}
-                        />
-                      }
-                    />
-                    <View style={styles.datePresetContainer}>
-                      <TouchableOpacity
-                        style={styles.datePresetButton}
+            <Controller
+              control={control}
+              name="amount"
+              rules={{
+                required: "Amount is required",
+                validate: validateAmount,
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View>
+                  <TextInput
+                    label="Amount *"
+                    mode="outlined"
+                    value={value}
+                    onChangeText={(text) => onChange(formatAmountInput(text))}
+                    onBlur={onBlur}
+                    error={!!errors.amount}
+                    style={styles.input}
+                    keyboardType="numeric"
+                    placeholder="0.00"
+                    left={<TextInput.Icon icon="currency-ngn" />}
+                  />
+                  {value && !errors.amount && (
+                    <View style={styles.amountPreviewContainer}>
+                      <ThemedText
+                        style={[
+                          styles.amountPreview,
+                          { color: getTypeColor(watchedType) },
+                        ]}
+                      >
+                        {formatCurrency(value)}
+                      </ThemedText>
+                      <ThemedText style={styles.amountPreviewLabel}>
+                        {watchedType === "refund"
+                          ? "Refund Amount"
+                          : watchedType === "payment"
+                          ? "Payment Received"
+                          : "Sale Amount"}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              )}
+            />
+            <HelperText type="error" visible={!!errors.amount}>
+              {errors.amount?.message}
+            </HelperText>
+          </View>
+
+          {/* Date Field */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>Date *</ThemedText>
+            <Controller
+              control={control}
+              name="date"
+              rules={{ required: "Date is required" }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View>
+                  <TextInput
+                    label="Transaction Date *"
+                    mode="outlined"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={!!errors.date}
+                    style={styles.input}
+                    placeholder="YYYY-MM-DD"
+                    left={<TextInput.Icon icon="calendar" />}
+                    right={
+                      <TextInput.Icon
+                        icon="calendar-today"
                         onPress={() => {
                           const today = new Date().toISOString().split("T")[0];
                           onChange(today);
                         }}
-                      >
-                        <ThemedText style={styles.datePresetText}>
-                          Today
-                        </ThemedText>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.datePresetButton}
-                        onPress={() => {
-                          const yesterday = new Date();
-                          yesterday.setDate(yesterday.getDate() - 1);
-                          onChange(yesterday.toISOString().split("T")[0]);
-                        }}
-                      >
-                        <ThemedText style={styles.datePresetText}>
-                          Yesterday
-                        </ThemedText>
-                      </TouchableOpacity>
-                    </View>
+                      />
+                    }
+                  />
+                  <View style={styles.datePresetContainer}>
+                    <TouchableOpacity
+                      style={styles.datePresetButton}
+                      onPress={() => {
+                        const today = new Date().toISOString().split("T")[0];
+                        onChange(today);
+                      }}
+                    >
+                      <ThemedText style={styles.datePresetText}>
+                        Today
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.datePresetButton}
+                      onPress={() => {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        onChange(yesterday.toISOString().split("T")[0]);
+                      }}
+                    >
+                      <ThemedText style={styles.datePresetText}>
+                        Yesterday
+                      </ThemedText>
+                    </TouchableOpacity>
                   </View>
-                )}
-              />
-              <HelperText type="error" visible={!!errors.date}>
-                {errors.date?.message}
-              </HelperText>
-              <HelperText type="info" visible={!errors.date}>
-                Format: YYYY-MM-DD (e.g., 2024-12-25)
-              </HelperText>
-            </View>
-
-            {/* Description Field */}
-            <View style={styles.fieldContainer}>
-              <ThemedText style={styles.fieldLabel}>
-                Description (Optional)
-              </ThemedText>
-              <Controller
-                control={control}
-                name="description"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput
-                      label="Transaction Notes"
-                      mode="outlined"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      style={styles.input}
-                      multiline
-                      numberOfLines={3}
-                      placeholder="Add details about this transaction..."
-                      left={<TextInput.Icon icon="note-text" />}
-                    />
-                    <View style={styles.descriptionPresets}>
-                      {watchedType === "sale" && (
-                        <>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Product sale")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Product sale
-                            </ThemedText>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Service provided")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Service provided
-                            </ThemedText>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                      {watchedType === "payment" && (
-                        <>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Outstanding payment")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Outstanding payment
-                            </ThemedText>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Partial payment")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Partial payment
-                            </ThemedText>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                      {watchedType === "refund" && (
-                        <>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Product return")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Product return
-                            </ThemedText>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.descriptionPresetButton}
-                            onPress={() => onChange("Service cancellation")}
-                          >
-                            <ThemedText style={styles.descriptionPresetText}>
-                              Service cancellation
-                            </ThemedText>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                )}
-              />
-            </View>
-
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  { backgroundColor: getTypeColor(watchedType) },
-                  loading && styles.disabledButton,
-                ]}
-                onPress={handleSubmit(onSubmit)}
-                disabled={loading}
-              >
-                {loading ? (
-                  <View style={styles.loadingContainer}>
-                    <ThemedText style={styles.submitButtonText}>
-                      Updating...
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <>
-                    <IconSymbol name="checkmark" size={20} color="white" />
-                    <ThemedText style={styles.submitButtonText}>
-                      Update Transaction
-                    </ThemedText>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.helpText}>
-              <ThemedText style={styles.helpLabel}>
-                Transaction Types:
-              </ThemedText>
-              <ThemedText style={styles.helpDescription}>
-                •{" "}
-                <ThemedText style={[styles.helpType, { color: "#34C759" }]}>
-                  Sale
-                </ThemedText>
-                : Customer purchase{"\n"}•{" "}
-                <ThemedText style={[styles.helpType, { color: "#007AFF" }]}>
-                  Payment
-                </ThemedText>
-                : Customer payment received{"\n"}•{" "}
-                <ThemedText style={[styles.helpType, { color: "#FF3B30" }]}>
-                  Refund
-                </ThemedText>
-                : Money returned to customer
-              </ThemedText>
-            </View>
+                </View>
+              )}
+            />
+            <HelperText type="error" visible={!!errors.date}>
+              {errors.date?.message}
+            </HelperText>
+            <HelperText type="info" visible={!errors.date}>
+              Format: YYYY-MM-DD (e.g., 2024-12-25)
+            </HelperText>
           </View>
-        </ScrollView>
-      </ThemedView>
-    </SafeAreaView>
+
+          {/* Description Field */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>
+              Description (Optional)
+            </ThemedText>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View>
+                  <TextInput
+                    label="Transaction Notes"
+                    mode="outlined"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    style={styles.input}
+                    multiline
+                    numberOfLines={3}
+                    placeholder="Add details about this transaction..."
+                    left={<TextInput.Icon icon="note-text" />}
+                  />
+                  <View style={styles.descriptionPresets}>
+                    {watchedType === "sale" && (
+                      <>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Product sale")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Product sale
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Service provided")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Service provided
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {watchedType === "payment" && (
+                      <>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Outstanding payment")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Outstanding payment
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Partial payment")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Partial payment
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {watchedType === "refund" && (
+                      <>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Product return")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Product return
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.descriptionPresetButton}
+                          onPress={() => onChange("Service cancellation")}
+                        >
+                          <ThemedText style={styles.descriptionPresetText}>
+                            Service cancellation
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: getTypeColor(watchedType) },
+                loading && styles.disabledButton,
+              ]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={loading}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ThemedText style={styles.submitButtonText}>
+                    Updating...
+                  </ThemedText>
+                </View>
+              ) : (
+                <>
+                  <IconSymbol name="checkmark" size={20} color="white" />
+                  <ThemedText style={styles.submitButtonText}>
+                    Update Transaction
+                  </ThemedText>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.helpText}>
+            <ThemedText style={styles.helpLabel}>Transaction Types:</ThemedText>
+            <ThemedText style={styles.helpDescription}>
+              •{" "}
+              <ThemedText style={[styles.helpType, { color: "#34C759" }]}>
+                Sale
+              </ThemedText>
+              : Customer purchase{"\n"}•{" "}
+              <ThemedText style={[styles.helpType, { color: "#007AFF" }]}>
+                Payment
+              </ThemedText>
+              : Customer payment received{"\n"}•{" "}
+              <ThemedText style={[styles.helpType, { color: "#FF3B30" }]}>
+                Refund
+              </ThemedText>
+              : Money returned to customer
+            </ThemedText>
+          </View>
+        </View>
+      </ScrollView>
+    </ScreenContainer>
   );
 }

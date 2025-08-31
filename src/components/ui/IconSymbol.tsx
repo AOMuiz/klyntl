@@ -43,6 +43,12 @@ const MAPPING = {
   pencil: "edit",
   "circle.fill": "circle",
   "exclamationmark.triangle": "warning",
+
+  // Transaction-specific icons
+  "cart.fill": "shopping-cart", // Sale
+  return: "undo", // Refund
+  "dollarsign.circle.fill": "attach-money", // Default
+  calendar: "calendar-today", // Date field                  // Description field
 } as IconMapping;
 
 /**
