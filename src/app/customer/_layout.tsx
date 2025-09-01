@@ -6,8 +6,10 @@ export default function CustomerLayout() {
       <Stack.Screen
         name="[id]"
         options={{
-          headerShown: false,
-          title: "Customer Details",
+          // Show native header for customer details and set a friendly back button label
+          headerShown: true,
+          headerTitle: "Customer",
+          headerBackTitle: "Customers",
           headerTitleAlign: "center",
           headerStyle: { backgroundColor: "#F5F5F5" },
         }}

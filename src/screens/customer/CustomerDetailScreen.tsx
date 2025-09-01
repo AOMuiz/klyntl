@@ -3,11 +3,12 @@ import ScreenContainer, {
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { useAppTheme } from "@/components/ThemeProvider";
+import { useContactActions } from "@/hooks/useContactActions";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { getCustomerInitials } from "@/utils/helpers";
 import { useRouter } from "expo-router";
-import { Alert, Linking, ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import {
   Button,
   Card,
@@ -55,24 +56,10 @@ export default function CustomerDetailScreen({
     });
   };
 
-  const handleCall = () => {
-    if (customer?.phone) {
-      Linking.openURL(`tel:${customer.phone}`);
-    }
-  };
-
-  const handleSMS = () => {
-    if (customer?.phone) {
-      Linking.openURL(`sms:${customer.phone}`);
-    }
-  };
-
-  const handleWhatsApp = () => {
-    if (customer?.phone) {
-      const phoneNumber = customer.phone.replace(/\+/g, "").replace(/\s/g, "");
-      Linking.openURL(`whatsapp://send?phone=${phoneNumber}`);
-    }
-  };
+  // useContactActions hook
+  const { handleCall, handleSMS, handleWhatsApp } = useContactActions(
+    customer?.phone ?? null
+  );
 
   const handleEdit = () => {
     if (customer) {
@@ -93,7 +80,7 @@ export default function CustomerDetailScreen({
           style: "destructive",
           onPress: async () => {
             try {
-              await deleteCustomer(customer.id);
+              deleteCustomer(customer.id);
               Alert.alert("Success", "Customer deleted successfully");
               router.back();
             } catch (error) {
@@ -124,15 +111,14 @@ export default function CustomerDetailScreen({
     );
   }
 
-  if (customerQuery.error) {
+  if (error) {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
         <Surface style={styles.errorContainer} elevation={0}>
           <Text variant="bodyLarge" style={{ color: colors.text }}>
-            {customerQuery.error instanceof Error &&
-            customerQuery.error.message === "Customer not found"
+            {error instanceof Error && error.message === "Customer not found"
               ? "Customer not found"
               : "Error loading customer details"}
           </Text>

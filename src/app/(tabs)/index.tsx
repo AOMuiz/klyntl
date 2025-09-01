@@ -9,6 +9,8 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useContactImport } from "@/hooks/useContactImport";
 import { useContactPicker } from "@/hooks/useContactPicker";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useDatabase } from "@/services/database";
+import { createDatabaseService } from "@/services/database/service";
 import { useCustomerFilters } from "@/stores/uiStore";
 import { Customer } from "@/types/customer";
 import {
@@ -39,6 +41,10 @@ export default function CustomerListScreen() {
 
   // UI state management
   const { filters, updateFilters } = useCustomerFilters();
+
+  // Database service for dev operations
+  const { db } = useDatabase();
+  const databaseService = createDatabaseService(db);
 
   // Use infinite query without pagination state
   const {
@@ -179,6 +185,38 @@ export default function CustomerListScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Dev mode function to clear database
+  const handleClearDatabase = useCallback(async () => {
+    Alert.alert(
+      "Clear Database",
+      "This will delete ALL customers and transactions. This action cannot be undone. Are you sure?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear Database",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await databaseService.clearAllData();
+              Alert.alert("Success", "Database cleared successfully!");
+              // Refresh the customer list
+              refetch();
+            } catch (error) {
+              console.error("Failed to clear database:", error);
+              Alert.alert(
+                "Error",
+                "Failed to clear database. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  }, [databaseService, refetch]);
+
   const renderLoadingFooter = () => {
     if (!isFetchingNextPage) return null;
 
@@ -226,7 +264,18 @@ export default function CustomerListScreen() {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <ThemedText type="title">Customers</ThemedText>
+      <View style={styles.headerTitleRow}>
+        <ThemedText type="title">Customers</ThemedText>
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.clearDbButton}
+            onPress={handleClearDatabase}
+            testID="clear-database-button"
+          >
+            <IconSymbol name="trash.fill" size={16} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
+      </View>
       <View style={styles.headerInfo}>
         <ThemedText style={styles.customerCount}>
           Showing {customers.length} of {totalCount}{" "}
@@ -362,6 +411,17 @@ const styles = StyleSheet.create({
   header: {
     padding: ds(16),
     paddingBottom: ds(8),
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  clearDbButton: {
+    marginLeft: ds(8),
+    padding: ds(4),
+    borderRadius: ds(4),
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
   },
   headerInfo: {
     // marginTop: ds(4),

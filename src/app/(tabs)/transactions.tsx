@@ -10,6 +10,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { Transaction } from "@/types/transaction";
 import { formatCurrency } from "@/utils/helpers";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -321,13 +322,13 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    width: rs(56),
-    height: rs(56),
+    width: wp(56),
+    height: hp(56),
     alignItems: "center",
     justifyContent: "center",
-    right: rs(16),
-    bottom: rs(20),
-    borderRadius: rs(28),
+    right: wp(16),
+    bottom: hp(60),
+    borderRadius: wp(28),
     elevation: 8,
     shadowOffset: { width: 0, height: rs(2) },
     shadowOpacity: 0.25,
