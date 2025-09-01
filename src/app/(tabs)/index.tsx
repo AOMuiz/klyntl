@@ -1,4 +1,5 @@
 import { ContactImportButton } from "@/components/ContactImportButton";
+import { useContactPicker } from "@/components/ContactPicker";
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterBar } from "@/components/FilterBar";
 import ScreenContainer from "@/components/screen-container";
@@ -18,7 +19,7 @@ import {
 import { ds, fontSize } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Platform,
@@ -28,12 +29,13 @@ import {
   View,
 } from "react-native";
 import { FAB, Searchbar } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerListScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const insets = useSafeAreaInsets();
+
+  // Contact picker hook (single instance)
+  const contactPicker = useContactPicker();
 
   // UI state management
   const { filters, updateFilters } = useCustomerFilters();
@@ -73,7 +75,13 @@ export default function CustomerListScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
-  const { importFromContacts, isImporting } = useContactImport();
+  const { isImporting, importSelectedContacts } = useContactImport();
+  // Memoized existing phone numbers for duplicate checking
+  const existingPhones = useMemo(() => {
+    return customers
+      .filter((c) => c.phone)
+      .map((c) => c.phone.replace(/\D/g, ""));
+  }, [customers]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -102,11 +110,55 @@ export default function CustomerListScreen() {
     router.push("/customer/add");
   };
 
+  // Handle contact selection from picker
+  const handleContactsSelected = async (selectedContacts: any[]) => {
+    try {
+      if (selectedContacts.length === 0) {
+        Alert.alert("No Selection", "No contacts were selected for import.");
+        return;
+      }
+
+      const result = await importSelectedContacts(selectedContacts);
+      handleImportComplete(result);
+    } catch (error) {
+      Alert.alert(
+        "Import Failed",
+        error instanceof Error
+          ? error.message
+          : "Failed to import selected contacts"
+      );
+    }
+  };
+
   const handleImportComplete = async (result: {
     imported: number;
     skipped: number;
+    totalProcessed: number;
+    errors: string[];
   }) => {
-    refetch(); // Reload the customer list
+    // Show detailed import results
+    let message = `Import completed!\n\n`;
+    message += `• Imported: ${result.imported} customers\n`;
+    message += `• Skipped: ${result.skipped} contacts\n`;
+    message += `• Total processed: ${result.totalProcessed} contacts`;
+
+    if (result.errors.length > 0) {
+      message += `\n\nSome errors occurred:\n${result.errors
+        .slice(0, 3)
+        .join("\n")}`;
+      if (result.errors.length > 3) {
+        message += `\n... and ${result.errors.length - 3} more errors`;
+      }
+    }
+
+    Alert.alert("Import Results", message, [
+      {
+        text: "OK",
+        onPress: () => {
+          refetch(); // Reload the customer list
+        },
+      },
+    ]);
   };
 
   const handleFiltersChange = async (
@@ -163,6 +215,9 @@ export default function CustomerListScreen() {
         <ContactImportButton
           variant="button"
           size="medium"
+          maxImportCount={50} // Limit initial imports in empty state
+          importMode="limited"
+          showSelectOption={true} // Enable contact picker
           onImportComplete={handleImportComplete}
         />
       </View>
@@ -268,7 +323,7 @@ export default function CustomerListScreen() {
           {
             icon: "account-multiple-plus",
             label: "Import Contacts",
-            onPress: async () => {
+            onPress: () => {
               if (isImporting) {
                 Alert.alert(
                   "Import in Progress",
@@ -277,34 +332,13 @@ export default function CustomerListScreen() {
                 return;
               }
 
-              try {
-                const result = await importFromContacts(true);
-
-                // Show import results
-                Alert.alert(
-                  "Import Complete",
-                  `Successfully imported ${result.imported} contacts.\n${result.skipped} contacts were skipped.`,
-                  [
-                    {
-                      text: "OK",
-                      onPress: () => {
-                        // Refresh the customer list
-                        refetch();
-                        // Close the FAB
-                        setFabOpen(false);
-                      },
-                    },
-                  ]
-                );
-              } catch (error) {
-                console.error("Contact import error:", error);
-                Alert.alert(
-                  "Import Error",
-                  error instanceof Error
-                    ? error.message
-                    : "Failed to import contacts. Please try again."
-                );
-              }
+              // Use the contact picker for selective import
+              contactPicker.showContactPicker({
+                existingPhones,
+                maxSelection: 100,
+                onContactsSelected: handleContactsSelected,
+              });
+              setFabOpen(false);
             },
             color: "#007AFF",
           },
@@ -315,7 +349,8 @@ export default function CustomerListScreen() {
           // { bottom: insets.bottom + ds(16) }, // 👈 dynamic padding
         ]}
       />
-      {/* </Portal> */}
+
+      {contactPicker.ContactPickerComponent()}
     </ScreenContainer>
   );
 }

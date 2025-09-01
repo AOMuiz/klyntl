@@ -193,20 +193,30 @@ export function useCustomers(
   };
 }
 
-// Hook for getting a single customer
+// Hook for getting a single customer - INDEPENDENT of pagination
 export function useCustomer(id?: string) {
   const { db } = useDatabase();
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["customers", "detail", id, db ? "main" : "default"],
+    queryKey: ["customer", id, db ? "main" : "default"],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      return databaseService!.getCustomerById(id);
+      const customer = await databaseService!.getCustomerById(id);
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+      return customer;
     },
     enabled: Boolean(databaseService) && Boolean(id),
-    staleTime: 5 * 60 * 1000, // Individual customer data can be stale for 5 minutes
-    retry: 3,
+    staleTime: 30 * 1000, // Cache for 30 seconds
+    retry: (failureCount, error) => {
+      // Don't retry if customer truly doesn't exist
+      if (error instanceof Error && error.message === "Customer not found") {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }
 

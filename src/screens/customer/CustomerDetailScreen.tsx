@@ -3,12 +3,10 @@ import ScreenContainer, {
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { useCustomers } from "@/hooks/useCustomers";
+import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
-import { Customer } from "@/types/customer";
 import { getCustomerInitials } from "@/utils/helpers";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, View } from "react-native";
 import {
   Button,
@@ -31,32 +29,18 @@ export default function CustomerDetailScreen({
 }: CustomerDetailScreenProps) {
   const router = useRouter();
 
-  // Use React Query hooks
-  const customersQuery = useCustomers();
+  // Use dedicated customer hook for individual customer lookup
+  const customerQuery = useCustomer(customerId);
   const transactionsQuery = useTransactions(customerId);
   const { deleteCustomer } = useCustomers();
 
   const { colors } = useAppTheme();
 
-  const [customer, setCustomer] = useState<Customer | null>(null);
-
   // Get data from React Query
-  const customers = customersQuery.customers;
+  const customer = customerQuery.data;
   const transactions = transactionsQuery.transactions ?? [];
-  const loading = customersQuery.isLoading || transactionsQuery.isLoading;
-  // Find customer when data is available
-  useEffect(() => {
-    if (customerId && customers.length > 0) {
-      const foundCustomer = customers.find((c) => c.id === customerId);
-      if (foundCustomer) {
-        setCustomer(foundCustomer);
-      } else {
-        Alert.alert("Error", "Customer not found", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      }
-    }
-  }, [customerId, customers, router]);
+  const loading = customerQuery.isLoading || transactionsQuery.isLoading;
+  const error = customerQuery.error || transactionsQuery.error;
 
   const formatCurrency = (amount: number) => {
     return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
@@ -135,6 +119,31 @@ export default function CustomerDetailScreen({
           <Text variant="bodyLarge" style={{ color: colors.text }}>
             Loading customer details...
           </Text>
+        </Surface>
+      </SafeAreaView>
+    );
+  }
+
+  if (customerQuery.error) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <Surface style={styles.errorContainer} elevation={0}>
+          <Text variant="bodyLarge" style={{ color: colors.text }}>
+            {customerQuery.error instanceof Error &&
+            customerQuery.error.message === "Customer not found"
+              ? "Customer not found"
+              : "Error loading customer details"}
+          </Text>
+          <Button
+            mode="contained"
+            onPress={() => router.back()}
+            style={styles.backButton}
+            contentStyle={styles.backButtonContent}
+          >
+            Go Back
+          </Button>
         </Surface>
       </SafeAreaView>
     );

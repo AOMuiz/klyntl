@@ -10,12 +10,28 @@ import { useState } from "react";
 interface ContactImportResult {
   imported: number;
   skipped: number;
+  totalProcessed: number;
+  errors: string[];
 }
 
 interface ContactAccessStatus {
   hasAccess: boolean;
   isLimited: boolean;
   contactCount: number;
+}
+
+interface ContactImportOptions {
+  maxImportCount?: number;
+  batchSize?: number;
+  importMode: "full" | "limited" | "partial" | "select";
+  selectedContactIds?: string[];
+  forceRefresh?: boolean;
+  // {
+  //     maxImportCount?: number;
+  //     batchSize?: number;
+  //     importMode?: "full" | "limited" | "partial";
+
+  //   }
 }
 
 export function useContactImport() {
@@ -169,8 +185,15 @@ export function useContactImport() {
   };
 
   const importFromContacts = async (
-    forceRefresh: boolean = true
+    options: ContactImportOptions
   ): Promise<ContactImportResult> => {
+    const {
+      maxImportCount = 500, // Default max to prevent overwhelming UI
+      batchSize = 50, // Process in batches
+      importMode = "limited",
+      forceRefresh = false,
+    } = options;
+
     setError(null);
     setIsImporting(true);
 
@@ -205,10 +228,10 @@ export function useContactImport() {
       // Check for limited access
       const isLimited = await checkLimitedAccess(data);
 
-      // If user wants fresh access and we detect limited access, try to expand permissions
-      if (isLimited && forceRefresh) {
+      // Handle access expansion based on import mode and user preference
+      if (importMode === "full" && (isLimited || forceRefresh)) {
         console.log(
-          `Detected limited access (${data.length} contacts), attempting to expand...`
+          `Attempting to expand access for full import (current: ${data.length} contacts)...`
         );
 
         // For iOS 18+, use the built-in access picker
@@ -216,6 +239,7 @@ export function useContactImport() {
           const newlyGrantedContacts = await presentContactAccessPicker();
           if (newlyGrantedContacts) {
             // Refresh contacts after using access picker
+            await new Promise((resolve) => setTimeout(resolve, 500));
             const refreshedResult = await Contacts.getContactsAsync(
               contactOptions
             );
@@ -245,6 +269,11 @@ export function useContactImport() {
         }
       }
 
+      // Apply import limits based on mode
+      if (importMode === "limited" || importMode === "partial") {
+        data = data.slice(0, Math.min(maxImportCount, data.length));
+      }
+
       // Get fresh customer list from database to check for existing phone numbers
       const latestCustomers = await databaseService.getCustomersWithFilters();
       const existingPhones = new Set(
@@ -255,61 +284,87 @@ export function useContactImport() {
 
       let imported = 0;
       let skipped = 0;
+      let totalProcessed = 0;
+      const errors: string[] = [];
 
       console.log(
-        `Starting contact import. Found ${data.length} contacts to process.`
+        `Starting contact import. Processing ${data.length} contacts in batches of ${batchSize}.`
       );
 
-      // Process contacts
-      for (const contact of data) {
-        // Skip contacts without phone numbers
-        if (!contact.phoneNumbers?.length) {
-          skipped++;
-          continue;
+      // Process contacts in batches to avoid overwhelming the UI
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+
+        for (const contact of batch) {
+          totalProcessed++;
+
+          // Skip contacts without phone numbers
+          if (!contact.phoneNumbers?.length) {
+            skipped++;
+            continue;
+          }
+
+          // Process each phone number for the contact
+          let contactImported = false;
+          for (const phoneNumber of contact.phoneNumbers) {
+            if (!phoneNumber.number || contactImported) continue;
+
+            // Clean phone number and check if it's Nigerian
+            const cleanPhone = phoneNumber.number.replace(/\D/g, "");
+            if (!validateNigerianPhone(cleanPhone)) {
+              skipped++;
+              continue;
+            }
+
+            // Skip if phone already exists
+            if (existingPhones.has(cleanPhone)) {
+              skipped++;
+              continue;
+            }
+
+            try {
+              // Create customer from contact
+              await databaseService.createCustomer({
+                name:
+                  [contact.firstName, contact.lastName]
+                    .filter(Boolean)
+                    .join(" ") || "Unknown",
+                phone: cleanPhone,
+                email: contact.emails?.[0]?.email,
+                contactSource: "imported",
+              });
+
+              imported++;
+              existingPhones.add(cleanPhone); // Prevent duplicates within same import
+              contactImported = true; // Only import one phone per contact
+            } catch (error) {
+              console.warn(`Failed to import contact ${contact.id}:`, error);
+              errors.push(
+                `Failed to import ${contact.firstName || "Unknown"}: ${
+                  error instanceof Error ? error.message : "Unknown error"
+                }`
+              );
+              skipped++;
+            }
+          }
         }
 
-        // Process each phone number for the contact
-        for (const phoneNumber of contact.phoneNumbers) {
-          if (!phoneNumber.number) continue;
-
-          // Clean phone number and check if it's Nigerian
-          const cleanPhone = phoneNumber.number.replace(/\D/g, "");
-          if (!validateNigerianPhone(cleanPhone)) {
-            skipped++;
-            continue;
-          }
-
-          // Skip if phone already exists
-          if (existingPhones.has(cleanPhone)) {
-            skipped++;
-            continue;
-          }
-
-          try {
-            // Create customer from contact
-            await databaseService.createCustomer({
-              name:
-                [contact.firstName, contact.lastName]
-                  .filter(Boolean)
-                  .join(" ") || "Unknown",
-              phone: cleanPhone,
-              email: contact.emails?.[0]?.email,
-              contactSource: "imported",
-            });
-
-            imported++;
-            existingPhones.add(cleanPhone); // Prevent duplicates within same import
-          } catch (error) {
-            console.warn(`Failed to import contact ${contact.id}:`, error);
-            skipped++;
-          }
+        // Add small delay between batches to prevent UI blocking
+        if (i + batchSize < data.length) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 
       console.log(
-        `Contact import completed. Imported: ${imported}, Skipped: ${skipped}`
+        `Contact import completed. Imported: ${imported}, Skipped: ${skipped}, Total Processed: ${totalProcessed}`
       );
-      return { imported, skipped };
+
+      return {
+        imported,
+        skipped,
+        totalProcessed,
+        errors: errors.slice(0, 5), // Limit error reporting
+      };
     } catch (error) {
       console.error("Failed to import contacts:", error);
       setError(
@@ -321,8 +376,102 @@ export function useContactImport() {
     }
   };
 
+  const importSelectedContacts = async (
+    selectedContacts: {
+      id: string;
+      name: string;
+      phone: string;
+      email?: string;
+      isValid: boolean;
+      isDuplicate: boolean;
+    }[]
+  ): Promise<ContactImportResult> => {
+    setError(null);
+    setIsImporting(true);
+
+    try {
+      let imported = 0;
+      let skipped = 0;
+      const totalProcessed = selectedContacts.length;
+      const errors: string[] = [];
+
+      console.log(
+        `Starting selected contact import. Processing ${totalProcessed} selected contacts.`
+      );
+
+      // Get fresh customer list from database to check for existing phone numbers
+      const latestCustomers = await databaseService.getCustomersWithFilters();
+      const existingPhones = new Set(
+        latestCustomers
+          .filter((c: Customer) => c.phone)
+          .map((c: Customer) => c.phone.replace(/\D/g, ""))
+      );
+
+      // Process selected contacts
+      for (const contact of selectedContacts) {
+        // Skip invalid or duplicate contacts (shouldn't happen if UI is correct, but safety check)
+        if (!contact.isValid || contact.isDuplicate) {
+          skipped++;
+          continue;
+        }
+
+        // Skip if phone already exists (double-check)
+        if (existingPhones.has(contact.phone)) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          // Create customer from selected contact
+          await databaseService.createCustomer({
+            name: contact.name || "Unknown",
+            phone: contact.phone,
+            email: contact.email,
+            contactSource: "imported",
+          });
+
+          imported++;
+          existingPhones.add(contact.phone); // Prevent duplicates within same import
+        } catch (error) {
+          console.warn(
+            `Failed to import selected contact ${contact.id}:`,
+            error
+          );
+          errors.push(
+            `Failed to import ${contact.name}: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          );
+          skipped++;
+        }
+      }
+
+      console.log(
+        `Selected contact import completed. Imported: ${imported}, Skipped: ${skipped}, Total Processed: ${totalProcessed}`
+      );
+
+      return {
+        imported,
+        skipped,
+        totalProcessed,
+        errors: errors.slice(0, 5), // Limit error reporting
+      };
+    } catch (error) {
+      console.error("Failed to import selected contacts:", error);
+      setError(
+        error instanceof Error
+          ? error
+          : new Error("Failed to import selected contacts")
+      );
+      throw error;
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return {
     importFromContacts,
+    importSelectedContacts,
     checkContactAccess,
     clearImportCache,
     isImporting,

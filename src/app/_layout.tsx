@@ -69,6 +69,17 @@ export default function RootLayout() {
                   headerShown: false,
                 }}
               />
+              {/* <Stack.Screen
+                name="contact-picker"
+                options={{
+                  title: "Select Contacts",
+                  presentation: "modal",
+                  headerShown: false,
+                  animation: "slide_from_bottom",
+                  gestureEnabled: true,
+                  gestureDirection: "vertical",
+                }}
+              /> */}
               <Stack.Screen name="+not-found" />
             </Stack>
           </ThemeProvider>

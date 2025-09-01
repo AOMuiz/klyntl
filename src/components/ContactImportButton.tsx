@@ -1,15 +1,26 @@
+import { useContactPicker } from "@/components/ContactPicker";
 import { useContactImport } from "@/hooks/useContactImport";
-import React from "react";
+import { useDatabase } from "@/services/database";
+import { createDatabaseService } from "@/services/database/service";
+import React, { useEffect, useState } from "react";
 import { Alert, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { IconSymbol } from "./ui/IconSymbol";
 
 interface ContactImportButtonProps {
-  onImportComplete?: (result: { imported: number; skipped: number }) => void;
+  onImportComplete?: (result: {
+    imported: number;
+    skipped: number;
+    totalProcessed: number;
+    errors: string[];
+  }) => void;
   style?: any;
   disabled?: boolean;
   variant?: "fab" | "button" | "text";
   size?: "small" | "medium" | "large";
+  maxImportCount?: number;
+  importMode?: "full" | "limited" | "partial" | "select"; // Added "select" mode
+  showSelectOption?: boolean; // Whether to show contact picker option
 }
 
 export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
@@ -18,13 +29,78 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   disabled = false,
   variant = "button",
   size = "medium",
+  maxImportCount = 100, // Default reasonable limit
+  importMode = "limited", // Default to limited import
+  showSelectOption = true, // Show contact picker by default
 }) => {
   const {
     importFromContacts,
+    importSelectedContacts, // New function for selected contacts
     clearImportCache,
     checkContactAccess,
     isImporting,
   } = useContactImport();
+
+  const { db } = useDatabase();
+  const databaseService = createDatabaseService(db);
+  const { showContactPicker, ContactPickerComponent } = useContactPicker();
+
+  const [existingPhones, setExistingPhones] = useState<string[]>([]);
+
+  // Load existing phone numbers when component mounts
+  useEffect(() => {
+    const loadExistingPhones = async () => {
+      try {
+        const customers = await databaseService.getCustomersWithFilters();
+        const phones = customers
+          .filter((c) => c.phone)
+          .map((c) => c.phone.replace(/\D/g, ""));
+        setExistingPhones(phones);
+      } catch (error) {
+        console.error("Failed to load existing phones:", error);
+      }
+    };
+
+    loadExistingPhones();
+  }, [databaseService]);
+
+  const handleContactsSelected = async (selectedContacts: any[]) => {
+    try {
+      if (selectedContacts.length === 0) {
+        Alert.alert("No Selection", "No contacts were selected for import.");
+        return;
+      }
+
+      const result = await importSelectedContacts(selectedContacts);
+      onImportComplete?.(result);
+
+      let message = `Import completed!\n\n`;
+      message += `• Selected: ${selectedContacts.length} contacts\n`;
+      message += `• Imported: ${result.imported} customers\n`;
+      message += `• Skipped: ${result.skipped} contacts`;
+
+      if (result.errors.length > 0) {
+        message += `\n• Errors: ${result.errors.length}`;
+      }
+
+      Alert.alert("Import Complete", message);
+    } catch (error) {
+      Alert.alert(
+        "Import Failed",
+        error instanceof Error
+          ? error.message
+          : "Failed to import selected contacts"
+      );
+    }
+  };
+
+  const openContactPicker = () => {
+    showContactPicker({
+      existingPhones,
+      maxSelection: maxImportCount,
+      onContactsSelected: handleContactsSelected,
+    });
+  };
 
   const handleImportContacts = async () => {
     try {
@@ -32,17 +108,13 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
       const accessStatus = await checkContactAccess();
 
       let alertTitle = "Import Contacts";
-      let alertMessage =
-        "This will import contacts from your phone. Only Nigerian phone numbers will be imported and duplicates will be skipped.";
+      let alertMessage = `Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.`;
 
       if (!accessStatus.hasAccess) {
         alertMessage =
           "This app needs permission to access your contacts. You'll be prompted to grant permission.";
-      } else if (accessStatus.isLimited) {
-        alertTitle = "Limited Contact Access Detected";
-        alertMessage = `You currently have limited access to contacts (${accessStatus.contactCount} contacts available). You can:\n\n• Import available contacts, or\n• Grant access to more contacts for a better import experience`;
       } else {
-        alertMessage += `\n\n${accessStatus.contactCount} contacts available for import.`;
+        alertMessage += `\n\n${accessStatus.contactCount} contacts available.`;
       }
 
       const buttons = [];
@@ -53,21 +125,35 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
         style: "cancel" as const,
       });
 
-      // If limited access, offer option to grant more access
+      // Contact picker option (recommended)
+      if (showSelectOption && accessStatus.hasAccess) {
+        buttons.push({
+          text: "Select Contacts",
+          onPress: openContactPicker,
+        });
+      }
+
+      // If limited access, offer import limited option
       if (accessStatus.isLimited) {
         buttons.push({
-          text: "Grant More Access",
+          text: `Import Limited (${Math.min(
+            accessStatus.contactCount,
+            maxImportCount
+          )})`,
           onPress: async () => {
             try {
-              await clearImportCache();
-              const result = await importFromContacts(true);
+              const result = await importFromContacts({
+                maxImportCount,
+                importMode: "limited",
+                forceRefresh: false,
+              });
               onImportComplete?.(result);
 
               const message =
                 result.imported > 0
-                  ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
+                  ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped.`
                   : result.skipped > 0
-                  ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers). You may still have limited contact access.`
+                  ? `No new contacts imported. ${result.skipped} contacts were skipped.`
                   : "No contacts found to import.";
 
               Alert.alert("Import Complete", message);
@@ -81,34 +167,76 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
             }
           },
         });
+
+        // Option to grant more access
+        if (importMode !== "limited") {
+          buttons.push({
+            text: "Grant More Access",
+            onPress: async () => {
+              try {
+                await clearImportCache();
+                const result = await importFromContacts({
+                  maxImportCount: importMode === "full" ? 500 : maxImportCount,
+                  importMode: importMode === "full" ? "full" : "partial",
+                  forceRefresh: true,
+                });
+                onImportComplete?.(result);
+
+                const message =
+                  result.imported > 0
+                    ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped.`
+                    : result.skipped > 0
+                    ? `No new contacts imported. ${result.skipped} contacts were skipped. You may still have limited contact access.`
+                    : "No contacts found to import.";
+
+                Alert.alert("Import Complete", message);
+              } catch (error) {
+                Alert.alert(
+                  "Import Failed",
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to import contacts"
+                );
+              }
+            },
+          });
+        }
+      } else if (accessStatus.hasAccess) {
+        // Standard import option for full access
+        buttons.push({
+          text: `Import All (up to ${maxImportCount})`,
+          onPress: async () => {
+            try {
+              const result = await importFromContacts({
+                maxImportCount: importMode === "full" ? 500 : maxImportCount,
+                importMode: importMode === "full" ? "full" : "partial",
+                forceRefresh: false,
+              });
+              onImportComplete?.(result);
+
+              let message =
+                result.imported > 0
+                  ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped.`
+                  : result.skipped > 0
+                  ? `No new contacts imported. ${result.skipped} contacts were skipped.`
+                  : "No contacts found to import.";
+
+              if (result.errors.length > 0) {
+                message += `\n\nSome errors occurred during import. Check console for details.`;
+              }
+
+              Alert.alert("Import Complete", message);
+            } catch (error) {
+              Alert.alert(
+                "Import Failed",
+                error instanceof Error
+                  ? error.message
+                  : "Failed to import contacts"
+              );
+            }
+          },
+        });
       }
-
-      // Always offer import option
-      buttons.push({
-        text: accessStatus.isLimited ? "Import Available" : "Import",
-        onPress: async () => {
-          try {
-            const result = await importFromContacts(!accessStatus.isLimited);
-            onImportComplete?.(result);
-
-            const message =
-              result.imported > 0
-                ? `Successfully imported ${result.imported} contacts. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                : result.skipped > 0
-                ? `No new contacts imported. ${result.skipped} contacts were skipped (duplicates or invalid numbers).`
-                : "No contacts found to import.";
-
-            Alert.alert("Import Complete", message);
-          } catch (error) {
-            Alert.alert(
-              "Import Failed",
-              error instanceof Error
-                ? error.message
-                : "Failed to import contacts"
-            );
-          }
-        },
-      });
 
       Alert.alert(alertTitle, alertMessage, buttons);
     } catch (error) {
@@ -159,28 +287,32 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   }
 
   return (
-    <TouchableOpacity
-      testID="contact-import-button"
-      style={[
-        styles.button,
-        size === "small" && styles.buttonSmall,
-        size === "large" && styles.buttonLarge,
-        (disabled || isImporting) && styles.buttonDisabled,
-        style,
-      ]}
-      onPress={handleImportContacts}
-      disabled={disabled || isImporting}
-    >
-      <IconSymbol
-        name="person.badge.plus"
-        size={getIconSize()}
-        color="white"
-        style={styles.buttonIcon}
-      />
-      <Text style={styles.buttonText}>
-        {isImporting ? "Importing..." : "Import Contacts"}
-      </Text>
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity
+        testID="contact-import-button"
+        style={[
+          styles.button,
+          size === "small" && styles.buttonSmall,
+          size === "large" && styles.buttonLarge,
+          (disabled || isImporting) && styles.buttonDisabled,
+          style,
+        ]}
+        onPress={handleImportContacts}
+        disabled={disabled || isImporting}
+      >
+        <IconSymbol
+          name="person.badge.plus"
+          size={getIconSize()}
+          color="white"
+        />
+        <Text style={styles.buttonText}>
+          {isImporting ? "Importing..." : "Import Contacts"}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Contact Picker Modal */}
+      <ContactPickerComponent />
+    </>
   );
 };
 

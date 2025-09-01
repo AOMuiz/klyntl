@@ -11,22 +11,8 @@ export function useDatabase() {
     db,
     isReady: true, // Always ready since SQLiteProvider handles initialization
     error: null, // Errors are handled by SQLiteProvider
-    // repositories: {
-    //   customers: RepositoryFactory.getCustomerRepository(db),
-    //   products: RepositoryFactory.getProductRepository(db),
-    //   transactions: RepositoryFactory.getTransactionRepository(db),
-    //   storeConfig: RepositoryFactory.getStoreConfigRepository(db),
-    // },
   };
 }
-
-/**
- * Hook to access the customer repository
- */
-// export function useCustomerRepository(): ICustomerRepository {
-//   const { repositories } = useDatabase();
-//   return repositories.customers;
-// }
 
 /**
  * Hook for database health monitoring

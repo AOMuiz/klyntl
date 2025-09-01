@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     right: rs(16),
-    bottom: rs(70),
+    bottom: rs(20),
     borderRadius: rs(28),
     elevation: 8,
     shadowOffset: { width: 0, height: rs(2) },
