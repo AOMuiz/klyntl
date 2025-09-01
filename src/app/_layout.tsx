@@ -10,7 +10,7 @@ import {
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack, usePathname } from "expo-router";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity } from "react-native";
 import "react-native-reanimated";
@@ -26,39 +26,29 @@ export default function RootLayout() {
     SpaceMono: require("assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  const pathname = usePathname();
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(
-    null
-  );
+  // we keep two pieces of state:
+  // - hasSeenOnboarding is a boolean guard for Stack.Protected
+  // - flagLoaded avoids rendering until we know the persisted value (prevents immediate redirect)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean>(false);
+  const [flagLoaded, setFlagLoaded] = useState(false);
 
-  // read persisted flag
   const readOnboardingFlag = async () => {
     try {
       const value = await AsyncStorage.getItem(ONBOARDING_KEY);
       setHasSeenOnboarding(value === "true");
     } catch {
       setHasSeenOnboarding(false);
+    } finally {
+      setFlagLoaded(true);
     }
   };
 
   useEffect(() => {
-    // read once on mount
     readOnboardingFlag();
-    // also re-check whenever the route path changes (helps after onboarding completes)
   }, []);
 
-  useEffect(() => {
-    // re-check when pathname changes (only if we've already loaded flag)
-    if (hasSeenOnboarding !== null) {
-      readOnboardingFlag();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
-
-  if (!loaded || hasSeenOnboarding === null) {
-    // wait for fonts and onboarding flag to load to avoid flashes/loops
-    return null;
-  }
+  // Wait for fonts AND onboarding flag to be known before rendering navigation stack.
+  if (!loaded || !flagLoaded) return null;
 
   const clearOnboardingFlag = async () => {
     try {
@@ -86,15 +76,24 @@ export default function RootLayout() {
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
             <Stack>
-              {/* Public onboarding route (always available) */}
+              {/* onboarding always available */}
               <Stack.Screen
                 name="onboarding"
                 options={{ headerShown: false }}
               />
 
-              {/* Protected app routes: only available once hasSeenOnboarding === true */}
+              {/* Use Expo Router's recommended Stack.Protected.
+                  guard must be a boolean and we avoid initial false-redirect
+                  by waiting for the persisted flag to load (flagLoaded). */}
               <Stack.Protected guard={hasSeenOnboarding}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="(modal)"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
                 <Stack.Screen
                   name="customer/add"
                   options={{
@@ -106,7 +105,6 @@ export default function RootLayout() {
                 <Stack.Screen
                   name="customer/[id]"
                   options={{
-                    // Hide the root header so the nested customer layout can show its own header
                     headerShown: false,
                     title: "Customer Details",
                     headerBackTitle: "Customers",

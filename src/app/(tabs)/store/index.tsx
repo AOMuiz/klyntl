@@ -1,8 +1,8 @@
-import { EditProductForm } from "@/components/product/EditProductForm";
-import { ProductDetails } from "@/components/product/ProductDetails";
-import { ProductForm } from "@/components/product/ProductForm";
 import { ProductList } from "@/components/product/ProductList";
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+  edgesVertical,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -12,41 +12,42 @@ import { useLowStockProducts, useProducts } from "@/hooks/useProducts";
 
 import type { Product } from "@/types/product";
 import { fontSize } from "@/utils/responsive_dimensions_system";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
-  Modal,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StoreScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const [showAddProduct, setShowAddProduct] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [showProductDetails, setShowProductDetails] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const {
     totalCount: productCount,
     isLoading: productsLoading,
     deleteProduct,
+    products,
   } = useProducts();
   const { data: lowStockProducts } = useLowStockProducts();
 
   const handleProductPress = (product: Product) => {
-    setSelectedProduct(product);
-    setShowProductDetails(true);
+    // navigate to product details in this tab stack
+    router.push(`/store/${product.id}`);
   };
 
   const handleEditProduct = (product: Product) => {
-    setSelectedProduct(product);
-    setShowEditForm(true);
+    // open edit as modal route
+    router.push(`/(modal)/store/edit/${product.id}`);
+  };
+
+  const handleAddProduct = () => {
+    router.push(`/(modal)/store/add`);
   };
 
   const handleDeleteProduct = (product: Product) => {
@@ -60,10 +61,6 @@ export default function StoreScreen() {
           style: "destructive",
           onPress: () => {
             deleteProduct(product.id);
-            if (selectedProduct?.id === product.id) {
-              setShowProductDetails(false);
-              setSelectedProduct(null);
-            }
           },
         },
       ]
@@ -92,13 +89,19 @@ export default function StoreScreen() {
       <View
         style={[styles.comingSoonBadge, { backgroundColor: colors.warning }]}
       >
-        <ThemedText style={styles.comingSoonText}>Soon</ThemedText>
+        <ThemedText style={[styles.comingSoonText, { color: colors.surface }]}>
+          Soon
+        </ThemedText>
       </View>
     </View>
   );
 
   return (
-    <ScreenContainer scrollable={false} withPadding={false}>
+    <ScreenContainer
+      scrollable={false}
+      withPadding={false}
+      edges={[...edgesHorizontal, ...edgesVertical]}
+    >
       {showProductList ? (
         // Product List View - Uses FlatList internally
         <ThemedView style={styles.productListContainer}>
@@ -119,7 +122,7 @@ export default function StoreScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.addButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAddProduct(true)}
+              onPress={handleAddProduct}
             >
               <IconSymbol name="plus" size={16} color={colors.background} />
               <ThemedText
@@ -156,10 +159,12 @@ export default function StoreScreen() {
               </ThemedText>
               <TouchableOpacity
                 style={[styles.addButton, { backgroundColor: colors.primary }]}
-                onPress={() => setShowAddProduct(true)}
+                onPress={handleAddProduct}
               >
                 <IconSymbol name="plus" size={16} color={colors.background} />
-                <ThemedText style={styles.addButtonText}>
+                <ThemedText
+                  style={[styles.addButtonText, { color: colors.background }]}
+                >
                   Add Product
                 </ThemedText>
               </TouchableOpacity>
@@ -324,7 +329,9 @@ export default function StoreScreen() {
                   );
                 }}
               >
-                <ThemedText style={styles.ctaButtonText}>
+                <ThemedText
+                  style={[styles.ctaButtonText, { color: colors.background }]}
+                >
                   Get Notified
                 </ThemedText>
               </TouchableOpacity>
@@ -332,129 +339,6 @@ export default function StoreScreen() {
           </View>
         </ScrollView>
       )}
-
-      {/* Add Product Modal */}
-      <Modal
-        visible={showAddProduct}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAddProduct(false)}
-      >
-        <SafeAreaView
-          style={[styles.modalSafeArea, { backgroundColor: colors.background }]}
-        >
-          <ThemedView
-            style={[styles.modalContainer, { backgroundColor: colors.surface }]}
-          >
-            <ThemedView
-              style={[
-                styles.modalHeader,
-                {
-                  borderBottomColor: colors.border,
-                  backgroundColor: colors.surface,
-                },
-              ]}
-            >
-              <ThemedText
-                type="subtitle"
-                style={[styles.title, { color: colors.text }]}
-              >
-                Add New Product
-              </ThemedText>
-              <TouchableOpacity
-                onPress={() => setShowAddProduct(false)}
-                style={styles.modalCloseButton}
-                accessibilityLabel="Close add product modal"
-                accessibilityRole="button"
-              >
-                <ThemedText
-                  style={[styles.modalCloseText, { color: colors.primary }]}
-                >
-                  Cancel
-                </ThemedText>
-              </TouchableOpacity>
-            </ThemedView>
-            <ProductForm onProductCreated={() => setShowAddProduct(false)} />
-          </ThemedView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Edit Product Modal */}
-      <Modal
-        visible={showEditForm && selectedProduct !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          setShowEditForm(false);
-          setSelectedProduct(null);
-        }}
-      >
-        {selectedProduct && (
-          <SafeAreaView style={{ flex: 1 }}>
-            <ThemedView
-              style={[{ flex: 1 }, { backgroundColor: colors.background }]}
-            >
-              <ThemedView
-                style={[
-                  styles.modalHeader,
-                  { borderBottomColor: colors.border },
-                ]}
-              >
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowEditForm(false);
-                    setSelectedProduct(null);
-                  }}
-                  style={styles.modalCloseButton}
-                >
-                  <ThemedText
-                    style={[styles.modalCloseText, { color: colors.primary }]}
-                  >
-                    Cancel
-                  </ThemedText>
-                </TouchableOpacity>
-              </ThemedView>
-              <EditProductForm
-                product={selectedProduct}
-                onProductUpdated={() => {
-                  setShowEditForm(false);
-                  setSelectedProduct(null);
-                }}
-                onCancel={() => {
-                  setShowEditForm(false);
-                  setSelectedProduct(null);
-                }}
-              />
-            </ThemedView>
-          </SafeAreaView>
-        )}
-      </Modal>
-
-      {/* Product Details Modal */}
-      <Modal
-        visible={showProductDetails && selectedProduct !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          setShowProductDetails(false);
-          setSelectedProduct(null);
-        }}
-      >
-        {selectedProduct && (
-          <ProductDetails
-            product={selectedProduct}
-            onEdit={() => {
-              setShowProductDetails(false);
-              handleEditProduct(selectedProduct);
-            }}
-            onDelete={() => handleDeleteProduct(selectedProduct)}
-            onClose={() => {
-              setShowProductDetails(false);
-              setSelectedProduct(null);
-            }}
-          />
-        )}
-      </Modal>
     </ScreenContainer>
   );
 }
