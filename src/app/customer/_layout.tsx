@@ -8,24 +8,8 @@ export default function CustomerLayout() {
         options={{
           // Show native header for customer details and set a friendly back button label
           headerShown: true,
-          headerTitle: "Customer",
+          headerTitle: "Customer Details",
           headerBackTitle: "Customers",
-          headerTitleAlign: "center",
-          headerStyle: { backgroundColor: "#F5F5F5" },
-        }}
-      />
-      <Stack.Screen
-        name="add"
-        options={{
-          title: "Add Customer",
-          headerTitleAlign: "center",
-          headerStyle: { backgroundColor: "#F5F5F5" },
-        }}
-      />
-      <Stack.Screen
-        name="edit/[id]"
-        options={{
-          title: "Edit Customer",
           headerTitleAlign: "center",
           headerStyle: { backgroundColor: "#F5F5F5" },
         }}

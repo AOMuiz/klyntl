@@ -1,6 +1,6 @@
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
-import { IconSymbol } from "@/components/ui/IconSymbol";
+import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
@@ -84,7 +84,7 @@ export default function HomeScreen() {
 
   const renderQuickAction = (
     title: string,
-    icon: string,
+    icon: IconSymbolName,
     backgroundColor: string,
     onPress: () => void,
     iconAndTextColor?: string // add this

@@ -76,17 +76,21 @@ export default function RootLayout() {
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
             <Stack>
-              {/* onboarding always available */}
+              {/* Public routes - always available */}
               <Stack.Screen
                 name="onboarding"
-                options={{ headerShown: false }}
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
               />
 
-              {/* Use Expo Router's recommended Stack.Protected.
-                  guard must be a boolean and we avoid initial false-redirect
-                  by waiting for the persisted flag to load (flagLoaded). */}
+              {/* Protected routes - require onboarding completion */}
               <Stack.Protected guard={hasSeenOnboarding}>
+                {/* Main tab navigation */}
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+                {/* Modal presentations */}
                 <Stack.Screen
                   name="(modal)"
                   options={{
@@ -94,35 +98,24 @@ export default function RootLayout() {
                     headerShown: false,
                   }}
                 />
+
+                {/* Customer management routes - only detail view */}
                 <Stack.Screen
-                  name="customer/add"
-                  options={{
-                    title: "Add Customer",
-                    presentation: "modal",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="customer/[id]"
+                  name="customer"
                   options={{
                     headerShown: false,
-                    title: "Customer Details",
-                    headerBackTitle: "Customers",
-                    headerTitleStyle: {
-                      fontSize: 18,
-                      fontWeight: "600",
-                    },
+                    title: "Customer Management",
                   }}
                 />
+
+                {/* 404 page */}
                 <Stack.Screen
-                  name="transaction/add"
+                  name="+not-found"
                   options={{
-                    title: "Add Transaction",
-                    presentation: "modal",
-                    headerShown: false,
+                    title: "Not Found",
+                    headerShown: true,
                   }}
                 />
-                <Stack.Screen name="+not-found" />
               </Stack.Protected>
             </Stack>
 

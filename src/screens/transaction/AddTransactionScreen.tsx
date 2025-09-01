@@ -151,10 +151,6 @@ export default function AddTransactionScreen({
     }
   };
 
-  const handleCancel = () => {
-    router.dismiss();
-  };
-
   const formatCurrency = (amount: string) => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount)) return "₦0";
@@ -194,19 +190,6 @@ export default function AddTransactionScreen({
       withPadding={false}
       edges={[...edgesHorizontal, ...edgesVertical]}
     >
-      <View style={dynamicStyles.header}>
-        <TouchableOpacity
-          style={dynamicStyles.cancelButton}
-          onPress={handleCancel}
-        >
-          <ThemedText style={dynamicStyles.cancelText}>Cancel</ThemedText>
-        </TouchableOpacity>
-        <ThemedText type="title" style={dynamicStyles.headerTitle}>
-          Add Transaction
-        </ThemedText>
-        <View style={dynamicStyles.placeholder} />
-      </View>
-
       <ScrollView
         style={dynamicStyles.form}
         showsVerticalScrollIndicator={false}
