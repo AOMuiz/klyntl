@@ -1,7 +1,4 @@
-import ScreenContainer, {
-  edgesHorizontal,
-  edgesVertical,
-} from "@/components/screen-container";
+import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
@@ -257,8 +254,6 @@ export default function AnalyticsScreen() {
 
   return (
     <ScreenContainer
-      useThemedView={true} // Enable themed functionality
-      edges={[...edgesVertical, ...edgesHorizontal]} // Full screen edges
       scrollable={true} // Enable scrolling
       withPadding={false} // We'll handle padding manually for different sections
       scrollViewProps={{
