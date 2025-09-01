@@ -9,7 +9,6 @@ import {
   Button,
   Card,
   HelperText,
-  IconButton,
   Surface,
   Text,
   TextInput,
@@ -172,7 +171,7 @@ export default function EditCustomerScreen({
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <Surface style={styles.content} elevation={0}>
-        {/* Modern Header with Back Navigation */}
+        {/* Modern Header with Back Navigation
         <Surface
           style={[styles.header, { backgroundColor: colors.surface }]}
           elevation={1}
@@ -200,8 +199,7 @@ export default function EditCustomerScreen({
               Cancel
             </Button>
           </View>
-        </Surface>
-
+        </Surface> */}
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
           <View style={styles.formContent}>
             {/* Customer Info Card */}

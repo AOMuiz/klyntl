@@ -9,7 +9,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
 import { UpdateTransactionInput } from "@/types/transaction";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -68,23 +68,37 @@ export default function EditTransactionScreen({
   const watchedAmount = watch("amount");
 
   // Load transaction data and set form values when transaction data is available
-  useEffect(() => {
-    if (transaction) {
-      // Find customer details
-      const foundCustomer = customers.find(
-        (c: any) => c.id === transaction.customerId
-      );
-      setCustomer(foundCustomer);
+  const lastTransactionIdRef = useRef<string | null>(null);
 
-      // Set form values
-      reset({
-        amount: transaction.amount.toString(),
-        description: transaction.description || "",
-        date: transaction.date,
-        type: transaction.type,
-      });
-    }
-  }, [transaction, customers, reset]);
+  useEffect(() => {
+    if (!transaction) return;
+
+    // Avoid re-applying same transaction (prevents render loops)
+    if (lastTransactionIdRef.current === transaction.id) return;
+    lastTransactionIdRef.current = transaction.id;
+
+    // Find customer details
+    const foundCustomer = customers.find(
+      (c: any) => c.id === transaction.customerId
+    );
+
+    // Only update state if the customer actually changed to avoid re-renders
+    setCustomer((prev: any) => {
+      if (prev && foundCustomer && prev.id === foundCustomer.id) return prev;
+      return foundCustomer || null;
+    });
+
+    // Set form values
+    reset({
+      amount: transaction.amount.toString(),
+      description: transaction.description || "",
+      date: transaction.date,
+      type: transaction.type,
+    });
+
+    // Intentionally only run when transaction id changes — customers array can be unstable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transaction?.id, reset]);
 
   const validateAmount = (amount: string) => {
     const numAmount = parseFloat(amount);
@@ -256,7 +270,7 @@ export default function EditTransactionScreen({
       withPadding={false}
       edges={[...edgesHorizontal, ...edgesVertical]}
     >
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
           <ThemedText style={styles.cancelText}>Cancel</ThemedText>
         </TouchableOpacity>
@@ -264,7 +278,7 @@ export default function EditTransactionScreen({
           Edit Transaction
         </ThemedText>
         <View style={styles.placeholder} />
-      </View>
+      </View> */}
 
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
         <View style={styles.formContent}>

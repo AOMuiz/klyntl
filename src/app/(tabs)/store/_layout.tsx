@@ -5,10 +5,7 @@ export default function StoreLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerTitle: "Product" }} />
-      <Stack.Screen
-        name="edit/[id]"
-        options={{ headerTitle: "Edit Product" }}
-      />
+      {/* edit/[id] provided by filesystem route; no explicit Stack.Screen required */}
     </Stack>
   );
 }

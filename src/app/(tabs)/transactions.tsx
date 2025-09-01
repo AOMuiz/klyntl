@@ -314,8 +314,12 @@ export default function TransactionsScreen() {
   }: {
     item: TransactionWithCustomer;
   }) => (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => router.push(`/(modal)/transaction/edit/${item.id}`)}
       style={[styles.transactionCard, { backgroundColor: colors.background }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit transaction ${item.customerName}`}
     >
       <View style={styles.transactionRow}>
         <View
@@ -356,7 +360,7 @@ export default function TransactionsScreen() {
           </ThemedText>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderSection = (title: string, items: TransactionWithCustomer[]) => {
