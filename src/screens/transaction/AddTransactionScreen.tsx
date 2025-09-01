@@ -442,16 +442,22 @@ export default function AddTransactionScreen({
                 <>
                   <TouchableOpacity
                     onPress={() => setDatePickerVisible(true)}
-                    style={dynamicStyles.dateButton}
+                    style={[
+                      dynamicStyles.dateButton,
+                      // { paddingVertical: 12, paddingHorizontal: 10 },
+                    ]}
+                    activeOpacity={0.7} // improves touch feedback
                   >
-                    <TextInput
-                      label="Transaction Date *"
-                      mode="outlined"
-                      value={format(value, "MMM dd, yyyy")}
-                      editable={false}
-                      style={dynamicStyles.input}
-                      left={<TextInput.Icon icon="calendar" />}
-                    />
+                    <View pointerEvents="none">
+                      <TextInput
+                        label="Transaction Date *"
+                        mode="outlined"
+                        value={format(value, "MMM dd, yyyy")}
+                        editable={false}
+                        style={dynamicStyles.input}
+                        left={<TextInput.Icon icon="calendar" />}
+                      />
+                    </View>
                   </TouchableOpacity>
 
                   <View style={dynamicStyles.datePresetContainer}>

@@ -1,4 +1,7 @@
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+  edgesVertical,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
@@ -6,6 +9,7 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/utils/helpers";
+import { ds, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useCallback, useState } from "react";
 import {
   Dimensions,
@@ -126,7 +130,7 @@ export default function AnalyticsScreen() {
       const date = new Date();
       date.setMonth(date.getMonth() - (5 - i));
       return {
-        month: date.toISOString().substr(0, 7), // YYYY-MM format
+        month: date.toISOString().substring(0, 7), // YYYY-MM format
         label: date.toLocaleDateString("en-US", { month: "short" }),
       };
     });
@@ -254,6 +258,7 @@ export default function AnalyticsScreen() {
   return (
     <ScreenContainer
       useThemedView={true} // Enable themed functionality
+      edges={[...edgesVertical, ...edgesHorizontal]} // Full screen edges
       scrollable={true} // Enable scrolling
       withPadding={false} // We'll handle padding manually for different sections
       scrollViewProps={{
@@ -322,7 +327,7 @@ export default function AnalyticsScreen() {
           ]}
         >
           <View style={styles.chartHeader}>
-            <ThemedText type="subtitle">Revenue Trend</ThemedText>
+            <ThemedText type="body1">Revenue Trend</ThemedText>
             <ThemedText style={styles.chartSubtitle}>Last 7 days</ThemedText>
           </View>
           <View
@@ -377,7 +382,7 @@ export default function AnalyticsScreen() {
           ]}
         >
           <View style={styles.chartHeader}>
-            <ThemedText type="subtitle">Monthly Performance</ThemedText>
+            <ThemedText type="body1">Monthly Performance</ThemedText>
             <ThemedText style={styles.chartSubtitle}>Last 6 months</ThemedText>
           </View>
           <View
@@ -426,7 +431,7 @@ export default function AnalyticsScreen() {
           ]}
         >
           <View style={styles.chartHeader}>
-            <ThemedText type="subtitle">Transaction Types</ThemedText>
+            <ThemedText type="body1">Transaction Types</ThemedText>
             <ThemedText style={styles.chartSubtitle}>
               Distribution breakdown
             </ThemedText>
@@ -488,7 +493,7 @@ export default function AnalyticsScreen() {
       {/* Top Customers Section */}
       <View style={styles.topCustomersContainer}>
         <View style={styles.chartHeader}>
-          <ThemedText type="subtitle">Top Customers</ThemedText>
+          <ThemedText type="body1">Top Customers</ThemedText>
           <ThemedText style={styles.chartSubtitle}>
             Highest spending customers
           </ThemedText>
@@ -515,25 +520,25 @@ const styles = StyleSheet.create({
   },
   periodSelector: {
     flexDirection: "row",
-    margin: rs(16),
-    marginTop: rs(8),
-    marginBottom: rs(8),
+    margin: ds(16),
+    marginTop: ds(8),
+    marginBottom: ds(8),
     backgroundColor: "rgba(128, 128, 128, 0.1)",
-    borderRadius: rs(12),
-    padding: rs(4),
+    borderRadius: ds(12),
+    padding: ds(4),
   },
   periodButton: {
     flex: 1,
-    paddingVertical: rs(8),
-    paddingHorizontal: rs(12),
-    borderRadius: rs(8),
+    paddingVertical: ds(8),
+    paddingHorizontal: ds(12),
+    borderRadius: ds(8),
     alignItems: "center",
   },
   periodButtonActive: {
     backgroundColor: "#007AFF",
   },
   periodButtonText: {
-    fontSize: rs(14),
+    fontSize: wp(14),
     fontWeight: "500",
     opacity: 0.8,
   },
@@ -543,13 +548,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   statsGrid: {
-    padding: rs(16),
-    paddingTop: rs(8),
+    padding: ds(16),
+    paddingTop: ds(8),
   },
   statsRow: {
     flexDirection: "row",
-    gap: rs(12),
-    marginBottom: rs(12),
+    gap: ds(12),
+    marginBottom: hp(12),
   },
   statCard: {
     flex: 1,
@@ -564,37 +569,37 @@ const styles = StyleSheet.create({
     marginBottom: rs(12),
   },
   statIconContainer: {
-    width: rs(32),
-    height: rs(32),
+    width: wp(32),
+    height: hp(32),
     borderRadius: rs(16),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: rs(8),
+    marginRight: wp(8),
   },
   statTextContainer: {
     flex: 1,
   },
   statTitle: {
-    fontSize: rs(12),
+    fontSize: wp(12),
     fontWeight: "600",
     opacity: 0.8,
     textTransform: "uppercase",
   },
   statSubtitle: {
-    fontSize: rs(10),
+    fontSize: wp(10),
     opacity: 0.6,
   },
   statValue: {
     fontWeight: "bold",
-    fontSize: rs(20),
+    fontSize: wp(20),
   },
   chartContainer: {
-    marginHorizontal: rs(15),
+    marginHorizontal: wp(12),
     marginTop: rs(20),
     marginBottom: rs(32),
     borderRadius: rs(20),
-    padding: rs(20),
-    shadowOffset: { width: 0, height: rs(2) },
+    padding: ds(15),
+    shadowOffset: { width: 0, height: hp(2) },
     shadowOpacity: 0.1,
     shadowRadius: rs(5),
     elevation: 4,
@@ -603,25 +608,26 @@ const styles = StyleSheet.create({
     marginBottom: rs(18),
     flexDirection: "row",
     alignItems: "center",
+    gap: wp(8),
     justifyContent: "space-between",
   },
   chartTitle: {
-    marginBottom: rs(16),
+    marginBottom: hp(16),
   },
   chartSubtitle: {
-    fontSize: rs(12),
+    fontSize: wp(12),
     opacity: 0.6,
-    marginTop: rs(4),
+    marginTop: ds(4),
   },
   chartWrapper: {
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    borderRadius: rs(16),
-    paddingVertical: rs(20),
-    paddingHorizontal: rs(12),
-    marginTop: rs(8),
-    marginBottom: rs(8),
+    borderRadius: ds(16),
+    paddingVertical: ds(20),
+    paddingHorizontal: ds(12),
+    marginTop: ds(8),
+    marginBottom: ds(8),
   },
   chart: {
     borderRadius: rs(16),

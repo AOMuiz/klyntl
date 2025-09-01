@@ -12,6 +12,9 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import "react-native-reanimated";
 
+import { en, registerTranslation } from "react-native-paper-dates";
+registerTranslation("en", en);
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({

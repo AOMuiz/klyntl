@@ -1,4 +1,7 @@
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+  edgesVertical,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
@@ -186,6 +189,7 @@ export default function TransactionsScreen() {
   return (
     <ScreenContainer
       containerStyle={styles.container}
+      edges={[...edgesHorizontal, ...edgesVertical]}
       contentStyle={styles.content}
       scrollable={false}
       withPadding={false}

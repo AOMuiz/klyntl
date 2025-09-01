@@ -1,4 +1,4 @@
-import { wp } from "@/utils/responsive_dimensions_system";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -43,9 +43,9 @@ export const styles = StyleSheet.create({
     padding: 24,
   },
   customerAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: wp(72),
+    height: hp(72),
+    borderRadius: wp(36),
     justifyContent: "center",
     alignItems: "center",
     marginRight: 20,
