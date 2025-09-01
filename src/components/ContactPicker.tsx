@@ -1,4 +1,5 @@
 import { hp, wp } from "@/utils/responsive_dimensions_system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
 import * as Contacts from "expo-contacts";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -67,6 +68,8 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
+  const [isLimitedAccess, setIsLimitedAccess] = useState(false);
+  const [totalAvailableContacts, setTotalAvailableContacts] = useState(0);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -75,8 +78,85 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       setSearchQuery("");
       setContacts([]);
       setHasAccess(false);
+      setIsLimitedAccess(false);
+      setTotalAvailableContacts(0);
     }
   }, [visible]);
+
+  // Helper function to get contact access history
+  const getContactAccessHistory = useCallback(async () => {
+    try {
+      const historyData = await AsyncStorage.getItem("contactAccessHistory");
+      if (historyData) {
+        const { contactCount } = JSON.parse(historyData);
+        return {
+          previousContactCount: contactCount,
+          hasAccessHistory: true,
+        };
+      }
+      return { previousContactCount: 0, hasAccessHistory: false };
+    } catch (error) {
+      console.error("Failed to get contact access history:", error);
+      return { previousContactCount: 0, hasAccessHistory: false };
+    }
+  }, []);
+
+  // Helper function to check for limited access
+  const checkLimitedAccess = useCallback(
+    async (data: Contacts.Contact[]): Promise<boolean> => {
+      try {
+        // Use built-in accessPrivileges if available (iOS 18+)
+        const { accessPrivileges } = await Contacts.getPermissionsAsync();
+        if (accessPrivileges) {
+          return accessPrivileges === "limited";
+        }
+
+        // Fallback to heuristic detection
+        const { previousContactCount, hasAccessHistory } =
+          await getContactAccessHistory();
+
+        if (data.length === 0) return false;
+
+        if (hasAccessHistory && data.length < previousContactCount) {
+          return true;
+        }
+
+        if (data.length < 10) {
+          return true;
+        }
+
+        if (data.length < 50) {
+          const lastNames = data
+            .filter((contact) => contact.lastName)
+            .map((contact) => contact.lastName);
+          const uniqueLastNames = new Set(lastNames);
+
+          if (uniqueLastNames.size <= 2 && uniqueLastNames.size > 0) {
+            return true;
+          }
+        }
+
+        return false;
+      } catch {
+        // If detection fails, assume not limited
+        return false;
+      }
+    },
+    [getContactAccessHistory]
+  );
+
+  // Present contact access picker (iOS 18+ only)
+  const presentContactAccessPicker = useCallback(async () => {
+    try {
+      if (Contacts.presentAccessPickerAsync) {
+        return await Contacts.presentAccessPickerAsync();
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to present contact access picker:", error);
+      return null;
+    }
+  }, []);
 
   // Load contacts when modal opens
   const loadContacts = useCallback(async () => {
@@ -113,6 +193,18 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
         ],
         sort: Contacts.SortTypes?.FirstName || "firstName",
       });
+
+      // Check for limited access and set state
+      const isLimited = await checkLimitedAccess(data);
+      setIsLimitedAccess(isLimited);
+      setTotalAvailableContacts(data.length);
+
+      console.log(
+        "Limited access detected:",
+        isLimited,
+        "Contacts:",
+        data.length
+      );
 
       // Process contacts
       const processedContacts: ProcessedContact[] = [];
@@ -209,7 +301,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [visible, existingPhones, onDismiss]);
+  }, [visible, existingPhones, onDismiss, checkLimitedAccess]);
 
   useEffect(() => {
     if (visible) {
@@ -238,23 +330,64 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
   // Update valid contacts count to show all contacts
   const validContacts = contacts; // Show all for now
 
-  const handleContactToggle = (contactId: string) => {
-    const newSelected = new Set(selectedContacts);
+  const handleManageContacts = async () => {
+    try {
+      setIsLoading(true);
 
-    if (newSelected.has(contactId)) {
-      newSelected.delete(contactId);
-    } else if (newSelected.size < maxSelection) {
-      newSelected.add(contactId);
-    } else {
+      // Try to present the contact access picker for iOS 18+
+      const newlyGrantedContacts = await presentContactAccessPicker();
+
+      if (newlyGrantedContacts || Platform.OS === "android") {
+        // Small delay to allow system to process the permission change
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Reload contacts after permission change
+        await loadContacts();
+      } else {
+        // Fallback: Show alert explaining the situation
+        Alert.alert(
+          "Manage Contact Access",
+          "To access more contacts, you can go to Settings > Privacy & Security > Contacts > [App Name] and select 'Full Access'.",
+          [
+            {
+              text: "OK",
+              style: "default",
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Failed to manage contacts:", error);
       Alert.alert(
-        "Selection Limit",
-        `You can only select up to ${maxSelection} contacts.`
+        "Error",
+        "Unable to manage contact access. Please try going to Settings manually.",
+        [{ text: "OK" }]
       );
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    setSelectedContacts(newSelected);
   };
+
+  const handleContactToggle = useCallback(
+    (contactId: string) => {
+      const newSelected = new Set(selectedContacts);
+
+      if (newSelected.has(contactId)) {
+        newSelected.delete(contactId);
+      } else if (newSelected.size < maxSelection) {
+        newSelected.add(contactId);
+      } else {
+        Alert.alert(
+          "Selection Limit",
+          `You can only select up to ${maxSelection} contacts.`
+        );
+        return;
+      }
+
+      setSelectedContacts(newSelected);
+    },
+    [selectedContacts, maxSelection]
+  );
 
   const handleSelectAll = () => {
     const selectableContacts = filteredContacts.slice(0, maxSelection);
@@ -308,61 +441,64 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     groupedContactsData,
   });
 
-  const renderContactItem = ({ item: contact }: { item: ProcessedContact }) => {
-    const isSelected = selectedContacts.has(contact.id);
+  const renderContactItem = useCallback(
+    ({ item: contact }: { item: ProcessedContact }) => {
+      const isSelected = selectedContacts.has(contact.id);
 
-    return (
-      <TouchableOpacity
-        style={styles.contactItem}
-        onPress={() => handleContactToggle(contact.id)}
-      >
-        <View style={styles.contactContent}>
-          <View style={styles.contactLeft}>
-            <Surface style={styles.avatar} elevation={0}>
-              <Text style={styles.avatarText}>{contact.initials}</Text>
-            </Surface>
-          </View>
+      return (
+        <TouchableOpacity
+          style={styles.contactItem}
+          onPress={() => handleContactToggle(contact.id)}
+        >
+          <View style={styles.contactContent}>
+            <View style={styles.contactLeft}>
+              <Surface style={styles.avatar} elevation={0}>
+                <Text style={styles.avatarText}>{contact.initials}</Text>
+              </Surface>
+            </View>
 
-          <View style={styles.contactInfo}>
-            <Text style={styles.contactName}>{contact.name}</Text>
-            <Text style={styles.contactPhone}>
-              {contact.phone}
-              {contact.email ? ` • ${contact.email}` : ""}
-            </Text>
-          </View>
+            <View style={styles.contactInfo}>
+              <Text style={styles.contactName}>{contact.name}</Text>
+              <Text style={styles.contactPhone}>
+                {contact.phone}
+                {contact.email ? ` • ${contact.email}` : ""}
+              </Text>
+            </View>
 
-          <View style={styles.contactRight}>
-            {contact.isDuplicate && (
-              <Chip
-                icon="account-check"
-                mode="outlined"
-                compact
-                style={styles.statusChip}
-                textStyle={styles.chipText}
-              >
-                Exists
-              </Chip>
-            )}
-            {!contact.isValid && (
-              <Chip
-                icon="account-off"
-                mode="outlined"
-                compact
-                style={styles.statusChip}
-                textStyle={styles.chipText}
-              >
-                Invalid
-              </Chip>
-            )}
-            <Checkbox
-              status={isSelected ? "checked" : "unchecked"}
-              onPress={() => handleContactToggle(contact.id)}
-            />
+            <View style={styles.contactRight}>
+              {contact.isDuplicate && (
+                <Chip
+                  icon="account-check"
+                  mode="outlined"
+                  compact
+                  style={styles.statusChip}
+                  textStyle={styles.chipText}
+                >
+                  Exists
+                </Chip>
+              )}
+              {!contact.isValid && (
+                <Chip
+                  icon="account-off"
+                  mode="outlined"
+                  compact
+                  style={styles.statusChip}
+                  textStyle={styles.chipText}
+                >
+                  Invalid
+                </Chip>
+              )}
+              <Checkbox
+                status={isSelected ? "checked" : "unchecked"}
+                onPress={() => handleContactToggle(contact.id)}
+              />
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        </TouchableOpacity>
+      );
+    },
+    [selectedContacts, handleContactToggle]
+  );
 
   const renderSectionHeader = (letter: string) => (
     <View style={styles.sectionHeader}>
@@ -444,6 +580,35 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
         )}
       </View>
 
+      {/* Limited Access Message */}
+      {isLimitedAccess && (
+        <View style={styles.limitedAccessContainer}>
+          <Surface style={styles.limitedAccessCard} elevation={1}>
+            <View style={styles.limitedAccessContent}>
+              <View style={styles.limitedAccessIcon}>
+                <IconButton icon="account-lock" size={20} iconColor="#FF9500" />
+              </View>
+              <View style={styles.limitedAccessText}>
+                <Text style={styles.limitedAccessTitle}>
+                  Limited Contact Access
+                </Text>
+                <Text style={styles.limitedAccessDescription}>
+                  You&apos;ve given access to {totalAvailableContacts} contacts.
+                  You can select more contacts to access.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.manageButton}
+                onPress={handleManageContacts}
+                disabled={isLoading}
+              >
+                <Text style={styles.manageButtonText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+          </Surface>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>
         {searchQuery ? "Search results" : "Contacts"}
       </Text>
@@ -487,7 +652,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       }
       return renderContactItem({ item: item as ProcessedContact });
     },
-    [selectedContacts]
+    [renderContactItem]
   );
 
   return (
@@ -889,5 +1054,68 @@ const styles = StyleSheet.create({
   loadingDescription: {
     textAlign: "center",
     color: "#8E8E93",
+  },
+  // Limited Access Styles
+  limitedAccessContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  limitedAccessCard: {
+    backgroundColor: "#FFF9E6",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFE066",
+  },
+  limitedAccessContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+  },
+  limitedAccessIcon: {
+    marginRight: 12,
+  },
+  limitedAccessText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  limitedAccessTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#B8860B",
+    marginBottom: 2,
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+      },
+    }),
+  },
+  limitedAccessDescription: {
+    fontSize: 12,
+    color: "#8B7355",
+    lineHeight: 16,
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+      },
+    }),
+  },
+  manageButton: {
+    backgroundColor: "#FF9500",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minWidth: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  manageButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+      },
+    }),
   },
 });

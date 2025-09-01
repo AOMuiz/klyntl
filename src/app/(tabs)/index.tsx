@@ -1,5 +1,4 @@
 import { ContactImportButton } from "@/components/ContactImportButton";
-import { useContactPicker } from "@/components/ContactPicker";
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterBar } from "@/components/FilterBar";
 import ScreenContainer from "@/components/screen-container";
@@ -8,6 +7,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useContactImport } from "@/hooks/useContactImport";
+import { useContactPicker } from "@/hooks/useContactPicker";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useCustomerFilters } from "@/stores/uiStore";
 import { Customer } from "@/types/customer";

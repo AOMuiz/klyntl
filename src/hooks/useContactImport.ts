@@ -26,12 +26,6 @@ interface ContactImportOptions {
   importMode: "full" | "limited" | "partial" | "select";
   selectedContactIds?: string[];
   forceRefresh?: boolean;
-  // {
-  //     maxImportCount?: number;
-  //     batchSize?: number;
-  //     importMode?: "full" | "limited" | "partial";
-
-  //   }
 }
 
 export function useContactImport() {
