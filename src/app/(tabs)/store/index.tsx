@@ -11,7 +11,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useLowStockProducts, useProducts } from "@/hooks/useProducts";
 
 import type { Product } from "@/types/product";
-import { fontSize } from "@/utils/responsive_dimensions_system";
+import { ds, fontSize, hp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -410,9 +410,10 @@ const styles = StyleSheet.create({
   featureCard: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: ds(12),
+    padding: ds(16),
+    marginBottom: hp(12),
+    gap: 7,
   },
   featureInfo: {
     flex: 1,

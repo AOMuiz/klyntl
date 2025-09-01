@@ -7,6 +7,7 @@ import { useContactActions } from "@/hooks/useContactActions";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { getCustomerInitials } from "@/utils/helpers";
+import { hp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Alert, ScrollView, View } from "react-native";
 import {
@@ -366,8 +367,8 @@ export default function CustomerDetailScreen({
                     onPress={handleAddTransaction}
                     style={styles.firstTransactionButton}
                     contentStyle={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 30,
+                      paddingVertical: hp(10),
+                      paddingHorizontal: hp(32),
                     }}
                   >
                     Add First Transaction

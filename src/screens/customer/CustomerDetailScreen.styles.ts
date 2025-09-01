@@ -142,7 +142,6 @@ export const styles = StyleSheet.create({
   },
   firstTransactionButton: {
     borderRadius: 12,
-    paddingHorizontal: 32,
   },
   transactionsList: {
     borderRadius: 16,

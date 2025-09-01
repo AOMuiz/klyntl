@@ -1,13 +1,21 @@
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Stack } from "expo-router";
 
 export default function ModalCustomerLayout() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
   return (
     <Stack
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: "#F5F5F5",
+          backgroundColor: colors.background,
+        },
+        headerTitleStyle: {
+          color: colors.text,
         },
         headerTitleAlign: "center",
         headerLeft: () => <ModalCloseButton variant="icon" />,

@@ -1,6 +1,11 @@
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Stack } from "expo-router/stack";
 
 export default function CustomerLayout() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
   return (
     <Stack>
       <Stack.Screen
@@ -11,7 +16,13 @@ export default function CustomerLayout() {
           headerTitle: "Customer Details",
           headerBackTitle: "Customers",
           headerTitleAlign: "center",
-          headerStyle: { backgroundColor: "#F5F5F5" },
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTitleStyle: {
+            color: colors.text,
+          },
+          headerTintColor: colors.primary,
         }}
       />
     </Stack>

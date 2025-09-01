@@ -1,4 +1,6 @@
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { router } from "expo-router";
 import { Text, TouchableOpacity } from "react-native";
 
@@ -34,11 +36,18 @@ export function ModalCloseButton({
   variant = "icon",
   iconName = "xmark",
   iconSize = 20,
-  iconColor = "#007AFF",
+  iconColor,
   text = "Cancel",
-  textColor = "#007AFF",
+  textColor,
   style,
 }: ModalCloseButtonProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  // Use theme colors as defaults
+  const defaultIconColor = iconColor || colors.primary;
+  const defaultTextColor = textColor || colors.primary;
+
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -60,7 +69,9 @@ export function ModalCloseButton({
         style={baseStyle}
         accessibilityLabel={variant === "cancel" ? "Cancel" : "Close"}
       >
-        <Text style={{ color: textColor, fontSize: 16, fontWeight: "500" }}>
+        <Text
+          style={{ color: defaultTextColor, fontSize: 16, fontWeight: "500" }}
+        >
           {text}
         </Text>
       </TouchableOpacity>
@@ -74,7 +85,11 @@ export function ModalCloseButton({
       style={baseStyle}
       accessibilityLabel="Close"
     >
-      <IconSymbol name={iconName as any} size={iconSize} color={iconColor} />
+      <IconSymbol
+        name={iconName as any}
+        size={iconSize}
+        color={defaultIconColor}
+      />
     </TouchableOpacity>
   );
 }
