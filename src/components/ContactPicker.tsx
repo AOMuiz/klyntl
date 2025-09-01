@@ -1,11 +1,10 @@
-import { validateNigerianPhone } from "@/utils/helpers";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import * as Contacts from "expo-contacts";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Platform,
-  StatusBar,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -118,20 +117,39 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       // Process contacts
       const processedContacts: ProcessedContact[] = [];
 
+      console.log("Starting to process contacts...", data.length);
+
       for (const contact of data) {
-        if (!contact.phoneNumbers?.length) continue;
+        console.log(
+          "Processing contact:",
+          contact.name,
+          contact.phoneNumbers?.length
+        );
+
+        if (!contact.phoneNumbers?.length) {
+          console.log("Skipping contact - no phone numbers:", contact.name);
+          continue;
+        }
 
         // Process each phone number
         for (const phoneNumber of contact.phoneNumbers) {
-          if (!phoneNumber.number) continue;
+          console.log("Processing phone number:", phoneNumber);
+
+          if (!phoneNumber.number) {
+            console.log("Skipping phone number - no number");
+            continue;
+          }
 
           const cleanPhone = phoneNumber.number.replace(/\D/g, "");
-          const validationResult = validateNigerianPhone(cleanPhone);
-          const isValid =
-            typeof validationResult === "boolean"
-              ? validationResult
-              : validationResult.isValid;
+          console.log("Clean phone:", cleanPhone);
+
+          // DISABLED STRICT FILTERING - Accept any phone number with 7+ digits
+          const isValid = cleanPhone.length >= 7;
+
+          console.log("Is valid:", isValid);
+
           const isDuplicate = existingPhones.includes(cleanPhone);
+          console.log("Is duplicate:", isDuplicate);
 
           const name =
             contact.name ||
@@ -145,7 +163,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
             .toUpperCase()
             .slice(0, 2);
 
-          processedContacts.push({
+          const processedContact = {
             id: `${contact.id}-${cleanPhone}`,
             name,
             phone: cleanPhone,
@@ -153,12 +171,25 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
             initials,
             isValid,
             isDuplicate,
-          });
+          };
 
-          // Only take first valid phone per contact to avoid duplicates
-          if (isValid) break;
+          console.log("Adding processed contact:", processedContact);
+          processedContacts.push(processedContact);
+
+          // Only take first phone per contact to avoid duplicates
+          break;
         }
       }
+
+      console.log("Final processed contacts:", processedContacts.length);
+      console.log(
+        "Valid contacts:",
+        processedContacts.filter((c) => c.isValid).length
+      );
+      console.log(
+        "Non-duplicate contacts:",
+        processedContacts.filter((c) => !c.isDuplicate).length
+      );
 
       // Remove duplicates and sort
       const uniqueContacts = processedContacts.filter(
@@ -168,6 +199,8 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
 
       uniqueContacts.sort((a, b) => a.name.localeCompare(b.name));
       setContacts(uniqueContacts);
+
+      console.log("Final unique contacts set:", uniqueContacts.length);
     } catch (error) {
       console.error("Failed to load contacts:", error);
       Alert.alert("Error", "Failed to load contacts. Please try again.", [
@@ -184,11 +217,11 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     }
   }, [visible, loadContacts]);
 
-  // Filter contacts based on search
+  // DISABLED FILTERING - Show all contacts regardless of validation status
   const filteredContacts = useMemo(() => {
-    let filtered = contacts.filter((c) => c.isValid && !c.isDuplicate);
+    let filtered = contacts; // Show ALL contacts - no filtering by validity or duplicates
 
-    // Apply search query
+    // Apply search query only
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -198,10 +231,12 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       );
     }
 
+    console.log("Filtered contacts for display:", filtered.length);
     return filtered;
   }, [contacts, searchQuery]);
 
-  const validContacts = contacts.filter((c) => c.isValid && !c.isDuplicate);
+  // Update valid contacts count to show all contacts
+  const validContacts = contacts; // Show all for now
 
   const handleContactToggle = (contactId: string) => {
     const newSelected = new Set(selectedContacts);
@@ -263,8 +298,15 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       });
     });
 
+    console.log("Grouped data for FlashList:", flatData.length);
     return flatData;
   }, [filteredContacts]);
+
+  console.log({
+    filteredContactsLength: filteredContacts.length,
+    groupedContactsDataLength: groupedContactsData.length,
+    groupedContactsData,
+  });
 
   const renderContactItem = ({ item: contact }: { item: ProcessedContact }) => {
     const isSelected = selectedContacts.has(contact.id);
@@ -361,13 +403,6 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       <View style={styles.quickActions}>
         <TouchableOpacity style={styles.quickActionItem}>
           <View style={styles.quickActionIcon}>
-            <IconButton icon="account-group" size={20} iconColor="#25D366" />
-          </View>
-          <Text style={styles.quickActionText}>New group</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.quickActionItem}>
-          <View style={styles.quickActionIcon}>
             <IconButton icon="account-plus" size={20} iconColor="#25D366" />
           </View>
           <Text style={styles.quickActionText}>New contact</Text>
@@ -380,7 +415,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       <View style={styles.statsContainer}>
         <View style={styles.stats}>
           <Text variant="bodyMedium" style={styles.statsText}>
-            {validContacts.length} valid contacts
+            {validContacts.length} contacts
           </Text>
           <Text variant="bodyMedium" style={styles.selectedText}>
             {selectedContacts.size} selected
@@ -444,16 +479,26 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     </View>
   );
 
+  // Fixed render function for FlashList
+  const renderListItem = useCallback(
+    ({ item }: { item: ListItem }) => {
+      if (item.type === "header") {
+        return renderSectionHeader((item as SectionHeader).letter);
+      }
+      return renderContactItem({ item: item as ProcessedContact });
+    },
+    [selectedContacts]
+  );
+
   return (
     <Portal>
       <Modal
         visible={visible}
         onDismiss={onDismiss}
         contentContainerStyle={styles.modalContainer}
+        style={styles.modal}
       >
-        <Surface style={styles.modalSurface} elevation={0}>
-          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
+        <Surface style={styles.modalSurface}>
           {isLoading ? (
             <View style={styles.loadingContent}>
               <Text variant="titleMedium" style={styles.loadingTitle}>
@@ -471,18 +516,10 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
               <View style={styles.listContainer}>
                 <FlashList
                   data={groupedContactsData}
-                  renderItem={({ item }: { item: ListItem }) => {
-                    if (item.type === "header") {
-                      return renderSectionHeader(
-                        (item as SectionHeader).letter
-                      );
-                    }
-                    return renderContactItem({
-                      item: item as ProcessedContact,
-                    });
-                  }}
+                  renderItem={renderListItem}
                   keyExtractor={(item) => item.id}
                   showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.flashListContent}
                   ListEmptyComponent={
                     <View style={styles.emptyState}>
                       <Text variant="titleMedium" style={styles.emptyTitle}>
@@ -494,7 +531,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
                       >
                         {searchQuery
                           ? "Try a different search term"
-                          : "No valid contacts available"}
+                          : "No contacts available"}
                       </Text>
                     </View>
                   }
@@ -502,7 +539,9 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
               </View>
 
               {/* Alphabet index (like WhatsApp) */}
-              {!searchQuery && renderAlphabetIndex()}
+              {/* {!searchQuery &&
+                filteredContacts.length > 0 &&
+                renderAlphabetIndex()} */}
 
               {renderFooter()}
             </>
@@ -514,17 +553,22 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
 };
 
 const styles = StyleSheet.create({
+  modal: {
+    margin: 0,
+    flex: 1,
+  },
   modalContainer: {
     flex: 1,
     margin: 0,
+    padding: 0,
+    height: "auto",
   },
   modalSurface: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
+    flex: 1, // FIXED: Uncommented this line
   },
   header: {
     backgroundColor: "#FFFFFF",
-    paddingTop: Platform.OS === "ios" ? 44 : 8, // Account for status bar
+    paddingTop: Platform.OS === "ios" ? 10 : 8,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5EA",
   },
@@ -534,7 +578,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 4,
     paddingVertical: 8,
-    minHeight: 56,
+    minHeight: hp(56),
   },
   closeButton: {
     margin: 0,
@@ -545,7 +589,7 @@ const styles = StyleSheet.create({
     color: "#000000",
     flex: 1,
     textAlign: "center",
-    marginRight: 40, // To center properly with close button
+    marginRight: 40,
   },
   headerRight: {
     width: 40,
@@ -660,13 +704,18 @@ const styles = StyleSheet.create({
     }),
   },
   listContainer: {
-    flex: 1,
+    flex: 1, // FIXED: Added flex: 1 to ensure proper height
     backgroundColor: "#FFFFFF",
+    position: "relative",
+  },
+  // FIXED: Added proper FlashList content container style
+  flashListContent: {
+    paddingBottom: 20, // Add some bottom padding
   },
   sectionHeader: {
     backgroundColor: "#F6F6F6",
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     minHeight: 32,
     justifyContent: "center",
   },
@@ -743,11 +792,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusChip: {
-    height: 24,
+    // height: hp(30),
     borderColor: "#E5E5EA",
   },
   chipText: {
-    fontSize: 12,
+    fontSize: wp(12),
     ...Platform.select({
       android: {
         includeFontPadding: false,
@@ -777,7 +826,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#E5E5EA",
     ...Platform.select({
       ios: {
-        paddingBottom: 34, // Account for home indicator
+        paddingBottom: 34,
       },
     }),
   },
@@ -789,28 +838,36 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minHeight: 48,
   },
+  // FIXED ALPHABET INDEX STYLES
   alphabetIndex: {
     position: "absolute",
-    right: 8,
-    top: "50%",
-    transform: [{ translateY: -150 }],
+    right: 2,
+    top: 0,
+    bottom: 0,
+    width: 20,
     backgroundColor: "transparent",
-    paddingVertical: 8,
-    zIndex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+    zIndex: 1000,
   },
   alphabetLetter: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    width: 16,
+    height: 14,
+    justifyContent: "center",
     alignItems: "center",
-    minHeight: 20,
+    marginVertical: 0.5,
   },
   alphabetLetterText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 10,
+    fontWeight: "500",
     color: "#25D366",
+    lineHeight: 10,
+    textAlign: "center",
     ...Platform.select({
       android: {
         includeFontPadding: false,
+        textAlignVertical: "center",
       },
     }),
   },
@@ -834,63 +891,3 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
 });
-
-// Hook for using the contact picker
-export const useContactPicker = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [existingPhones, setExistingPhones] = useState<string[]>([]);
-  const [maxSelection, setMaxSelection] = useState<number>(100);
-  const [onContactsSelected, setOnContactsSelected] = useState<
-    ((contacts: ProcessedContact[]) => void) | null
-  >(null);
-
-  const showContactPicker = useCallback(
-    (options: {
-      existingPhones?: string[];
-      maxSelection?: number;
-      onContactsSelected: (contacts: ProcessedContact[]) => void;
-    }) => {
-      setExistingPhones(options.existingPhones || []);
-      setMaxSelection(options.maxSelection || 100);
-      setOnContactsSelected(() => options.onContactsSelected);
-      setIsVisible(true);
-    },
-    []
-  );
-
-  const hideContactPicker = useCallback(() => {
-    setIsVisible(false);
-    setExistingPhones([]);
-    setMaxSelection(100);
-    setOnContactsSelected(null);
-  }, []);
-
-  const ContactPickerComponent = useCallback(() => {
-    if (!isVisible) return null;
-
-    return (
-      <ContactPicker
-        visible={isVisible}
-        onDismiss={hideContactPicker}
-        onContactsSelected={(contacts) => {
-          onContactsSelected?.(contacts);
-          hideContactPicker();
-        }}
-        existingPhones={existingPhones}
-        maxSelection={maxSelection}
-      />
-    );
-  }, [
-    isVisible,
-    existingPhones,
-    maxSelection,
-    onContactsSelected,
-    hideContactPicker,
-  ]);
-
-  return {
-    showContactPicker,
-    hideContactPicker,
-    ContactPickerComponent,
-  };
-};

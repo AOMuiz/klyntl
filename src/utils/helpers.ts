@@ -13,21 +13,60 @@ const CURRENCY = {
   LOCALE: "en-NG",
 } as const;
 
-const VALIDATION_RULES = {
+export const VALIDATION_RULES = {
   PHONE: {
-    NIGERIAN_REGEX: /^(\+234|0)[789][01]\d{8}$/,
+    NIGERIAN_REGEX: /^(\+234|0)[789][01]\d{8}$/, // Strict Nigerian mobile format
+    INTERNATIONAL_REGEX: /^\+?[1-9]\d{7,14}$/, // General international format
     MIN_LENGTH: 11,
-    MAX_LENGTH: 14,
+    MAX_LENGTH: 15,
+    ALLOWED_PREFIXES: ["+234", "234", "0"],
+    ALLOWED_CHARS: /^[\d\+\-\s\(\)]+$/, // Digits, +, -, space, ()
   },
   CUSTOMER_NAME: {
     MIN_LENGTH: 1,
     MAX_LENGTH: 100,
+    ALLOWED_CHARS: /^[A-Za-z0-9 .,'-]+$/, // Letters, numbers, spaces, common punctuation
+    DISALLOWED_CHARS: /[^A-Za-z0-9 .,'-]/, // For stricter checks
   },
   SEARCH_QUERY: {
     MIN_LENGTH: 2,
     MAX_LENGTH: 50,
+    ALLOWED_CHARS: /^[A-Za-z0-9 .,'-]+$/,
   },
-} as const;
+  EMAIL: {
+    REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    MIN_LENGTH: 5,
+    MAX_LENGTH: 100,
+  },
+  ADDRESS: {
+    MAX_LENGTH: 200,
+  },
+  COMPANY: {
+    MAX_LENGTH: 100,
+  },
+  NOTES: {
+    MAX_LENGTH: 500,
+  },
+  NICKNAME: {
+    MAX_LENGTH: 50,
+  },
+  JOB_TITLE: {
+    MAX_LENGTH: 50,
+  },
+  PRODUCT_NAME: {
+    MIN_LENGTH: 1,
+    MAX_LENGTH: 200,
+    ALLOWED_CHARS: /^[A-Za-z0-9 .,'-]+$/,
+  },
+  SKU: {
+    MAX_LENGTH: 30,
+    ALLOWED_CHARS: /^[A-Za-z0-9\-]+$/,
+  },
+  CATEGORY_NAME: {
+    MAX_LENGTH: 100,
+    ALLOWED_CHARS: /^[A-Za-z0-9 .,'-]+$/,
+  },
+};
 
 /**
  * Format currency amount for display
@@ -51,22 +90,50 @@ export const validateNigerianPhone = (
     return { isValid: false, error: "Phone number is required" };
   }
 
-  const cleanPhone = phone.trim();
+  // Remove all non-digit and plus characters
+  let normalized = phone.replace(/[^\d+]/g, "").trim();
 
-  if (cleanPhone.length < VALIDATION_RULES.PHONE.MIN_LENGTH) {
-    return { isValid: false, error: "Phone number is too short" };
+  // Check allowed characters
+  if (!VALIDATION_RULES.PHONE.ALLOWED_CHARS.test(phone)) {
+    return {
+      isValid: false,
+      error: "Phone number contains invalid characters",
+    };
   }
 
-  if (cleanPhone.length > VALIDATION_RULES.PHONE.MAX_LENGTH) {
+  // Normalize Nigerian numbers: allow +234, 234, or 0 as prefix
+  if (normalized.startsWith("+234")) {
+    normalized = normalized.replace("+234", "0");
+  } else if (normalized.startsWith("234")) {
+    normalized = normalized.replace("234", "0");
+  }
+
+  // Remove leading zeros (except the first one)
+  normalized = normalized.replace(/^0+/, "0");
+
+  // Check length
+  if (normalized.length < VALIDATION_RULES.PHONE.MIN_LENGTH) {
+    return { isValid: false, error: "Phone number is too short" };
+  }
+  if (normalized.length > VALIDATION_RULES.PHONE.MAX_LENGTH) {
     return { isValid: false, error: "Phone number is too long" };
   }
 
-  const isValid = VALIDATION_RULES.PHONE.NIGERIAN_REGEX.test(cleanPhone);
+  // Check prefix
+  const prefix = normalized.slice(0, 1);
+  if (
+    !VALIDATION_RULES.PHONE.ALLOWED_PREFIXES.includes(prefix) &&
+    !normalized.startsWith("0")
+  ) {
+    return { isValid: false, error: "Phone number must start with 0 or +234" };
+  }
 
-  return {
-    isValid,
-    error: isValid ? undefined : "Invalid Nigerian phone number format",
-  };
+  // Nigerian mobile number strict regex
+  if (!VALIDATION_RULES.PHONE.NIGERIAN_REGEX.test(normalized)) {
+    return { isValid: false, error: "Invalid Nigerian phone number format" };
+  }
+
+  return { isValid: true };
 };
 
 /**

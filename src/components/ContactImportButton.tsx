@@ -1,5 +1,5 @@
-import { useContactPicker } from "@/components/ContactPicker";
 import { useContactImport } from "@/hooks/useContactImport";
+import { useContactPicker } from "@/hooks/useContactPicker";
 import { useDatabase } from "@/services/database";
 import { createDatabaseService } from "@/services/database/service";
 import React, { useEffect, useState } from "react";
