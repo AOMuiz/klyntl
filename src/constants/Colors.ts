@@ -295,23 +295,56 @@ export const Colors = {
   },
 
   dark: {
-    // Primary colors (adjusted for dark theme)
-    primary: BrandColors.primary.main, // Keep main for visibility
+    // Primary colors - Complete shade system
+    primary50: BrandColors.primary[50],
+    primary100: BrandColors.primary[100],
+    primary200: BrandColors.primary[200],
+    primary300: BrandColors.primary[300],
+    primary400: BrandColors.primary[400],
+    primary500: BrandColors.primary[500],
+    primary600: BrandColors.primary[600],
+    primary700: BrandColors.primary[700],
+    primary800: BrandColors.primary[800],
+    primary900: BrandColors.primary[900],
+    // Legacy aliases
+    primary: BrandColors.primary.main,
     primaryLight: BrandColors.primary.light,
     primaryLighter: BrandColors.primary.lighter,
     primaryDark: BrandColors.primary.dark,
     primaryDarker: BrandColors.primary.darker,
     primarySurface: "#0a2e1f", // Dark emerald surface
 
-    // Secondary colors
-    secondary: BrandColors.secondary.light, // Lighter blue for dark backgrounds
-    secondaryLight: BrandColors.secondary.lighter,
-    secondaryLighter: BrandColors.secondary.main,
+    // Secondary colors - Complete shade system
+    secondary50: BrandColors.secondary[50],
+    secondary100: BrandColors.secondary[100],
+    secondary200: BrandColors.secondary[200],
+    secondary300: BrandColors.secondary[300],
+    secondary400: BrandColors.secondary[400],
+    secondary500: BrandColors.secondary[500],
+    secondary600: BrandColors.secondary[600],
+    secondary700: BrandColors.secondary[700],
+    secondary800: BrandColors.secondary[800],
+    secondary900: BrandColors.secondary[900],
+    // Legacy aliases
+    secondary: BrandColors.secondary.main,
+    secondaryLight: BrandColors.secondary.light,
+    secondaryLighter: BrandColors.secondary.lighter,
     secondaryDark: BrandColors.secondary.dark,
     secondaryDarker: BrandColors.secondary.darker,
     secondarySurface: "#0a1f2e", // Dark blue surface
 
-    // Accent colors for dark mode
+    // Accent colors - Complete shade system
+    accent50: BrandColors.accent[50],
+    accent100: BrandColors.accent[100],
+    accent200: BrandColors.accent[200],
+    accent300: BrandColors.accent[300],
+    accent400: BrandColors.accent[400],
+    accent500: BrandColors.accent[500],
+    accent600: BrandColors.accent[600],
+    accent700: BrandColors.accent[700],
+    accent800: BrandColors.accent[800],
+    accent900: BrandColors.accent[900],
+    // Legacy aliases
     accent: BrandColors.accent.main,
     accentLight: BrandColors.accent.light,
     accentLighter: BrandColors.accent.lighter,
@@ -398,3 +431,61 @@ export const Colors = {
     currencyNeutral: BrandColors.neutral.gray400,
   },
 };
+
+// Utility function to get color shades
+export const getColorShade = (
+  colorScheme: "light" | "dark",
+  colorName: keyof typeof BrandColors,
+  shade: number
+) => {
+  const brandColor = BrandColors[colorName as keyof typeof BrandColors];
+  if (typeof brandColor === "object" && shade in brandColor) {
+    return brandColor[shade as keyof typeof brandColor];
+  }
+  return BrandColors.primary.main; // fallback
+};
+
+// Extended Colors with shade access
+export const ExtendedColors = {
+  light: {
+    ...Colors.light,
+    // Add shade access methods
+    getPrimaryShade: (shade: number) =>
+      getColorShade("light", "primary", shade),
+    getSecondaryShade: (shade: number) =>
+      getColorShade("light", "secondary", shade),
+    getAccentShade: (shade: number) => getColorShade("light", "accent", shade),
+    getSuccessShade: (shade: number) =>
+      getColorShade("light", "success", shade),
+    getWarningShade: (shade: number) =>
+      getColorShade("light", "warning", shade),
+    getErrorShade: (shade: number) => getColorShade("light", "error", shade),
+  },
+  dark: {
+    ...Colors.dark,
+    // Add shade access methods
+    getPrimaryShade: (shade: number) => getColorShade("dark", "primary", shade),
+    getSecondaryShade: (shade: number) =>
+      getColorShade("dark", "secondary", shade),
+    getAccentShade: (shade: number) => getColorShade("dark", "accent", shade),
+    getSuccessShade: (shade: number) => getColorShade("dark", "success", shade),
+    getWarningShade: (shade: number) => getColorShade("dark", "warning", shade),
+    getErrorShade: (shade: number) => getColorShade("dark", "error", shade),
+  },
+};
+
+// Example: Using color shades in components
+// import { Colors } from '@/constants/Colors';
+// import { useColorScheme } from '@/hooks/useColorScheme';
+//
+// const MyComponent = () => {
+//   const colorScheme = useColorScheme();
+//   const colors = Colors[colorScheme ?? 'light'];
+//
+//   return (
+//     <View style={{ backgroundColor: colors.primary50 }}> {/* Very light primary */}
+//       <Text style={{ color: colors.primary900 }}>Dark primary text</Text>
+//       <View style={{ backgroundColor: colors.secondary200 }}>Light secondary background</View>
+//     </View>
+//   );
+// };

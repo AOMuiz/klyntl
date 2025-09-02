@@ -14,37 +14,6 @@ import {
 import { BrandColors } from "./Colors";
 import { FontFamilies, FontSizes, FontWeights } from "./Typography";
 
-/**
- * Simplified Klyntl Theme Integration with React Native Paper
- *
- * This creates a bridge between our BrandColors and React Native Paper's theming system.
- * It provides both Paper-compatible themes and direct access to all color shades.
- */
-
-// Extended theme interface with direct shade access
-export interface ExtendedKlyntlTheme extends MD3Theme {
-  brandColors: typeof BrandColors;
-  shades: {
-    primary: typeof BrandColors.primary;
-    secondary: typeof BrandColors.secondary;
-    accent: typeof BrandColors.accent;
-    success: typeof BrandColors.success;
-    warning: typeof BrandColors.warning;
-    error: typeof BrandColors.error;
-    neutral: typeof BrandColors.neutral;
-  };
-  customColors: {
-    success: string;
-    onSuccess: string;
-    successContainer: string;
-    onSuccessContainer: string;
-    warning: string;
-    onWarning: string;
-    warningContainer: string;
-    onWarningContainer: string;
-  };
-}
-
 // Extended theme interface with direct shade access
 export interface ExtendedKlyntlTheme extends MD3Theme {
   brandColors: typeof BrandColors;

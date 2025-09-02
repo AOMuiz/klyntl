@@ -9,20 +9,21 @@ import { StatusBar } from "expo-status-bar";
 import React, { createContext, ReactNode, useContext } from "react";
 import { useColorScheme } from "react-native";
 import { PaperProvider } from "react-native-paper";
-import { Colors } from "../constants/Colors";
-import { getTheme } from "../constants/Theme";
+import {
+  ExtendedKlyntlTheme,
+  getKlyntlTheme,
+  useKlyntlColors,
+} from "../constants/KlyntlTheme";
 
 // Theme context for accessing theme values in components
 interface ThemeContextType {
   isDark: boolean;
-  colors: typeof Colors.light;
+  theme: ExtendedKlyntlTheme;
+  colors: ReturnType<typeof useKlyntlColors>;
   toggleTheme?: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
-  isDark: false,
-  colors: Colors.light,
-});
+const ThemeContext = createContext<ThemeContextType | null>(null);
 
 // Hook to use theme context
 export const useAppTheme = () => {
@@ -47,11 +48,12 @@ export const KlyntlThemeProvider: React.FC<KlyntlThemeProviderProps> = ({
     ? forcedTheme === "dark"
     : systemColorScheme === "dark";
 
-  const theme = getTheme(isDark);
-  const colors = isDark ? Colors.dark : Colors.light;
+  const theme = getKlyntlTheme(systemColorScheme);
+  const colors = useKlyntlColors(theme);
 
   const themeContextValue: ThemeContextType = {
     isDark,
+    theme,
     colors,
   };
 

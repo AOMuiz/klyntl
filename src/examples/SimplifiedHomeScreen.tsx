@@ -1,19 +1,29 @@
+/**
+ * Updated HomeScreen using Simplified Klyntl Theme
+ *
+ * This shows how to replace the complex Colors/ExtendedColors approach
+ * with the simplified theme system.
+ */
+
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { createThemedAvatarUrl } from "@/utils/avatar-utils";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
 
-  // Mock data - replace with actual hooks/data
+  // Mock data
   const userData = {
     name: "Aisha Bello",
     avatar: createThemedAvatarUrl("Aisha Bello", "primary", 100),
@@ -81,7 +91,7 @@ export default function HomeScreen() {
       <IconSymbol
         name={icon}
         size={20}
-        color={iconAndTextColor ?? theme.colors.onPrimary}
+        color={iconAndTextColor ?? theme.colors.onPrimary} // Use Paper's semantic colors
       />
       <ThemedText
         style={[
@@ -101,7 +111,7 @@ export default function HomeScreen() {
       scrollViewProps={{ showsVerticalScrollIndicator: false }}
     >
       {/* Header */}
-      <View style={[styles.header]}>
+      <View style={[styles.header, { backgroundColor: colors.primary[50] }]}>
         <View style={styles.headerContent}>
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
@@ -112,15 +122,12 @@ export default function HomeScreen() {
             </View>
             <View>
               <ThemedText
-                style={[
-                  styles.welcomeText,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
+                style={[styles.welcomeText, { color: colors.neutral.gray600 }]}
               >
                 Welcome back,
               </ThemedText>
               <ThemedText
-                style={[styles.userName, { color: theme.colors.onBackground }]}
+                style={[styles.userName, { color: colors.neutral.gray900 }]}
               >
                 {userData.name}
               </ThemedText>
@@ -129,7 +136,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[
               styles.notificationButton,
-              { backgroundColor: theme.colors.surfaceVariant },
+              { backgroundColor: theme.colors.surfaceVariant }, // Paper semantic color
             ]}
           >
             <IconSymbol
@@ -157,7 +164,7 @@ export default function HomeScreen() {
               style={[
                 styles.overviewCard,
                 {
-                  backgroundColor: colors.primary[100],
+                  backgroundColor: colors.primary[100], // Light primary shade
                   borderColor: colors.primary[200],
                 },
               ]}
@@ -261,7 +268,7 @@ export default function HomeScreen() {
           {renderQuickAction(
             "Add Customer",
             "person.badge.plus",
-            theme.colors.primary,
+            theme.colors.primary, // Paper's primary color
             () => handleQuickAction("add-customer")
           )}
           {renderQuickAction(
@@ -270,12 +277,12 @@ export default function HomeScreen() {
             theme.colors.secondary,
             () => handleQuickAction("record-sale")
           )}
-          {/* {renderQuickAction(
+          {renderQuickAction(
             "View Reports",
             "chart.bar",
-            theme.colors.tertiary,
+            theme.colors.tertiary, // Paper's tertiary (our accent)
             () => handleQuickAction("view-reports")
-          )} */}
+          )}
         </View>
       </View>
 
@@ -506,11 +513,22 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: fontSize(12),
   },
-  exampleContainer: {
-    padding: 20,
-  },
-  exampleText: {
-    fontSize: fontSize(16),
-    textAlign: "center",
-  },
 });
+
+/*
+Key Changes in This Simplified Approach:
+
+1. **Removed Complex Imports**: No more Colors, ExtendedColors, or complex shade calculations
+2. **Single Theme Source**: Everything comes from useKlyntlColors(theme)
+3. **Direct Shade Access**: colors.primary[100], colors.secondary[600], etc.
+4. **Paper Integration**: theme.colors.primary works automatically with Paper components
+5. **Type Safety**: Full autocomplete and type checking
+6. **Cleaner Code**: Much more readable and maintainable
+
+Benefits:
+- React Native Paper components automatically use your brand colors
+- Easy access to any shade of any color
+- No more complex color mapping or calculations
+- Consistent with Material Design 3 principles
+- Full TypeScript support
+*/
