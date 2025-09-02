@@ -203,7 +203,7 @@ export function EditProductForm({
             onValueChange={(value) =>
               setFormData({ ...formData, isActive: value })
             }
-            trackColor={{ false: "#ccc", true: "#2E7D32" }}
+            trackColor={{ false: "#cbd5e1", true: "#059669" }}
             thumbColor={formData.isActive ? "#fff" : "#fff"}
           />
         </View>
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   saveButton: {
-    color: "#2E7D32",
+    color: "#059669",
     fontSize: 16,
     fontWeight: "600",
     padding: 8,

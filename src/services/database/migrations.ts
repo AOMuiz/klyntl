@@ -292,7 +292,7 @@ const migration003: Migration = {
         storeName TEXT NOT NULL,
         description TEXT,
         logoUrl TEXT,
-        primaryColor TEXT DEFAULT '#2E7D32',
+        primaryColor TEXT DEFAULT '#059669',
         secondaryColor TEXT DEFAULT '#FFA726',
         currency TEXT DEFAULT 'NGN',
         isActive INTEGER DEFAULT 0,

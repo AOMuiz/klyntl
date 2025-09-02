@@ -79,7 +79,9 @@ export function DatabaseTest() {
         <Text style={{ color: "#c62828", fontSize: 16, fontWeight: "bold" }}>
           Database Error
         </Text>
-        <Text style={{ color: "#c62828", marginTop: 10 }}>{error.message}</Text>
+        <Text style={{ color: "#c62828", marginTop: 10 }}>
+          {(error as Error).message}
+        </Text>
       </View>
     );
   }
@@ -115,7 +117,7 @@ export function DatabaseTest() {
         <Text style={{ fontWeight: "bold", marginBottom: 10 }}>Tables:</Text>
         {tableInfo.map((table, index) => (
           <View key={index} style={{ marginBottom: 10 }}>
-            <Text style={{ fontWeight: "600", color: "#1976d2" }}>
+            <Text style={{ fontWeight: "600", color: "#0c4a6e" }}>
               {table.tableName}:
             </Text>
             {table.columns.map((col: any, colIndex: number) => (

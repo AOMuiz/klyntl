@@ -1,8 +1,5 @@
 import { ProductList } from "@/components/product/ProductList";
-import ScreenContainer, {
-  edgesHorizontal,
-  edgesVertical,
-} from "@/components/screen-container";
+import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -97,11 +94,7 @@ export default function StoreScreen() {
   );
 
   return (
-    <ScreenContainer
-      scrollable={false}
-      withPadding={false}
-      edges={[...edgesHorizontal, ...edgesVertical]}
-    >
+    <ScreenContainer scrollable={false} withPadding={false}>
       {showProductList ? (
         // Product List View - Uses FlatList internally
         <ThemedView style={styles.productListContainer}>

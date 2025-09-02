@@ -3,6 +3,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { createThemedAvatarUrl } from "@/utils/avatar-utils";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -15,7 +16,7 @@ export default function HomeScreen() {
   // Mock data - replace with actual hooks/data
   const userData = {
     name: "Aisha Bello",
-    avatar: "https://via.placeholder.com/50.png", // Replace with actual avatar
+    avatar: createThemedAvatarUrl("Aisha Bello", "primary", 100), // Using themed avatar with primary colors
   };
 
   const overviewData = {
@@ -109,10 +110,26 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  const getActivitySurfaceColor = (activityType: string) => {
+    switch (activityType) {
+      case "customer":
+        return colors.successLight + "30"; // Use light variant with opacity
+      case "transaction":
+        return colors.primaryLight + "30"; // Use light variant with opacity
+      case "task":
+        return colors.warningLight + "30"; // Use light variant with opacity
+      default:
+        return colors.surfaceVariant;
+    }
+  };
+
   const renderActivityItem = (item: any) => (
     <View key={item.id} style={styles.activityItem}>
       <View
-        style={[styles.activityIcon, { backgroundColor: item.color + "20" }]}
+        style={[
+          styles.activityIcon,
+          { backgroundColor: getActivitySurfaceColor(item.type) },
+        ]}
       >
         <IconSymbol name={item.icon} size={20} color={item.color} />
       </View>
@@ -141,7 +158,7 @@ export default function HomeScreen() {
       scrollViewProps={{ showsVerticalScrollIndicator: false }}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+      <View style={[styles.header, { backgroundColor: colors.primarySurface }]}>
         <View style={styles.headerContent}>
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
@@ -161,14 +178,21 @@ export default function HomeScreen() {
               </ThemedText>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity
+            style={[
+              styles.notificationButton,
+              { backgroundColor: colors.surfaceVariant },
+            ]}
+          >
             <IconSymbol name="bell" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Overview Section */}
-      <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <View
+        style={[styles.section, { backgroundColor: colors.surfaceVariant }]}
+      >
         <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
           Overview
         </ThemedText>
@@ -177,28 +201,30 @@ export default function HomeScreen() {
             "Total Customers",
             overviewData.totalCustomers,
             "Total\nCustomers",
-            colors.success + "20",
+            colors.successLight + "30", // Use light variant with opacity
             colors.success
           )}
           {renderOverviewCard(
             "Recent Transactions",
             overviewData.recentTransactions,
             "Recent\nTransactions",
-            colors.primary + "20",
+            colors.primaryLight + "30", // Use light variant with opacity
             colors.primary
           )}
           {renderOverviewCard(
             "Pending Tasks",
             overviewData.pendingTasks,
             "Pending\nTasks",
-            colors.warning + "20",
+            colors.warningLight + "30", // Use light variant with opacity
             colors.warning
           )}
         </View>
       </View>
 
       {/* Quick Actions */}
-      <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <View
+        style={[styles.section, { backgroundColor: colors.surfaceVariant }]}
+      >
         <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
           Quick Actions
         </ThemedText>
@@ -206,28 +232,30 @@ export default function HomeScreen() {
           {renderQuickAction(
             "Add Customer",
             "person.badge.plus",
-            colors.secondary,
+            colors.secondary, // Primary action - main color
             () => handleQuickAction("add-customer")
           )}
           {renderQuickAction(
             "Record Sale",
             "doc.text",
-            colors.surfaceVariant,
+            colors.secondaryLight, // Secondary action - lighter shade
             () => handleQuickAction("record-sale"),
-            colors.text // <-- new prop for better contrast
+            colors.text // Better contrast for light background
           )}
         </View>
       </View>
 
       {/* Recent Activity */}
-      <View style={[styles.section, { backgroundColor: colors.surface }]}>
+      <View
+        style={[styles.section, { backgroundColor: colors.surfaceVariant }]}
+      >
         <View style={styles.activityHeader}>
           <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
             Recent Activity
           </ThemedText>
           <TouchableOpacity>
             <ThemedText
-              style={[styles.viewAllText, { color: colors.secondary }]}
+              style={[styles.viewAllText, { color: colors.secondaryLight }]}
             >
               View All
             </ThemedText>
@@ -276,6 +304,7 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     padding: 8,
+    borderRadius: 20,
   },
   section: {
     paddingHorizontal: 20,

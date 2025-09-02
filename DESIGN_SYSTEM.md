@@ -34,11 +34,36 @@ The color system is built around Nigerian business context with green symbolizin
 ```tsx
 import { BrandColors, Colors } from "@/constants/Colors";
 
-// Brand colors
-BrandColors.primary.main; // #2E7D32 - Forest Green
-BrandColors.secondary.main; // #1976D2 - Professional Blue
-BrandColors.currency.positive; // #2E7D32 - For gains
-BrandColors.currency.negative; // #D32F2F - For losses
+// Complete shade system - All 10 shades available
+BrandColors.primary[50]; // #ecfdf5 - Very light
+BrandColors.primary[100]; // #d1fae5 - Light
+BrandColors.primary[200]; // #a7f3d0 - Lighter
+BrandColors.primary[300]; // #6ee7b7 - Light
+BrandColors.primary[400]; // #34d399 - Medium light
+BrandColors.primary[500]; // #10b981 - Medium
+BrandColors.primary[600]; // #059669 - Main (Primary)
+BrandColors.primary[700]; // #047857 - Medium dark
+BrandColors.primary[800]; // #065f46 - Dark
+BrandColors.primary[900]; // #064e3b - Very dark
+
+// Legacy aliases still work for backward compatibility
+BrandColors.primary.main; // #059669 - Same as [600]
+BrandColors.primary.light; // #10b981 - Same as [500]
+BrandColors.primary.dark; // #047857 - Same as [700]
+
+BrandColors.secondary.main; // #0c4a6e - Deep Blue
+BrandColors.secondary.light; // #FF8A65 - Light variant
+BrandColors.secondary.lighter; // #FFAB91 - Lighter variant
+BrandColors.secondary.dark; // #E64A19 - Dark variant
+BrandColors.secondary.darker; // #BF360C - Darker variant
+BrandColors.secondary.surface; // #FFF3E0 - Background surface
+
+BrandColors.accent.main; // #9333ea - Premium purple
+BrandColors.accent.light; // #BA68C8 - Light variant
+BrandColors.accent.lighter; // #CE93D8 - Lighter variant
+BrandColors.accent.dark; // #7B1FA2 - Dark variant
+BrandColors.accent.darker; // #4A148C - Darker variant
+BrandColors.accent.surface; // #F3E5F5 - Background surface
 ```
 
 ### Typography
@@ -130,12 +155,13 @@ export function CustomerCard({ customer }) {
 
 ### Colors
 
-- **Primary**: Forest Green (#2E7D32) - Main brand color
-- **Secondary**: Professional Blue (#1976D2) - Accent color
-- **Success**: Green variants for positive states
-- **Warning**: Orange variants for attention
-- **Error**: Red variants for errors
-- **Neutral**: Gray scale for text and backgrounds
+- **Primary**: Professional Emerald Green with **complete 10-shade system** (50-900)
+- **Secondary**: Deep Blue with **complete 10-shade system** (50-900)
+- **Accent**: Premium Purple with **complete 10-shade system** (50-900)
+- **Success**: Professional Green with **complete 10-shade system** (50-900)
+- **Warning**: Amber with **complete 10-shade system** (50-900)
+- **Error**: Red with **complete 10-shade system** (50-900)
+- **Neutral**: Comprehensive Slate Gray scale (50-900)
 
 ### Typography Scale
 

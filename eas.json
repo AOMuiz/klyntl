@@ -19,8 +19,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "environment": "preview",
-        "APP_ENV": "preview"
+        "environment": "preview"
       },
       "android": {
         "buildType": "apk"
