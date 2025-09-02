@@ -1,11 +1,14 @@
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+  edgesVertical,
+} from "@/components/screen-container";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import useOnboardingStore from "@/stores/onboardingStore";
 import { wp } from "@/utils/responsive_dimensions_system";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -42,33 +45,16 @@ const SLIDES = [
   },
 ];
 
-const STORAGE_KEY = "hasSeenOnboarding";
-
 export default function Onboarding() {
-  const router = useRouter();
+  const { setHasSeenOnboarding } = useOnboardingStore();
   const listRef = useRef<FlatList<any> | null>(null);
   const [index, setIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   // Theme colors
   const colors = Colors[colorScheme ?? "light"];
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const seen = await AsyncStorage.getItem(STORAGE_KEY);
-        if (seen === "true") {
-          router.replace("/");
-          return;
-        }
-      } catch {
-        // ignore and show onboarding
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [router]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems && viewableItems.length > 0) {
@@ -80,40 +66,64 @@ export default function Onboarding() {
     viewAreaCoveragePercentThreshold: 50,
   }).current;
 
+  // SIMPLIFIED: Just update state, let root layout handle navigation
   const finishOnboarding = useCallback(async () => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, "true");
-    } catch {
-      // ignore write errors
+      console.log("Finishing onboarding...");
+      await setHasSeenOnboarding(true);
+      console.log("Onboarding completed successfully");
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Error finishing onboarding:", error);
+    } finally {
+      setIsProcessing(false);
     }
-    router.replace("/");
-  }, [router]);
+  }, [setHasSeenOnboarding, isProcessing, router]);
 
   const handleNext = useCallback(() => {
+    if (isProcessing) return;
+
     if (index < SLIDES.length - 1) {
       listRef.current?.scrollToIndex({ index: index + 1 });
     } else {
       finishOnboarding();
     }
-  }, [finishOnboarding, index]);
+  }, [finishOnboarding, index, isProcessing]);
 
   const handleSkip = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, "true");
-    } catch {
-      // ignore
-    }
-    router.replace("/");
-  }, [router]);
+    if (isProcessing) return;
 
-  if (loading) return null;
+    setIsProcessing(true);
+    try {
+      console.log("Skipping onboarding...");
+      await setHasSeenOnboarding(true);
+      console.log("Onboarding skipped successfully");
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Error skipping onboarding:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [setHasSeenOnboarding, isProcessing, router]);
 
   const styles = makeStyles(colors);
 
   return (
-    <ScreenContainer withPadding={false}>
-      <TouchableOpacity style={styles.skip} onPress={handleSkip}>
-        <ThemedText style={styles.skipText}>Skip</ThemedText>
+    <ScreenContainer
+      withPadding={false}
+      edges={[...edgesHorizontal, ...edgesVertical]}
+    >
+      <TouchableOpacity
+        style={styles.skip}
+        onPress={handleSkip}
+        disabled={isProcessing}
+      >
+        <ThemedText style={[styles.skipText, isProcessing && styles.disabled]}>
+          Skip
+        </ThemedText>
       </TouchableOpacity>
 
       <FlatList
@@ -125,6 +135,7 @@ export default function Onboarding() {
         keyExtractor={(item) => item.key}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        scrollEnabled={!isProcessing} // Disable scrolling during processing
         renderItem={({ item }) => (
           <View style={[styles.page, { width }]}>
             <MaterialCommunityIcons
@@ -156,6 +167,8 @@ export default function Onboarding() {
           <Button
             mode={index === SLIDES.length - 1 ? "contained" : "outlined"}
             onPress={handleNext}
+            disabled={isProcessing}
+            loading={isProcessing && index === SLIDES.length - 1}
             contentStyle={styles.getStartedContent}
             labelStyle={
               index === SLIDES.length - 1
@@ -170,16 +183,6 @@ export default function Onboarding() {
           >
             {index === SLIDES.length - 1 ? "Get Started" : "Next"}
           </Button>
-
-          <Button
-            mode="outlined"
-            onPress={() => router.push("/login")}
-            contentStyle={styles.loginContent}
-            labelStyle={styles.loginLabel}
-            style={[styles.login, { borderColor: colors.primary }]}
-          >
-            Log In
-          </Button>
         </View>
       </View>
     </ScreenContainer>
@@ -191,6 +194,7 @@ function makeStyles(colors: any) {
     container: { flex: 1, backgroundColor: colors.background },
     skip: { position: "absolute", right: 20, top: 12, zIndex: 10 },
     skipText: { color: colors.text, fontSize: wp(16), opacity: 0.7 },
+    disabled: { opacity: 0.3 },
     page: {
       flex: 1,
       alignItems: "center",
@@ -235,8 +239,5 @@ function makeStyles(colors: any) {
       fontWeight: "700",
     },
     nextLabel: { color: colors.primary, fontSize: wp(16), fontWeight: "700" },
-    login: { borderRadius: 12 },
-    loginContent: { height: 56 },
-    loginLabel: { color: colors.primary, fontSize: wp(16), fontWeight: "700" },
   });
 }

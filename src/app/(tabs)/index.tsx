@@ -15,7 +15,7 @@ export default function HomeScreen() {
   // Mock data - replace with actual hooks/data
   const userData = {
     name: "Aisha Bello",
-    avatar: "https://via.placeholder.com/50", // Replace with actual avatar
+    avatar: "https://via.placeholder.com/50.png", // Replace with actual avatar
   };
 
   const overviewData = {
@@ -136,7 +136,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer
-      scrollable={false}
+      scrollable={true}
       withPadding={false}
       scrollViewProps={{ showsVerticalScrollIndicator: false }}
     >
