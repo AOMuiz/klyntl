@@ -483,6 +483,7 @@ export default function CustomersScreen() {
           ]}
           onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
           style={styles.fabGroup}
+          color={`${colors.paper.onPrimary}`}
           fabStyle={{ backgroundColor: colors.primary[600] }}
         />
 
@@ -584,6 +585,6 @@ const styles = StyleSheet.create({
   fabGroup: {
     position: "absolute",
     right: wp(16),
-    bottom: wp(16),
+    bottom: hp(16),
   },
 });

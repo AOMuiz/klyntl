@@ -4,7 +4,6 @@ import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomers } from "@/hooks/useCustomers";
-import { createThemedAvatarUrl } from "@/utils/avatar-utils";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -18,9 +17,12 @@ export default function HomeScreen() {
 
   // Mock data - replace with actual hooks/data
   const userData = {
-    name: "Aisha Bello",
-    avatar: createThemedAvatarUrl("Aisha Bello", "primary", 100),
+    name: "Opticrafts Atellier",
+    avatar:
+      "https://pbs.twimg.com/profile_images/1944623608719912960/jFs_gxjP_400x400.jpg",
   };
+
+  //  avatar: createThemedAvatarUrl("Opticrafts Atellier", "primary", 100),
 
   const overviewData = {
     totalCustomers: customers?.length || 0,

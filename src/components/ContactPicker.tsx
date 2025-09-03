@@ -573,8 +573,8 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
                 </View>
               </View>
 
-              {/* Scrollable Content */}
-              <View style={styles.scrollableContainer}>
+              {/* Non-scrollable header content */}
+              <View style={styles.headerContent}>
                 {/* Quick actions section */}
                 <View style={styles.quickActions}>
                   <TouchableOpacity style={styles.quickActionItem}>
@@ -660,37 +660,35 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
                 <Text style={styles.sectionTitle}>
                   {searchQuery ? "Search results" : "Contacts"}
                 </Text>
+              </View>
 
-                {/* Contacts List with Sticky Headers */}
-                <View style={styles.listContainer}>
-                  <FlashList
-                    data={groupedContactsData}
-                    renderItem={renderListItem}
-                    keyExtractor={(item) => item.id}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.flashListContent}
-                    stickyHeaderIndices={groupedContactsData
-                      .map((item, index) =>
-                        item.type === "header" ? index : -1
-                      )
-                      .filter((index) => index !== -1)}
-                    ListEmptyComponent={
-                      <View style={styles.emptyState}>
-                        <Text variant="titleMedium" style={styles.emptyTitle}>
-                          No contacts found
-                        </Text>
-                        <Text
-                          variant="bodyMedium"
-                          style={styles.emptyDescription}
-                        >
-                          {searchQuery
-                            ? "Try a different search term"
-                            : "No contacts available"}
-                        </Text>
-                      </View>
-                    }
-                  />
-                </View>
+              {/* Scrollable Contacts List with Sticky Headers */}
+              <View style={styles.scrollableContainer}>
+                <FlashList
+                  data={groupedContactsData}
+                  renderItem={renderListItem}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.flashListContent}
+                  stickyHeaderIndices={groupedContactsData
+                    .map((item, index) => (item.type === "header" ? index : -1))
+                    .filter((index) => index !== -1)}
+                  ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                      <Text variant="titleMedium" style={styles.emptyTitle}>
+                        No contacts found
+                      </Text>
+                      <Text
+                        variant="bodyMedium"
+                        style={styles.emptyDescription}
+                      >
+                        {searchQuery
+                          ? "Try a different search term"
+                          : "No contacts available"}
+                      </Text>
+                    </View>
+                  }
+                />
               </View>
 
               {/* Footer */}
@@ -857,11 +855,6 @@ const createStyles = (colors: ReturnType<typeof useKlyntlColors>) =>
         },
       }),
     },
-    listContainer: {
-      flex: 1,
-      backgroundColor: colors.paper.surface,
-      position: "relative",
-    },
     flashListContent: {
       paddingBottom: 20,
     },
@@ -871,6 +864,19 @@ const createStyles = (colors: ReturnType<typeof useKlyntlColors>) =>
       paddingVertical: 8,
       minHeight: 32,
       justifyContent: "center",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.paper.outline,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.neutral.black,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 1,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
     sectionHeaderText: {
       fontSize: 14,
@@ -1101,6 +1107,9 @@ const createStyles = (colors: ReturnType<typeof useKlyntlColors>) =>
           elevation: 4,
         },
       }),
+    },
+    headerContent: {
+      backgroundColor: colors.paper.surface,
     },
     scrollableContainer: {
       flex: 1,
