@@ -41,8 +41,8 @@ export default function RegisterScreen() {
             value={email}
             onChangeText={setEmail}
             left={<TextInput.Icon icon="email-outline" />}
-            style={styles.input}
-            outlineColor={theme.colors.surfaceVariant}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
           />
 
@@ -60,8 +60,8 @@ export default function RegisterScreen() {
                 onPress={() => setShowPassword((s) => !s)}
               />
             }
-            style={styles.input}
-            outlineColor={theme.colors.surfaceVariant}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
           />
 
@@ -71,8 +71,8 @@ export default function RegisterScreen() {
             placeholder="+234 801 234 5678"
             value={phone}
             onChangeText={setPhone}
-            style={styles.input}
-            outlineColor={theme.colors.surfaceVariant}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
           />
 
@@ -84,7 +84,8 @@ export default function RegisterScreen() {
               if (!email || !password) return; // simple guard
               // Mark onboarding as complete so protected stack becomes available
               setHasSeenOnboarding(true);
-              router.replace("/(tabs)");
+              // Navigate to the tabs home index explicitly
+              router.replace("/(tabs)/index");
             }}
             contentStyle={styles.primaryContent}
             labelStyle={styles.primaryLabel}

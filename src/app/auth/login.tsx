@@ -21,7 +21,11 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <ScreenContainer scrollable={false} withPadding={true}>
+    <ScreenContainer
+      scrollable={false}
+      withPadding={true}
+      contentStyle={{ flex: 1 }}
+    >
       <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
         <ThemedText type="title" style={styles.title}>
           Sign In
@@ -40,8 +44,8 @@ export default function LoginScreen() {
             value={identifier}
             onChangeText={setIdentifier}
             left={<TextInput.Icon icon="account" />}
-            style={styles.input}
-            outlineColor={theme.colors.surfaceVariant}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
           />
 
@@ -71,8 +75,8 @@ export default function LoginScreen() {
                 onPress={() => setShowPassword((s) => !s)}
               />
             }
-            style={styles.input}
-            outlineColor={theme.colors.surfaceVariant}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
           />
 
@@ -81,9 +85,10 @@ export default function LoginScreen() {
             onPress={() => {
               // Temporary client-side validation and navigation.
               // Replace this with your real authentication call and handle errors.
-              if (!identifier || !password) return; // simple guard
-              // Mark onboarding as complete so protected stack becomes available
+              //   if (!identifier || !password) return; // simple guard
+              //   // Mark onboarding as complete so protected stack becomes available
               setHasSeenOnboarding(true);
+              // Navigate to the tabs home index explicitly
               router.replace("/(tabs)");
             }}
             contentStyle={styles.primaryContent}

@@ -328,7 +328,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       );
     }
 
-    console.log("Filtered contacts for display:", filtered.length);
+    // console.log("Filtered contacts for display:", filtered.length);
     return filtered;
   }, [contacts, searchQuery]);
 
@@ -416,11 +416,11 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     return groupContactsAlphabetically(filteredContacts);
   }, [filteredContacts]);
 
-  console.log({
-    filteredContactsLength: filteredContacts.length,
-    groupedContactsDataLength: groupedContactsData.length,
-    groupedContactsData,
-  });
+  // console.log({
+  //   filteredContactsLength: filteredContacts.length,
+  //   groupedContactsDataLength: groupedContactsData.length,
+  //   groupedContactsData,
+  // });
 
   const renderContactItem = useCallback(
     ({ item: contact }: { item: ProcessedContact }) => {

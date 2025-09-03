@@ -83,6 +83,14 @@ function AppLayout() {
             }}
           />
 
+          <Stack.Screen
+            name="auth"
+            options={{
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          />
+
           {/* Protected routes - require onboarding completion */}
           <Stack.Protected guard={hasSeenOnboarding}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
