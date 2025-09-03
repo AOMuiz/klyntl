@@ -4,12 +4,12 @@ import ScreenContainer, {
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { Transaction } from "@/types/transaction";
-import { formatCurrency } from "@/utils/helpers";
+import { formatCurrency } from "@/utils/currency";
+import { getOrderedGroupKeys, groupByDatePeriods } from "@/utils/grouping";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -23,8 +23,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-import { rs } from "react-native-full-responsive";
+import { Text, useTheme } from "react-native-paper";
 
 interface TransactionWithCustomer extends Transaction {
   customerName?: string;
@@ -34,14 +33,12 @@ type FilterType = "all" | "date" | "customer" | "status";
 
 export default function TransactionsScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
 
   // Use React Query hooks instead of Zustand stores
   const transactionsQuery = useTransactions();
   const customersQuery = useCustomers();
-
-  // Theme colors
-  const colors = Colors[colorScheme ?? "light"];
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -113,11 +110,13 @@ export default function TransactionsScreen() {
     setRefreshing(false);
   }, [transactionsQuery, customersQuery]);
 
-  const formatTime = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    console.log({ date });
-
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const getTransactionIcon = (type: string) => {
@@ -136,39 +135,39 @@ export default function TransactionsScreen() {
   const getTransactionIconBackground = (type: string) => {
     switch (type) {
       case "sale":
-        return "#E8F5E8"; // Light green
+        return colors.custom.successContainer;
       case "refund":
-        return "#FDEDEC"; // Light red
+        return colors.custom.warningContainer;
       case "payment":
-        return "#E8F5E8"; // Light green
+        return colors.custom.successContainer;
       default:
-        return colors.surfaceVariant;
+        return colors.paper.surfaceVariant;
     }
   };
 
   const getTransactionIconColor = (type: string) => {
     switch (type) {
       case "sale":
-        return colors.currencyPositive;
+        return colors.custom.success;
       case "refund":
-        return colors.currencyNegative;
+        return colors.custom.warning;
       case "payment":
-        return colors.currencyPositive;
+        return colors.custom.success;
       default:
-        return colors.text;
+        return colors.paper.onSurface;
     }
   };
 
   const getAmountColor = (type: string) => {
     switch (type) {
       case "sale":
-        return colors.currencyPositive;
+        return colors.custom.success;
       case "refund":
-        return colors.currencyNegative;
+        return colors.custom.warning;
       case "payment":
-        return colors.currencyPositive;
+        return colors.custom.success;
       default:
-        return colors.text;
+        return colors.paper.onSurface;
     }
   };
 
@@ -255,7 +254,10 @@ export default function TransactionsScreen() {
           onPress={() => setActiveFilter(null)}
         >
           <View
-            style={[styles.filterModal, { backgroundColor: colors.surface }]}
+            style={[
+              styles.filterModal,
+              { backgroundColor: colors.paper.surface },
+            ]}
           >
             <ScrollView>
               {options.map((option) => (
@@ -277,37 +279,20 @@ export default function TransactionsScreen() {
   };
 
   // Group transactions by time buckets for sectioned UI
-  const grouped = (() => {
-    const now = new Date();
-    const todayKey = "Today";
-    const yesterdayKey = "Yesterday";
-    const thisMonthKey = "This Month";
+  const grouped = groupByDatePeriods(filteredTransactions, {
+    todayLabel: "Today",
+    yesterdayLabel: "Yesterday",
+    thisMonthLabel: "This Month",
+    monthFormat: "long",
+    yearFormat: "numeric",
+  });
 
-    const sections: Record<string, TransactionWithCustomer[]> = {
-      [todayKey]: [],
-      [yesterdayKey]: [],
-      [thisMonthKey]: [],
-    };
-
-    filteredTransactions
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .forEach((t) => {
-        const d = new Date(t.date);
-        const isToday = d.toDateString() === new Date().toDateString();
-        const yesterday = new Date();
-        yesterday.setDate(new Date().getDate() - 1);
-        const isYesterday = d.toDateString() === yesterday.toDateString();
-        const isThisMonth =
-          d.getMonth() === now.getMonth() &&
-          d.getFullYear() === now.getFullYear();
-
-        if (isToday) sections[todayKey].push(t);
-        else if (isYesterday) sections[yesterdayKey].push(t);
-        else if (isThisMonth) sections[thisMonthKey].push(t);
-      });
-
-    return sections;
-  })();
+  // Get ordered section keys for consistent display
+  const sectionKeys = getOrderedGroupKeys(grouped, [
+    "Today",
+    "Yesterday",
+    "This Month",
+  ]);
 
   const renderTransactionItem = ({
     item,
@@ -317,7 +302,10 @@ export default function TransactionsScreen() {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => router.push(`/(modal)/transaction/edit/${item.id}`)}
-      style={[styles.transactionCard, { backgroundColor: colors.background }]}
+      style={[
+        styles.transactionCard,
+        { backgroundColor: colors.paper.background },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`Edit transaction ${item.customerName}`}
     >
@@ -336,11 +324,16 @@ export default function TransactionsScreen() {
         </View>
 
         <View style={styles.transactionInfo}>
-          <ThemedText style={styles.customerName}>
+          <ThemedText
+            style={[styles.customerName, { color: colors.paper.onSurface }]}
+          >
             {item.customerName}
           </ThemedText>
           <ThemedText
-            style={[styles.description, { color: colors.textSecondary }]}
+            style={[
+              styles.description,
+              { color: colors.paper.onSurfaceVariant },
+            ]}
           >
             {item.description}
           </ThemedText>
@@ -354,9 +347,9 @@ export default function TransactionsScreen() {
             {formatCurrency(item.amount)}
           </ThemedText>
           <ThemedText
-            style={[styles.timeText, { color: colors.textSecondary }]}
+            style={[styles.timeText, { color: colors.paper.onSurfaceVariant }]}
           >
-            {formatTime(item.date)}
+            {formatDate(item.date)}
           </ThemedText>
         </View>
       </View>
@@ -368,7 +361,10 @@ export default function TransactionsScreen() {
     return (
       <View key={title} style={styles.section}>
         <ThemedText
-          style={[styles.sectionHeader, { color: colors.textSecondary }]}
+          style={[
+            styles.sectionHeader,
+            { color: colors.paper.onSurfaceVariant },
+          ]}
         >
           {title}
         </ThemedText>
@@ -381,7 +377,11 @@ export default function TransactionsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <IconSymbol name="list.bullet" size={64} color={colors.tabIconDefault} />
+      <IconSymbol
+        name="list.bullet"
+        size={64}
+        color={colors.paper.onSurfaceVariant}
+      />
       <ThemedText type="title" style={styles.emptyTitle}>
         No transactions yet
       </ThemedText>
@@ -408,7 +408,7 @@ export default function TransactionsScreen() {
     <ScreenContainer
       containerStyle={[
         styles.container,
-        { backgroundColor: colors.background },
+        { backgroundColor: colors.paper.background },
       ]}
       edges={[...edgesHorizontal, ...edgesVertical]}
       contentStyle={styles.content}
@@ -416,14 +416,19 @@ export default function TransactionsScreen() {
       withPadding={false}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.header, { backgroundColor: colors.paper.background }]}
+      >
         <View style={styles.headerRow}>
-          <ThemedText type="title" style={styles.headerTitle}>
+          <ThemedText
+            type="title"
+            style={[styles.headerTitle, { color: colors.paper.onSurface }]}
+          >
             Transactions
           </ThemedText>
 
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            style={[styles.addButton, { backgroundColor: colors.primary[600] }]}
             onPress={handleAddTransaction}
           >
             <IconSymbol name="plus" size={20} color="#fff" />
@@ -434,20 +439,20 @@ export default function TransactionsScreen() {
         <View
           style={[
             styles.searchContainer,
-            { backgroundColor: colors.surfaceVariant },
+            { backgroundColor: colors.paper.surfaceVariant },
           ]}
         >
           <IconSymbol
             name="magnifyingglass"
             size={18}
-            color={colors.textTertiary}
+            color={colors.paper.onSurfaceVariant}
           />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search by customer or description"
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.searchInput, { color: colors.text }]}
+            placeholderTextColor={colors.paper.onSurfaceVariant}
+            style={[styles.searchInput, { color: colors.paper.onSurface }]}
             returnKeyType="search"
           />
         </View>
@@ -462,8 +467,8 @@ export default function TransactionsScreen() {
             style={[
               styles.filterChip,
               statusFilter === "all"
-                ? { backgroundColor: colors.secondary }
-                : { backgroundColor: colors.surfaceVariant },
+                ? { backgroundColor: colors.secondary[600] }
+                : { backgroundColor: colors.paper.surfaceVariant },
               isAllActive && { borderColor: colors.primary, borderWidth: 2 },
             ]}
             onPress={() => setActiveFilter("all")}
@@ -471,7 +476,10 @@ export default function TransactionsScreen() {
             <ThemedText
               style={[
                 styles.filterChipText,
-                { color: statusFilter === "all" ? "#fff" : colors.text },
+                {
+                  color:
+                    statusFilter === "all" ? "#fff" : colors.paper.onSurface,
+                },
               ]}
             >
               All
@@ -481,35 +489,47 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.surfaceVariant },
+              { backgroundColor: colors.paper.surfaceVariant },
               isDateActive && { borderColor: colors.primary, borderWidth: 2 },
             ]}
             onPress={() => setActiveFilter("date")}
           >
-            <ThemedText style={[styles.filterChipText, { color: colors.text }]}>
+            <ThemedText
+              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+            >
               {getFilterLabel("date")}
             </ThemedText>
-            <IconSymbol name="chevron.down" size={16} color={colors.text} />
+            <IconSymbol
+              name="chevron.down"
+              size={16}
+              color={colors.paper.onSurface}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.surfaceVariant },
+              { backgroundColor: colors.paper.surfaceVariant },
               isStatusActive && { borderColor: colors.primary, borderWidth: 2 },
             ]}
             onPress={() => setActiveFilter("status")}
           >
-            <ThemedText style={[styles.filterChipText, { color: colors.text }]}>
+            <ThemedText
+              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+            >
               {getFilterLabel("status")}
             </ThemedText>
-            <IconSymbol name="chevron.down" size={16} color={colors.text} />
+            <IconSymbol
+              name="chevron.down"
+              size={16}
+              color={colors.paper.onSurface}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.surfaceVariant },
+              { backgroundColor: colors.paper.surfaceVariant },
               isCustomerActive && {
                 borderColor: colors.primary,
                 borderWidth: 2,
@@ -517,10 +537,16 @@ export default function TransactionsScreen() {
             ]}
             onPress={() => setActiveFilter("customer")}
           >
-            <ThemedText style={[styles.filterChipText, { color: colors.text }]}>
+            <ThemedText
+              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+            >
               {getFilterLabel("customer")}
             </ThemedText>
-            <IconSymbol name="chevron.down" size={16} color={colors.text} />
+            <IconSymbol
+              name="chevron.down"
+              size={16}
+              color={colors.paper.onSurface}
+            />
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -540,14 +566,24 @@ export default function TransactionsScreen() {
             />
           }
         >
-          {renderSection("Today", grouped["Today"])}
-          {renderSection("Yesterday", grouped["Yesterday"])}
-          {renderSection("This Month", grouped["This Month"])}
+          {sectionKeys.map((sectionKey) =>
+            renderSection(sectionKey, grouped[sectionKey])
+          )}
         </ScrollView>
       )}
 
       {/* Filter Modal */}
       {renderFilterModal()}
+
+      {/* Results Info Text */}
+      <Text
+        variant="bodyMedium"
+        style={{ color: colors.paper.onSurfaceVariant }}
+      >
+        Showing {filteredTransactions.length} of {transactions.length}{" "}
+        transactions
+        {filteredTransactions.length < transactions.length && " (filtered)"}
+      </Text>
     </ScreenContainer>
   );
 }
@@ -560,138 +596,153 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: rs(16),
-    paddingBottom: rs(8),
+    padding: hp(16),
+    paddingBottom: hp(8),
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: rs(16),
+    marginBottom: hp(16),
   },
   backButton: {
-    padding: rs(8),
-    marginLeft: rs(-8),
+    padding: hp(8),
+    marginLeft: wp(-8),
   },
   headerTitle: {
     flex: 1,
-    // textAlign: "center",
-    fontSize: fontSize(20),
+    fontSize: fontSize(25),
     fontWeight: "600",
   },
   addButton: {
-    padding: rs(10),
-    borderRadius: rs(20),
+    padding: wp(12),
+    borderRadius: wp(24),
     justifyContent: "center",
     alignItems: "center",
+  },
+  addButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: fontSize(14),
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: rs(12),
-    paddingHorizontal: rs(16),
-    borderRadius: rs(24),
-    marginBottom: rs(16),
+    paddingVertical: hp(14),
+    paddingHorizontal: wp(18),
+    borderRadius: wp(28),
+    marginBottom: hp(20),
   },
   searchInput: {
     flex: 1,
-    fontSize: rs(14),
-    paddingLeft: rs(12),
+    fontSize: fontSize(16),
+    paddingLeft: wp(12),
     paddingVertical: 0,
   },
   filtersContent: {
-    paddingVertical: rs(4),
-    paddingHorizontal: rs(2),
+    paddingVertical: hp(4),
+    paddingHorizontal: wp(2),
     alignItems: "center",
-    gap: rs(8),
+    gap: wp(8),
   },
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: rs(8),
-    paddingHorizontal: rs(16),
-    borderRadius: rs(20),
-    gap: rs(4),
+    paddingVertical: hp(10),
+    paddingHorizontal: wp(16),
+    borderRadius: wp(24),
+    gap: wp(6),
   },
   filterChipText: {
-    fontSize: rs(14),
+    fontSize: fontSize(14),
     fontWeight: "500",
   },
   listContainer: {
     flex: 1,
-    paddingHorizontal: rs(16),
+    paddingHorizontal: wp(16),
   },
   listContent: {
-    paddingBottom: rs(20),
+    paddingBottom: hp(20),
   },
   section: {
-    marginBottom: rs(24),
+    marginBottom: hp(24),
   },
   sectionHeader: {
-    fontSize: rs(14),
+    fontSize: fontSize(14),
     fontWeight: "600",
-    marginBottom: rs(12),
+    marginBottom: hp(16),
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+    opacity: 0.8,
   },
   transactionCard: {
-    marginBottom: rs(1),
-    paddingVertical: rs(16),
-    paddingHorizontal: rs(0),
+    marginBottom: hp(8),
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(16),
+    borderRadius: wp(12),
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: hp(1) },
+    shadowOpacity: 0.1,
+    shadowRadius: wp(2),
   },
   transactionRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   transactionIcon: {
-    width: rs(40),
-    height: rs(40),
-    borderRadius: rs(20),
+    width: wp(48),
+    height: wp(48),
+    borderRadius: wp(24),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: rs(16),
+    marginRight: wp(16),
   },
   transactionInfo: {
     flex: 1,
   },
   customerName: {
-    fontSize: rs(16),
+    fontSize: fontSize(16),
     fontWeight: "600",
-    marginBottom: rs(2),
+    marginBottom: hp(4),
   },
   description: {
-    fontSize: rs(14),
+    fontSize: fontSize(14),
+    lineHeight: hp(20),
   },
   transactionAmount: {
     alignItems: "flex-end",
   },
   amountText: {
-    fontSize: rs(16),
-    fontWeight: "600",
-    marginBottom: rs(2),
+    fontSize: fontSize(18),
+    fontWeight: "700",
+    marginBottom: hp(4),
   },
   timeText: {
-    fontSize: rs(12),
+    fontSize: fontSize(12),
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: rs(32),
+    padding: wp(32),
   },
   emptyTitle: {
     textAlign: "center",
-    marginTop: rs(16),
-    marginBottom: rs(8),
+    marginTop: hp(20),
+    marginBottom: hp(12),
+    fontSize: fontSize(20),
+    fontWeight: "600",
   },
   emptySubtitle: {
     textAlign: "center",
     opacity: 0.7,
-    marginBottom: rs(24),
-  },
-  addButtonText: {
-    color: "white",
-    fontWeight: "600",
+    marginBottom: hp(32),
+    fontSize: fontSize(16),
+    lineHeight: hp(24),
   },
   modalOverlay: {
     flex: 1,
@@ -702,25 +753,25 @@ const styles = StyleSheet.create({
   filterModal: {
     width: "80%",
     maxHeight: "60%",
-    borderRadius: rs(12),
-    padding: rs(8),
+    borderRadius: wp(12),
+    padding: wp(8),
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: rs(2) },
+    shadowOffset: { width: 0, height: hp(2) },
     shadowOpacity: 0.25,
-    shadowRadius: rs(4),
+    shadowRadius: wp(4),
     elevation: 5,
   },
   filterOption: {
-    paddingVertical: rs(16),
-    paddingHorizontal: rs(16),
-    borderRadius: rs(8),
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(16),
+    borderRadius: wp(8),
   },
   filterOptionText: {
-    fontSize: rs(16),
+    fontSize: fontSize(16),
   },
   // Legacy styles to maintain compatibility
   transactionCount: {
-    marginTop: rs(4),
+    marginTop: hp(4),
     opacity: 0.7,
   },
   list: {
@@ -731,11 +782,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   transactionDate: {
-    marginTop: rs(2),
+    marginTop: hp(2),
   },
   typeText: {
-    marginTop: rs(2),
-    fontSize: rs(12),
+    marginTop: hp(2),
+    fontSize: fontSize(12),
     textTransform: "uppercase",
   },
   fab: {
@@ -747,48 +798,43 @@ const styles = StyleSheet.create({
     right: wp(16),
     bottom: hp(60),
     borderRadius: wp(28),
-    elevation: 8,
-    shadowOffset: { width: 0, height: rs(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: rs(4),
     backgroundColor: "#007AFF",
     display: "none", // Hide FAB since we have header button
   },
   chipsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: rs(8),
+    marginTop: hp(8),
     flexWrap: "wrap",
   },
   chip: {
-    paddingVertical: rs(8),
-    paddingHorizontal: rs(12),
-    borderRadius: rs(16),
-    marginRight: rs(8),
-    marginBottom: rs(8),
+    paddingVertical: hp(8),
+    paddingHorizontal: hp(12),
+    borderRadius: hp(16),
+    marginRight: hp(8),
+    marginBottom: hp(8),
   },
   chipText: {
     fontWeight: "500",
   },
   menu: {
     position: "absolute",
-    top: rs(56),
-    right: rs(16),
-    borderRadius: rs(8),
+    top: hp(56),
+    right: wp(16),
+    borderRadius: wp(8),
     overflow: "hidden",
-    elevation: 4,
     zIndex: 1000,
   },
   menuItem: {
-    paddingVertical: rs(12),
-    paddingHorizontal: rs(16),
+    paddingVertical: hp(12),
+    paddingHorizontal: wp(16),
     flexDirection: "row",
     alignItems: "center",
   },
   topAddButton: {
-    width: rs(40),
-    height: rs(40),
-    borderRadius: rs(20),
+    width: wp(40),
+    height: hp(40),
+    borderRadius: wp(20),
     justifyContent: "center",
     alignItems: "center",
   },

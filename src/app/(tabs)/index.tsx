@@ -158,7 +158,7 @@ export default function HomeScreen() {
                   <ThemedText
                     style={[styles.cardLabel, { color: colors.primary[600] }]}
                   >
-                    Total{"\n"}Customers
+                    Total Customers
                   </ThemedText>
                 </View>
               </TouchableOpacity>
@@ -194,7 +194,7 @@ export default function HomeScreen() {
                   <ThemedText
                     style={[styles.cardLabel, { color: colors.secondary[600] }]}
                   >
-                    Total{"\n"}Transactions
+                    Total Transactions
                   </ThemedText>
                 </View>
               </TouchableOpacity>
@@ -232,7 +232,7 @@ export default function HomeScreen() {
                   <ThemedText
                     style={[styles.cardLabel, { color: colors.accent[600] }]}
                   >
-                    Total{"\n"}Revenue
+                    Total Revenue
                   </ThemedText>
                 </View>
               </TouchableOpacity>

@@ -4,6 +4,7 @@ import {
   CustomerFilters,
   SortOptions,
 } from "@/types/filters";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
   container: {
     margin: 20,
     borderRadius: 20,
-    maxHeight: "85%",
+    // maxHeight: "85%",
   },
   surface: {
     padding: 0,
@@ -449,8 +450,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: wp(24),
+    paddingVertical: hp(16),
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0,0,0,0.1)",
   },
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   scrollView: {
-    maxHeight: 400,
+    maxHeight: hp(400),
   },
   section: {
     paddingHorizontal: 24,

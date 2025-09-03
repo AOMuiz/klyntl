@@ -7,7 +7,7 @@ import { useContactActions } from "@/hooks/useContactActions";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { getCustomerInitials } from "@/utils/helpers";
-import { hp } from "@/utils/responsive_dimensions_system";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Alert, ScrollView, View } from "react-native";
 import {
@@ -249,8 +249,13 @@ export default function CustomerDetailScreen({
 
           {/* Action Buttons */}
           <View style={styles.actionButtonsContainer}>
-            <Surface elevation={1}>
-              <View style={{ borderRadius: 20, overflow: "hidden" }}>
+            <View
+              style={{
+                borderRadius: wp(40),
+                overflow: "hidden",
+              }}
+            >
+              <Surface elevation={1}>
                 <SegmentedButtons
                   value=""
                   onValueChange={() => {}}
@@ -276,8 +281,8 @@ export default function CustomerDetailScreen({
                   ]}
                   style={styles.segmentedButtons}
                 />
-              </View>
-            </Surface>
+              </Surface>
+            </View>
           </View>
 
           {/* Customer Stats */}

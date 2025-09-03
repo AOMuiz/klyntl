@@ -77,7 +77,8 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   segmentedButtons: {
-    borderRadius: 12,
+    borderRadius: 20,
+    overflow: "hidden",
   },
   statsContainer: {
     flexDirection: "row",

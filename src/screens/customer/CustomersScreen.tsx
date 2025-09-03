@@ -2,11 +2,16 @@ import { CustomerCard } from "@/components/CustomerCard";
 import { FilterModal, FilterOptions } from "@/components/FilterModal";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomers } from "@/hooks/useCustomers";
-import { SortOptions, getFilterDescription } from "@/types/filters";
-import { wp } from "@/utils/responsive_dimensions_system";
+import {
+  SortOptions,
+  areFiltersEmpty,
+  getFilterDescription,
+} from "@/types/filters";
+import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   Button,
   Divider,
@@ -20,7 +25,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type SortOption = "name" | "totalSpent" | "lastPurchase" | "createdAt";
-type SortDirection = "asc" | "desc";
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -126,14 +130,7 @@ export default function CustomersScreen() {
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
-    return (
-      filters.customerType !== "all" ||
-      filters.hasTransactions !== undefined ||
-      filters.isActive !== undefined ||
-      filters.contactSource !== "all" ||
-      filters.spendingRange !== undefined ||
-      filters.dateRange !== undefined
-    );
+    return !areFiltersEmpty(filters);
   }, [filters]);
 
   return (
@@ -167,7 +164,7 @@ export default function CustomersScreen() {
           />
           <IconButton
             icon="tune"
-            size={24}
+            size={wp(28)}
             onPress={() => setFilterVisible(true)}
             style={[
               styles.filterButton,
@@ -188,7 +185,13 @@ export default function CustomersScreen() {
         {/* Filter Status Bar */}
         {hasActiveFilters && (
           <View style={styles.filterStatusBar}>
-            <Text variant="bodySmall" style={{ color: colors.primary[600] }}>
+            <Text
+              variant="bodySmall"
+              style={[
+                styles.filterDescriptionText,
+                { color: colors.primary[600] },
+              ]}
+            >
               {getFilterDescription(filters)}
             </Text>
             <Button
@@ -196,11 +199,22 @@ export default function CustomersScreen() {
               compact
               onPress={() =>
                 handleFiltersChange(
-                  { customerType: "all" },
+                  {
+                    customerType: "all",
+                    hasTransactions: undefined,
+                    isActive: undefined,
+                    contactSource: "all",
+                    spendingRange: undefined,
+                    dateRange: undefined,
+                    preferredContactMethod: undefined,
+                  },
                   { field: "name", direction: "asc" }
                 )
               }
-              labelStyle={{ color: colors.primary[600], fontSize: 12 }}
+              labelStyle={[
+                { color: colors.primary[600], fontSize: fontSize(12) },
+              ]}
+              contentStyle={styles.clearFiltersButtonContent}
             >
               Clear Filters
             </Button>
@@ -235,7 +249,10 @@ export default function CustomersScreen() {
                 mode="text"
                 onPress={() => setSortMenuVisible(true)}
                 contentStyle={styles.sortButtonContent}
-                labelStyle={{ color: colors.primary[600], fontSize: 14 }}
+                labelStyle={{
+                  color: colors.primary[600],
+                  fontSize: fontSize(14),
+                }}
               >
                 {getSortLabel()}
               </Button>
@@ -285,78 +302,70 @@ export default function CustomersScreen() {
         )}
 
         {/* Customer List */}
-        <ScrollView
-          style={styles.scrollView}
+        <FlashList
+          data={filteredCustomers}
+          renderItem={({ item: customer }) => (
+            <CustomerCard
+              key={customer.id}
+              customer={customer}
+              onPress={() => handleCustomerPress(customer.id)}
+              testID={`customer-card-${customer.id}`}
+            />
+          )}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          onScroll={({ nativeEvent }) => {
-            const { layoutMeasurement, contentOffset, contentSize } =
-              nativeEvent;
-            const paddingToBottom = 20;
-            if (
-              layoutMeasurement.height + contentOffset.y >=
-              contentSize.height - paddingToBottom
-            ) {
-              // Load more if available
-              if (hasNextPage && !isFetchingNextPage) {
-                fetchNextPage();
-              }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
             }
           }}
-          scrollEventThrottle={400}
-        >
-          {isLoading ? (
-            <View style={styles.centerContainer}>
-              <Text
-                variant="bodyLarge"
-                style={{ color: colors.paper.onSurfaceVariant }}
-              >
-                Loading customers...
-              </Text>
-            </View>
-          ) : filteredCustomers.length === 0 ? (
-            <View style={styles.centerContainer}>
-              <Text
-                variant="bodyLarge"
-                style={{ color: colors.paper.onSurfaceVariant }}
-              >
-                {searchQuery || hasActiveFilters
-                  ? "No customers match your filters"
-                  : "No customers yet"}
-              </Text>
-              {!searchQuery && !hasActiveFilters && (
-                <Button
-                  mode="contained"
-                  onPress={() => router.push("/customer/add")}
-                  style={styles.addButton}
+          onEndReachedThreshold={0.1}
+          ListEmptyComponent={
+            isLoading ? (
+              <View style={styles.centerContainer}>
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: colors.paper.onSurfaceVariant }}
                 >
-                  Add First Customer
-                </Button>
-              )}
-            </View>
-          ) : (
-            <>
-              {filteredCustomers.map((customer) => (
-                <CustomerCard
-                  key={customer.id}
-                  customer={customer}
-                  onPress={() => handleCustomerPress(customer.id)}
-                  testID={`customer-card-${customer.id}`}
-                />
-              ))}
-              {isFetchingNextPage && (
-                <View style={styles.loadingMore}>
-                  <Text
-                    variant="bodyMedium"
-                    style={{ color: colors.paper.onSurfaceVariant }}
+                  Loading customers...
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.centerContainer}>
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: colors.paper.onSurfaceVariant }}
+                >
+                  {searchQuery || hasActiveFilters
+                    ? "No customers match your filters"
+                    : "No customers yet"}
+                </Text>
+                {!searchQuery && !hasActiveFilters && (
+                  <Button
+                    mode="contained"
+                    onPress={() => router.push("/customer/add")}
+                    style={styles.addButton}
                   >
-                    Loading more customers...
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-        </ScrollView>
+                    Add First Customer
+                  </Button>
+                )}
+              </View>
+            )
+          }
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={styles.loadingMore}>
+                <Text
+                  variant="bodyMedium"
+                  style={{ color: colors.paper.onSurfaceVariant }}
+                >
+                  Loading more customers...
+                </Text>
+              </View>
+            ) : null
+          }
+        />
 
         {/* Filter Modal */}
         <FilterModal
@@ -377,10 +386,10 @@ const styles = StyleSheet.create({
   },
   surface: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: wp(16),
   },
   header: {
-    paddingVertical: 16,
+    paddingVertical: hp(16),
   },
   title: {
     fontWeight: "600",
@@ -400,23 +409,32 @@ const styles = StyleSheet.create({
   },
   filterStatusBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    marginBottom: 8,
+    justifyContent: "space-between",
+    paddingVertical: hp(6),
+    paddingHorizontal: wp(12),
+    marginBottom: hp(8),
     backgroundColor: "rgba(52, 168, 83, 0.05)",
-    borderRadius: 8,
+    borderRadius: wp(8),
+  },
+  clearFiltersButtonContent: {
+    paddingHorizontal: wp(8),
+    paddingVertical: hp(4),
+  },
+  filterDescriptionText: {
+    flex: 1,
+    flexWrap: "wrap",
+    marginRight: wp(8),
   },
   resultsInfo: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: hp(8),
+    paddingHorizontal: wp(4),
   },
   listHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: hp(16),
   },
   sortButtonContent: {
     flexDirection: "row-reverse",
@@ -425,7 +443,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 16,
+    paddingBottom: hp(16),
   },
   centerContainer: {
     flex: 1,
@@ -437,14 +455,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   errorContainer: {
-    padding: 16,
+    padding: wp(16),
     alignItems: "center",
   },
   retryButton: {
     marginTop: 8,
   },
   loadingMore: {
-    padding: 16,
+    padding: wp(16),
     alignItems: "center",
   },
 });
