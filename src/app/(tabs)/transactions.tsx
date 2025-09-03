@@ -11,8 +11,9 @@ import { Transaction } from "@/types/transaction";
 import { formatCurrency } from "@/utils/currency";
 import { getOrderedGroupKeys, groupByDatePeriods } from "@/utils/grouping";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -278,103 +279,6 @@ export default function TransactionsScreen() {
     );
   };
 
-  // Group transactions by time buckets for sectioned UI
-  const grouped = groupByDatePeriods(filteredTransactions, {
-    todayLabel: "Today",
-    yesterdayLabel: "Yesterday",
-    thisMonthLabel: "This Month",
-    monthFormat: "long",
-    yearFormat: "numeric",
-  });
-
-  // Get ordered section keys for consistent display
-  const sectionKeys = getOrderedGroupKeys(grouped, [
-    "Today",
-    "Yesterday",
-    "This Month",
-  ]);
-
-  const renderTransactionItem = ({
-    item,
-  }: {
-    item: TransactionWithCustomer;
-  }) => (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => router.push(`/(modal)/transaction/edit/${item.id}`)}
-      style={[
-        styles.transactionCard,
-        { backgroundColor: colors.paper.background },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={`Edit transaction ${item.customerName}`}
-    >
-      <View style={styles.transactionRow}>
-        <View
-          style={[
-            styles.transactionIcon,
-            { backgroundColor: getTransactionIconBackground(item.type) },
-          ]}
-        >
-          <IconSymbol
-            name={getTransactionIcon(item.type)}
-            size={24}
-            color={getTransactionIconColor(item.type)}
-          />
-        </View>
-
-        <View style={styles.transactionInfo}>
-          <ThemedText
-            style={[styles.customerName, { color: colors.paper.onSurface }]}
-          >
-            {item.customerName}
-          </ThemedText>
-          <ThemedText
-            style={[
-              styles.description,
-              { color: colors.paper.onSurfaceVariant },
-            ]}
-          >
-            {item.description}
-          </ThemedText>
-        </View>
-
-        <View style={styles.transactionAmount}>
-          <ThemedText
-            style={[styles.amountText, { color: getAmountColor(item.type) }]}
-          >
-            {item.type === "refund" ? "- " : ""}
-            {formatCurrency(item.amount)}
-          </ThemedText>
-          <ThemedText
-            style={[styles.timeText, { color: colors.paper.onSurfaceVariant }]}
-          >
-            {formatDate(item.date)}
-          </ThemedText>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderSection = (title: string, items: TransactionWithCustomer[]) => {
-    if (items.length === 0) return null;
-    return (
-      <View key={title} style={styles.section}>
-        <ThemedText
-          style={[
-            styles.sectionHeader,
-            { color: colors.paper.onSurfaceVariant },
-          ]}
-        >
-          {title}
-        </ThemedText>
-        {items.map((item, index) => (
-          <View key={item.id}>{renderTransactionItem({ item })}</View>
-        ))}
-      </View>
-    );
-  };
-
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <IconSymbol
@@ -396,6 +300,133 @@ export default function TransactionsScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  // Group transactions by time buckets for sectioned UI
+  const grouped = groupByDatePeriods(filteredTransactions, {
+    todayLabel: "Today",
+    yesterdayLabel: "Yesterday",
+    thisMonthLabel: "This Month",
+    monthFormat: "long",
+    yearFormat: "numeric",
+  });
+
+  // Get ordered section keys for consistent display
+  const sectionKeys = getOrderedGroupKeys(grouped, [
+    "Today",
+    "Yesterday",
+    "This Month",
+  ]);
+
+  // Create flattened data for FlashList with section headers
+  const flashListData = useMemo(() => {
+    const data: (
+      | { type: "section"; title: string }
+      | { type: "transaction"; item: TransactionWithCustomer }
+    )[] = [];
+
+    sectionKeys.forEach((sectionKey) => {
+      const items = grouped[sectionKey];
+      if (items.length > 0) {
+        data.push({ type: "section", title: sectionKey });
+        items.forEach((item) => {
+          data.push({ type: "transaction", item });
+        });
+      }
+    });
+
+    return data;
+  }, [grouped, sectionKeys]);
+
+  const renderFlashListItem = ({
+    item,
+  }: {
+    item: (typeof flashListData)[0];
+  }) => {
+    if (item.type === "section") {
+      return (
+        <ThemedText
+          style={[
+            styles.sectionHeader,
+            { color: colors.paper.onSurfaceVariant },
+          ]}
+        >
+          {item.title}
+        </ThemedText>
+      );
+    }
+
+    const transaction = item.item;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() =>
+          router.push(`/(modal)/transaction/edit/${transaction.id}`)
+        }
+        style={[
+          styles.transactionCard,
+          {
+            backgroundColor: colors.paper.background,
+            borderColor: colors.neutral["gray200"],
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit transaction ${transaction.customerName}`}
+      >
+        <View style={styles.transactionRow}>
+          <View
+            style={[
+              styles.transactionIcon,
+              {
+                backgroundColor: getTransactionIconBackground(transaction.type),
+              },
+            ]}
+          >
+            <IconSymbol
+              name={getTransactionIcon(transaction.type)}
+              size={24}
+              color={getTransactionIconColor(transaction.type)}
+            />
+          </View>
+
+          <View style={styles.transactionInfo}>
+            <ThemedText
+              style={[styles.customerName, { color: colors.paper.onSurface }]}
+            >
+              {transaction.customerName}
+            </ThemedText>
+            <ThemedText
+              style={[
+                styles.description,
+                { color: colors.paper.onSurfaceVariant },
+              ]}
+            >
+              {transaction.description}
+            </ThemedText>
+          </View>
+
+          <View style={styles.transactionAmount}>
+            <ThemedText
+              style={[
+                styles.amountText,
+                { color: getAmountColor(transaction.type) },
+              ]}
+            >
+              {transaction.type === "refund" ? "- " : ""}
+              {formatCurrency(transaction.amount)}
+            </ThemedText>
+            <ThemedText
+              style={[
+                styles.timeText,
+                { color: colors.paper.onSurfaceVariant },
+              ]}
+            >
+              {formatDate(transaction.date)}
+            </ThemedText>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // Which chips are currently active (used to show a colored border)
   const isAllActive =
@@ -469,9 +500,18 @@ export default function TransactionsScreen() {
               statusFilter === "all"
                 ? { backgroundColor: colors.secondary[600] }
                 : { backgroundColor: colors.paper.surfaceVariant },
-              isAllActive && { borderColor: colors.primary, borderWidth: 2 },
+              (statusFilter === "all" || isAllActive) && {
+                borderColor: colors.primary[600],
+                borderWidth: 1,
+              },
             ]}
-            onPress={() => setActiveFilter("all")}
+            onPress={() => {
+              // Make "All" reset all filters and close any active filter modal
+              setStatusFilter("all");
+              setCustomerFilter("all");
+              setDateFilter("all");
+              setActiveFilter(null);
+            }}
           >
             <ThemedText
               style={[
@@ -552,12 +592,18 @@ export default function TransactionsScreen() {
       </View>
 
       {/* Transaction List */}
-      {filteredTransactions.length === 0 && !loading ? (
-        renderEmptyState()
-      ) : (
-        <ScrollView
-          style={styles.listContainer}
+
+      <View style={styles.listContainer}>
+        <FlashList
+          data={flashListData}
+          renderItem={renderFlashListItem}
+          keyExtractor={(item) =>
+            item.type === "section"
+              ? `section-${item.title}`
+              : `transaction-${item.item.id}`
+          }
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -565,12 +611,9 @@ export default function TransactionsScreen() {
               tintColor={colors.primary}
             />
           }
-        >
-          {sectionKeys.map((sectionKey) =>
-            renderSection(sectionKey, grouped[sectionKey])
-          )}
-        </ScrollView>
-      )}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
 
       {/* Filter Modal */}
       {renderFilterModal()}
@@ -680,11 +723,8 @@ const styles = StyleSheet.create({
     paddingVertical: hp(16),
     paddingHorizontal: wp(16),
     borderRadius: wp(12),
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: hp(1) },
-    shadowOpacity: 0.1,
-    shadowRadius: wp(2),
+    borderColor: "#eee",
+    borderWidth: 1.5,
   },
   transactionRow: {
     flexDirection: "row",

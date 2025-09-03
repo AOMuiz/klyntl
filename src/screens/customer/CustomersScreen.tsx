@@ -1,6 +1,8 @@
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterModal, FilterOptions } from "@/components/FilterModal";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useContactImport } from "@/hooks/useContactImport";
+import { useContactPicker } from "@/hooks/useContactPicker";
 import { useCustomers } from "@/hooks/useCustomers";
 import {
   SortOptions,
@@ -11,10 +13,11 @@ import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import {
   Button,
   Divider,
+  FAB,
   IconButton,
   Menu,
   Searchbar,
@@ -30,10 +33,14 @@ export default function CustomersScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
+  const { importFromContacts, importSelectedContacts, isImporting } =
+    useContactImport();
+  const contactPicker = useContactPicker();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   // Enhanced filter state using the original filter types
   const [filters, setFilters] = useState<FilterOptions>({
@@ -91,10 +98,89 @@ export default function CustomersScreen() {
     return filtered;
   }, [customers, searchQuery]);
 
+  // Memoized existing phone numbers for duplicate checking
+  const existingPhones = useMemo(() => {
+    return (customers || [])
+      .filter((c) => c.phone)
+      .map((c) => c.phone.replace(/\D/g, ""));
+  }, [customers]);
+
   const handleCustomerPress = (customerId: string) => {
     router.push(`/customer/${customerId}`);
   };
 
+  const handleAddCustomer = () => {
+    router.push("/customer/add");
+  };
+
+  // Handle contact selection from picker
+  const handleContactsSelected = async (selectedContacts: any[]) => {
+    try {
+      if (selectedContacts.length === 0) {
+        Alert.alert("No Selection", "No contacts were selected for import.");
+        return;
+      }
+
+      const result = await importSelectedContacts(selectedContacts);
+      handleImportComplete(result);
+    } catch (error) {
+      Alert.alert(
+        "Import Failed",
+        error instanceof Error
+          ? error.message
+          : "Failed to import selected contacts"
+      );
+    }
+  };
+
+  const handleImportComplete = async (result: {
+    imported: number;
+    skipped: number;
+    totalProcessed: number;
+    errors: string[];
+  }) => {
+    // Show detailed import results
+    let message = `Import completed!\n\n`;
+    message += `• Imported: ${result.imported} customers\n`;
+    message += `• Skipped: ${result.skipped} contacts\n`;
+    message += `• Total processed: ${result.totalProcessed} contacts`;
+
+    if (result.errors.length > 0) {
+      message += `\n\nSome errors occurred:\n${result.errors
+        .slice(0, 3)
+        .join("\n")}`;
+      if (result.errors.length > 3) {
+        message += `\n... and ${result.errors.length - 3} more errors`;
+      }
+    }
+
+    Alert.alert("Import Results", message, [
+      {
+        text: "OK",
+        onPress: () => {
+          refetch(); // Reload the customer list
+        },
+      },
+    ]);
+  };
+
+  const handleImportContacts = async () => {
+    if (isImporting) {
+      Alert.alert(
+        "Import in Progress",
+        "Please wait for the current import to complete."
+      );
+      return;
+    }
+
+    // Use the contact picker for selective import
+    contactPicker.showContactPicker({
+      existingPhones,
+      maxSelection: 100,
+      onContactsSelected: handleContactsSelected,
+    });
+    setFabOpen(false);
+  };
   const handleFiltersChange = (
     newFilters: FilterOptions,
     newSort: SortOptions
@@ -375,6 +461,33 @@ export default function CustomersScreen() {
           onFiltersChange={handleFiltersChange}
           sortOptions={sortOptions}
         />
+
+        {/* FAB Group for Add and Import actions */}
+        <FAB.Group
+          visible={true}
+          open={fabOpen}
+          icon={fabOpen ? "close" : "plus"}
+          actions={[
+            {
+              icon: "account-plus",
+              label: "Add Customer",
+              onPress: handleAddCustomer,
+              color: colors.primary[600],
+            },
+            {
+              icon: "account-multiple-plus",
+              label: "Import Contacts",
+              onPress: handleImportContacts,
+              color: colors.primary[600],
+            },
+          ]}
+          onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
+          style={styles.fabGroup}
+          fabStyle={{ backgroundColor: colors.primary[600] }}
+        />
+
+        {/* Contact Picker Component */}
+        {contactPicker.ContactPickerComponent()}
       </Surface>
     </SafeAreaView>
   );
@@ -390,6 +503,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingVertical: hp(16),
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   title: {
     fontWeight: "600",
@@ -464,5 +580,10 @@ const styles = StyleSheet.create({
   loadingMore: {
     padding: wp(16),
     alignItems: "center",
+  },
+  fabGroup: {
+    position: "absolute",
+    right: wp(16),
+    bottom: wp(16),
   },
 });

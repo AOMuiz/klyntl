@@ -177,3 +177,119 @@ export function getOrderedGroupKeys(
 
   return [...priority, ...others];
 }
+
+/**
+ * Groups items alphabetically by the first letter of a specified property
+ */
+export function groupByAlphabet<T extends Record<string, any>>(
+  items: T[],
+  propertyName: keyof T,
+  options: {
+    includeNumbers?: boolean;
+    numbersGroupLabel?: string;
+  } = {}
+): GroupedData<T> {
+  const { includeNumbers = true, numbersGroupLabel = "#" } = options;
+
+  const sections: GroupedData<T> = {};
+
+  // Sort items alphabetically first
+  const sortedItems = [...items].sort((a, b) => {
+    const aValue = String(a[propertyName]).toLowerCase();
+    const bValue = String(b[propertyName]).toLowerCase();
+    return aValue.localeCompare(bValue);
+  });
+
+  sortedItems.forEach((item) => {
+    const value = String(item[propertyName]);
+    const firstChar = value.charAt(0).toUpperCase();
+
+    let sectionKey: string;
+
+    // Check if it's a number
+    if (/^\d/.test(firstChar)) {
+      sectionKey = includeNumbers ? numbersGroupLabel : "A-Z";
+    } else if (/^[A-Z]/.test(firstChar)) {
+      sectionKey = firstChar;
+    } else {
+      // For non-alphanumeric characters, group under "A-Z" or custom label
+      sectionKey = "A-Z";
+    }
+
+    if (!sections[sectionKey]) {
+      sections[sectionKey] = [];
+    }
+    sections[sectionKey].push(item);
+  });
+
+  return sections;
+}
+
+/**
+ * Converts grouped data to a flat array with section headers
+ */
+export function flattenGroupedData<T>(
+  groupedData: GroupedData<T>,
+  options: {
+    createHeaderItem: (key: string, items: T[]) => any;
+    createDataItem: (item: T) => any;
+    sortKeys?: boolean;
+    priorityKeys?: string[];
+  }
+): any[] {
+  const {
+    createHeaderItem,
+    createDataItem,
+    sortKeys = true,
+    priorityKeys = [],
+  } = options;
+
+  const orderedKeys = sortKeys
+    ? getOrderedGroupKeys(groupedData, priorityKeys)
+    : Object.keys(groupedData);
+
+  const flatData: any[] = [];
+
+  orderedKeys.forEach((key) => {
+    const items = groupedData[key];
+
+    // Add section header
+    flatData.push(createHeaderItem(key, items));
+
+    // Add all items in this section
+    items.forEach((item) => {
+      flatData.push(createDataItem(item));
+    });
+  });
+
+  return flatData;
+}
+
+/**
+ * Groups contacts alphabetically and returns flat data with headers
+ */
+export function groupContactsAlphabetically<T extends { name: string }>(
+  contacts: T[],
+  options: {
+    includeNumbers?: boolean;
+    numbersGroupLabel?: string;
+  } = {}
+): (
+  | { type: "header"; letter: string; id: string }
+  | (T & { type: "contact" })
+)[] {
+  const groupedData = groupByAlphabet(contacts, "name", options);
+
+  return flattenGroupedData(groupedData, {
+    createHeaderItem: (key, items) => ({
+      type: "header" as const,
+      letter: key,
+      id: `header-${key}`,
+    }),
+    createDataItem: (item) => ({
+      ...item,
+      type: "contact" as const,
+    }),
+    priorityKeys: ["#"], // Numbers group should come last
+  });
+}

@@ -1,3 +1,5 @@
+import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { groupContactsAlphabetically } from "@/utils/grouping";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
@@ -22,6 +24,7 @@ import {
   Searchbar,
   Surface,
   Text,
+  useTheme,
 } from "react-native-paper";
 
 export interface ProcessedContact {
@@ -61,15 +64,20 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
   existingPhones = [],
   maxSelection = 100,
 }) => {
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
+
   const [contacts, setContacts] = useState<ProcessedContact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(
     new Set()
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
   const [isLimitedAccess, setIsLimitedAccess] = useState(false);
   const [totalAvailableContacts, setTotalAvailableContacts] = useState(0);
+
+  // Create styles with theme colors
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -77,7 +85,6 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       setSelectedContacts(new Set());
       setSearchQuery("");
       setContacts([]);
-      setHasAccess(false);
       setIsLimitedAccess(false);
       setTotalAvailableContacts(0);
     }
@@ -180,8 +187,6 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
         );
         return;
       }
-
-      setHasAccess(true);
 
       // Get contacts
       const { data } = await Contacts.getContactsAsync({
@@ -309,7 +314,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
     }
   }, [visible, loadContacts]);
 
-  // DISABLED FILTERING - Show all contacts regardless of validation status
+  // DISABLED FILTERING - Show all contacts regardless of validity status
   const filteredContacts = useMemo(() => {
     let filtered = contacts; // Show ALL contacts - no filtering by validity or duplicates
 
@@ -408,31 +413,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
 
   // Group contacts by alphabet (like WhatsApp)
   const groupedContactsData = useMemo((): ListItem[] => {
-    const groups: { [key: string]: ProcessedContact[] } = {};
-
-    filteredContacts.forEach((contact) => {
-      const firstLetter = contact.name.charAt(0).toUpperCase();
-      if (!groups[firstLetter]) {
-        groups[firstLetter] = [];
-      }
-      groups[firstLetter].push(contact);
-    });
-
-    const sortedGroups = Object.entries(groups).sort(([a], [b]) =>
-      a.localeCompare(b)
-    );
-
-    // Flatten into single array with headers and contacts
-    const flatData: ListItem[] = [];
-    sortedGroups.forEach(([letter, contacts]) => {
-      flatData.push({ type: "header", letter, id: `header-${letter}` });
-      contacts.forEach((contact) => {
-        flatData.push({ ...contact, type: "contact" });
-      });
-    });
-
-    console.log("Grouped data for FlashList:", flatData.length);
-    return flatData;
+    return groupContactsAlphabetically(filteredContacts);
   }, [filteredContacts]);
 
   console.log({
@@ -497,122 +478,16 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
         </TouchableOpacity>
       );
     },
-    [selectedContacts, handleContactToggle]
+    [selectedContacts, handleContactToggle, styles]
   );
 
-  const renderSectionHeader = (letter: string) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderText}>{letter}</Text>
-    </View>
-  );
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      {/* WhatsApp-style header */}
-      <View style={styles.headerTop}>
-        <IconButton
-          icon="close"
-          size={24}
-          onPress={onDismiss}
-          style={styles.closeButton}
-          iconColor="#000000"
-        />
-        <Text variant="headlineSmall" style={styles.title}>
-          Select contacts
-        </Text>
-        <View style={styles.headerRight} />
+  const renderSectionHeader = useCallback(
+    (letter: string) => (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>{letter}</Text>
       </View>
-
-      {/* Search bar */}
-      <View style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Search name or number"
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchbar}
-          inputStyle={styles.searchInput}
-          iconColor="#8E8E93"
-        />
-      </View>
-
-      {/* Quick actions section */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickActionItem}>
-          <View style={styles.quickActionIcon}>
-            <IconButton icon="account-plus" size={20} iconColor="#25D366" />
-          </View>
-          <Text style={styles.quickActionText}>New contact</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Divider style={styles.headerDivider} />
-
-      {/* Stats and selection controls */}
-      <View style={styles.statsContainer}>
-        <View style={styles.stats}>
-          <Text variant="bodyMedium" style={styles.statsText}>
-            {validContacts.length} contacts
-          </Text>
-          <Text variant="bodyMedium" style={styles.selectedText}>
-            {selectedContacts.size} selected
-          </Text>
-        </View>
-
-        {selectedContacts.size > 0 && (
-          <View style={styles.selectionActions}>
-            <Button
-              mode="text"
-              onPress={handleClearSelection}
-              compact
-              textColor="#25D366"
-            >
-              Clear
-            </Button>
-            <Button
-              mode="text"
-              onPress={handleSelectAll}
-              compact
-              textColor="#25D366"
-            >
-              Select All
-            </Button>
-          </View>
-        )}
-      </View>
-
-      {/* Limited Access Message */}
-      {isLimitedAccess && (
-        <View style={styles.limitedAccessContainer}>
-          <Surface style={styles.limitedAccessCard} elevation={1}>
-            <View style={styles.limitedAccessContent}>
-              <View style={styles.limitedAccessIcon}>
-                <IconButton icon="account-lock" size={20} iconColor="#FF9500" />
-              </View>
-              <View style={styles.limitedAccessText}>
-                <Text style={styles.limitedAccessTitle}>
-                  Limited Contact Access
-                </Text>
-                <Text style={styles.limitedAccessDescription}>
-                  You&apos;ve given access to {totalAvailableContacts} contacts.
-                  You can select more contacts to access.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.manageButton}
-                onPress={handleManageContacts}
-                disabled={isLoading}
-              >
-                <Text style={styles.manageButtonText}>Manage</Text>
-              </TouchableOpacity>
-            </View>
-          </Surface>
-        </View>
-      )}
-
-      <Text style={styles.sectionTitle}>
-        {searchQuery ? "Search results" : "Contacts"}
-      </Text>
-    </View>
+    ),
+    [styles]
   );
 
   const renderFooter = () => {
@@ -625,7 +500,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
           onPress={handleConfirmSelection}
           style={styles.confirmButton}
           contentStyle={styles.confirmButtonContent}
-          buttonColor="#25D366"
+          buttonColor={colors.primary[500]}
         >
           Add {selectedContacts.size} contact
           {selectedContacts.size !== 1 ? "s" : ""}
@@ -633,16 +508,6 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       </View>
     );
   };
-
-  const renderAlphabetIndex = () => (
-    <View style={styles.alphabetIndex}>
-      {"ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("").map((letter) => (
-        <TouchableOpacity key={letter} style={styles.alphabetLetter}>
-          <Text style={styles.alphabetLetterText}>{letter}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
 
   // Fixed render function for FlashList
   const renderListItem = useCallback(
@@ -652,7 +517,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       }
       return renderContactItem({ item: item as ProcessedContact });
     },
-    [renderContactItem]
+    [renderContactItem, renderSectionHeader]
   );
 
   return (
@@ -662,6 +527,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
         onDismiss={onDismiss}
         contentContainerStyle={styles.modalContainer}
         style={styles.modal}
+        dismissable={!isLoading}
       >
         <Surface style={styles.modalSurface}>
           {isLoading ? (
@@ -675,41 +541,161 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
               </Text>
             </View>
           ) : (
-            <>
-              {renderHeader()}
-
-              <View style={styles.listContainer}>
-                <FlashList
-                  data={groupedContactsData}
-                  renderItem={renderListItem}
-                  keyExtractor={(item) => item.id}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.flashListContent}
-                  ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                      <Text variant="titleMedium" style={styles.emptyTitle}>
-                        No contacts found
-                      </Text>
-                      <Text
-                        variant="bodyMedium"
-                        style={styles.emptyDescription}
-                      >
-                        {searchQuery
-                          ? "Try a different search term"
-                          : "No contacts available"}
-                      </Text>
-                    </View>
-                  }
-                />
+            <View style={styles.mainContainer}>
+              {/* Sticky Header - Title and Close Button */}
+              <View style={styles.stickyHeader}>
+                <View style={styles.headerTop}>
+                  <IconButton
+                    icon="close"
+                    size={24}
+                    onPress={onDismiss}
+                    style={styles.closeButton}
+                    iconColor={colors.paper.onSurface}
+                  />
+                  <Text variant="headlineSmall" style={styles.title}>
+                    Select contacts
+                  </Text>
+                  <View style={styles.headerRight} />
+                </View>
               </View>
 
-              {/* Alphabet index (like WhatsApp) */}
-              {/* {!searchQuery &&
-                filteredContacts.length > 0 &&
-                renderAlphabetIndex()} */}
+              {/* Sticky Search Bar */}
+              <View style={styles.stickySearchContainer}>
+                <View style={styles.searchContainer}>
+                  <Searchbar
+                    placeholder="Search name or number"
+                    onChangeText={setSearchQuery}
+                    value={searchQuery}
+                    style={styles.searchbar}
+                    inputStyle={styles.searchInput}
+                    iconColor={colors.paper.onSurfaceVariant}
+                  />
+                </View>
+              </View>
 
+              {/* Scrollable Content */}
+              <View style={styles.scrollableContainer}>
+                {/* Quick actions section */}
+                <View style={styles.quickActions}>
+                  <TouchableOpacity style={styles.quickActionItem}>
+                    <View style={styles.quickActionIcon}>
+                      <IconButton
+                        icon="account-plus"
+                        size={20}
+                        iconColor={colors.primary[500]}
+                      />
+                    </View>
+                    <Text style={styles.quickActionText}>New contact</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Divider style={styles.headerDivider} />
+
+                {/* Stats and selection controls */}
+                <View style={styles.statsContainer}>
+                  <View style={styles.stats}>
+                    <Text variant="bodyMedium" style={styles.statsText}>
+                      {validContacts.length} contacts
+                    </Text>
+                    <Text variant="bodyMedium" style={styles.selectedText}>
+                      {selectedContacts.size} selected
+                    </Text>
+                  </View>
+
+                  {selectedContacts.size > 0 && (
+                    <View style={styles.selectionActions}>
+                      <Button
+                        mode="text"
+                        onPress={handleClearSelection}
+                        compact
+                        textColor={colors.primary[500]}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        mode="text"
+                        onPress={handleSelectAll}
+                        compact
+                        textColor={colors.primary[500]}
+                      >
+                        Select All
+                      </Button>
+                    </View>
+                  )}
+                </View>
+
+                {/* Limited Access Message */}
+                {isLimitedAccess && (
+                  <View style={styles.limitedAccessContainer}>
+                    <Surface style={styles.limitedAccessCard} elevation={1}>
+                      <View style={styles.limitedAccessContent}>
+                        <View style={styles.limitedAccessIcon}>
+                          <IconButton
+                            icon="account-lock"
+                            size={20}
+                            iconColor={colors.warning[500]}
+                          />
+                        </View>
+                        <View style={styles.limitedAccessText}>
+                          <Text style={styles.limitedAccessTitle}>
+                            Limited Contact Access
+                          </Text>
+                          <Text style={styles.limitedAccessDescription}>
+                            You&apos;ve given access to {totalAvailableContacts}{" "}
+                            contacts. You can select more contacts to access.
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.manageButton}
+                          onPress={handleManageContacts}
+                          disabled={isLoading}
+                        >
+                          <Text style={styles.manageButtonText}>Manage</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </Surface>
+                  </View>
+                )}
+
+                <Text style={styles.sectionTitle}>
+                  {searchQuery ? "Search results" : "Contacts"}
+                </Text>
+
+                {/* Contacts List with Sticky Headers */}
+                <View style={styles.listContainer}>
+                  <FlashList
+                    data={groupedContactsData}
+                    renderItem={renderListItem}
+                    keyExtractor={(item) => item.id}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.flashListContent}
+                    stickyHeaderIndices={groupedContactsData
+                      .map((item, index) =>
+                        item.type === "header" ? index : -1
+                      )
+                      .filter((index) => index !== -1)}
+                    ListEmptyComponent={
+                      <View style={styles.emptyState}>
+                        <Text variant="titleMedium" style={styles.emptyTitle}>
+                          No contacts found
+                        </Text>
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.emptyDescription}
+                        >
+                          {searchQuery
+                            ? "Try a different search term"
+                            : "No contacts available"}
+                        </Text>
+                      </View>
+                    }
+                  />
+                </View>
+              </View>
+
+              {/* Footer */}
               {renderFooter()}
-            </>
+            </View>
           )}
         </Surface>
       </Modal>
@@ -717,405 +703,406 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modal: {
-    margin: 0,
-    flex: 1,
-  },
-  modalContainer: {
-    flex: 1,
-    margin: 0,
-    padding: 0,
-    height: "auto",
-  },
-  modalSurface: {
-    flex: 1, // FIXED: Uncommented this line
-  },
-  header: {
-    backgroundColor: "#FFFFFF",
-    paddingTop: Platform.OS === "ios" ? 10 : 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  headerTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
-    paddingVertical: 8,
-    minHeight: hp(56),
-  },
-  closeButton: {
-    margin: 0,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000000",
-    flex: 1,
-    textAlign: "center",
-    marginRight: 40,
-  },
-  headerRight: {
-    width: 40,
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  searchbar: {
-    backgroundColor: "#F6F6F6",
-    elevation: 0,
-    borderRadius: 10,
-    ...Platform.select({
-      ios: {
-        shadowOpacity: 0,
-      },
-      android: {
-        elevation: 0,
-      },
-    }),
-  },
-  searchInput: {
-    fontSize: 16,
-    color: "#000000",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  quickActions: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  quickActionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    minHeight: 56,
-  },
-  quickActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F6F6F6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  quickActionText: {
-    fontSize: 16,
-    color: "#000000",
-    fontWeight: "400",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  headerDivider: {
-    marginTop: 8,
-    backgroundColor: "#E5E5EA",
-    height: 1,
-  },
-  statsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  stats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    minHeight: 32,
-  },
-  statsText: {
-    fontSize: 14,
-    color: "#8E8E93",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  selectedText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#25D366",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  selectionActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#8E8E93",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#F6F6F6",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  listContainer: {
-    flex: 1, // FIXED: Added flex: 1 to ensure proper height
-    backgroundColor: "#FFFFFF",
-    position: "relative",
-  },
-  // FIXED: Added proper FlashList content container style
-  flashListContent: {
-    paddingBottom: 20, // Add some bottom padding
-  },
-  sectionHeader: {
-    backgroundColor: "#F6F6F6",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minHeight: 32,
-    justifyContent: "center",
-  },
-  sectionHeaderText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#8E8E93",
-    textTransform: "uppercase",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  contactItem: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 0,
-  },
-  contactContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    minHeight: 64,
-  },
-  contactLeft: {
-    marginRight: 16,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#25D366",
-  },
-  avatarText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  contactInfo: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  contactName: {
-    fontSize: 16,
-    fontWeight: "400",
-    color: "#000000",
-    marginBottom: 2,
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  contactPhone: {
-    fontSize: 14,
-    color: "#8E8E93",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  contactRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  statusChip: {
-    // height: hp(30),
-    borderColor: "#E5E5EA",
-  },
-  chipText: {
-    fontSize: wp(12),
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  emptyState: {
-    padding: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 200,
-  },
-  emptyTitle: {
-    marginBottom: 8,
-    color: "#000000",
-    textAlign: "center",
-  },
-  emptyDescription: {
-    textAlign: "center",
-    color: "#8E8E93",
-  },
-  footer: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5EA",
-    ...Platform.select({
-      ios: {
-        paddingBottom: 34,
-      },
-    }),
-  },
-  confirmButton: {
-    borderRadius: 8,
-    minHeight: 48,
-  },
-  confirmButtonContent: {
-    paddingVertical: 4,
-    minHeight: 48,
-  },
-  // FIXED ALPHABET INDEX STYLES
-  alphabetIndex: {
-    position: "absolute",
-    right: 2,
-    top: 0,
-    bottom: 0,
-    width: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 20,
-    zIndex: 1000,
-  },
-  alphabetLetter: {
-    width: 16,
-    height: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginVertical: 0.5,
-  },
-  alphabetLetterText: {
-    fontSize: 10,
-    fontWeight: "500",
-    color: "#25D366",
-    lineHeight: 10,
-    textAlign: "center",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-        textAlignVertical: "center",
-      },
-    }),
-  },
-  loadingContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-  },
-  loadingTitle: {
-    marginBottom: 16,
-    color: "#000000",
-    textAlign: "center",
-  },
-  progressBar: {
-    width: "100%",
-    marginBottom: 16,
-  },
-  loadingDescription: {
-    textAlign: "center",
-    color: "#8E8E93",
-  },
-  // Limited Access Styles
-  limitedAccessContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  limitedAccessCard: {
-    backgroundColor: "#FFF9E6",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FFE066",
-  },
-  limitedAccessContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-  },
-  limitedAccessIcon: {
-    marginRight: 12,
-  },
-  limitedAccessText: {
-    flex: 1,
-    marginRight: 12,
-  },
-  limitedAccessTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#B8860B",
-    marginBottom: 2,
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  limitedAccessDescription: {
-    fontSize: 12,
-    color: "#8B7355",
-    lineHeight: 16,
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-  manageButton: {
-    backgroundColor: "#FF9500",
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minWidth: 60,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  manageButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-      },
-    }),
-  },
-});
+// Create styles function that takes colors as parameter
+const createStyles = (colors: ReturnType<typeof useKlyntlColors>) =>
+  StyleSheet.create({
+    modal: {
+      margin: 0,
+      flex: 1,
+    },
+    modalContainer: {
+      flex: 1,
+      margin: 0,
+      padding: 0,
+      height: "auto",
+    },
+    modalSurface: {
+      flex: 1,
+      backgroundColor: colors.paper.surface,
+    },
+    header: {
+      backgroundColor: colors.paper.surface,
+      paddingTop: Platform.OS === "ios" ? 10 : 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.paper.outline,
+    },
+    headerTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+      minHeight: hp(56),
+    },
+    closeButton: {
+      margin: 0,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.paper.onSurface,
+      flex: 1,
+      textAlign: "center",
+      marginRight: 40,
+    },
+    headerRight: {
+      width: 40,
+    },
+    searchContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    searchbar: {
+      backgroundColor: colors.paper.surfaceVariant,
+      elevation: 0,
+      borderRadius: 10,
+      ...Platform.select({
+        ios: {
+          shadowOpacity: 0,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
+    },
+    searchInput: {
+      fontSize: 16,
+      color: colors.paper.onSurface,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    quickActions: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    quickActionItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      minHeight: 56,
+    },
+    quickActionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.paper.surfaceVariant,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 16,
+    },
+    quickActionText: {
+      fontSize: 16,
+      color: colors.paper.onSurface,
+      fontWeight: "400",
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    headerDivider: {
+      marginTop: 8,
+      backgroundColor: colors.paper.outline,
+      height: 1,
+    },
+    statsContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    stats: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+      minHeight: 32,
+    },
+    statsText: {
+      fontSize: 14,
+      color: colors.paper.onSurfaceVariant,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    selectedText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.success[500],
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    selectionActions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.paper.onSurfaceVariant,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: colors.paper.surfaceVariant,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    listContainer: {
+      flex: 1,
+      backgroundColor: colors.paper.surface,
+      position: "relative",
+    },
+    flashListContent: {
+      paddingBottom: 20,
+    },
+    sectionHeader: {
+      backgroundColor: colors.paper.surfaceVariant,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      minHeight: 32,
+      justifyContent: "center",
+    },
+    sectionHeaderText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.paper.onSurfaceVariant,
+      textTransform: "uppercase",
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    contactItem: {
+      backgroundColor: colors.paper.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 0,
+    },
+    contactContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      minHeight: 64,
+    },
+    contactLeft: {
+      marginRight: 16,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.primary[500],
+    },
+    avatarText: {
+      color: colors.neutral.white,
+      fontWeight: "600",
+      fontSize: 14,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    contactInfo: {
+      flex: 1,
+      justifyContent: "center",
+    },
+    contactName: {
+      fontSize: 16,
+      fontWeight: "400",
+      color: colors.paper.onSurface,
+      marginBottom: 2,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    contactPhone: {
+      fontSize: 14,
+      color: colors.paper.onSurfaceVariant,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    contactRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    statusChip: {
+      borderColor: colors.paper.outline,
+    },
+    chipText: {
+      fontSize: wp(12),
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    emptyState: {
+      padding: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 200,
+    },
+    emptyTitle: {
+      marginBottom: 8,
+      color: colors.paper.onSurface,
+      textAlign: "center",
+    },
+    emptyDescription: {
+      textAlign: "center",
+      color: colors.paper.onSurfaceVariant,
+    },
+    footer: {
+      backgroundColor: colors.paper.surface,
+      paddingHorizontal: wp(16),
+      paddingVertical: hp(12),
+      borderTopWidth: 1,
+      borderTopColor: colors.paper.outline,
+    },
+    confirmButton: {
+      borderRadius: 8,
+      minHeight: hp(48),
+    },
+    confirmButtonContent: {
+      paddingVertical: 4,
+      minHeight: hp(48),
+    },
+    loadingContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: wp(32),
+    },
+    loadingTitle: {
+      marginBottom: hp(16),
+      color: colors.paper.onSurface,
+      textAlign: "center",
+    },
+    progressBar: {
+      width: "100%",
+      marginBottom: 16,
+    },
+    loadingDescription: {
+      textAlign: "center",
+      color: colors.paper.onSurfaceVariant,
+    },
+    limitedAccessContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    limitedAccessCard: {
+      backgroundColor: colors.warning[50],
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.warning[200],
+    },
+    limitedAccessContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+    },
+    limitedAccessIcon: {
+      marginRight: 12,
+    },
+    limitedAccessText: {
+      flex: 1,
+      marginRight: 12,
+    },
+    limitedAccessTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.warning[800],
+      marginBottom: 2,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    limitedAccessDescription: {
+      fontSize: 12,
+      color: colors.warning[700],
+      lineHeight: 16,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    manageButton: {
+      backgroundColor: colors.warning[500],
+      borderRadius: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      minWidth: 60,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    manageButtonText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.neutral.white,
+      ...Platform.select({
+        android: {
+          includeFontPadding: false,
+        },
+      }),
+    },
+    // New styles for sticky layout
+    mainContainer: {
+      flex: 1,
+    },
+    stickyHeader: {
+      backgroundColor: colors.paper.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.paper.outline,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.neutral.black,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    stickySearchContainer: {
+      backgroundColor: colors.paper.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.paper.outline,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.neutral.black,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    scrollableContainer: {
+      flex: 1,
+    },
+  });

@@ -1,62 +1,56 @@
-import { ContactPicker, ProcessedContact } from "@/components/ContactPicker";
-import { useCallback, useState } from "react";
+import {
+  ContactPicker,
+  ContactPickerProps,
+  ProcessedContact,
+} from "@/components/ContactPicker";
+import { useState } from "react";
 
-// Hook for using the contact picker
+interface ContactPickerOptions {
+  existingPhones?: string[];
+  maxSelection?: number;
+  onContactsSelected: (contacts: ProcessedContact[]) => void;
+}
+
 export const useContactPicker = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [existingPhones, setExistingPhones] = useState<string[]>([]);
-  const [maxSelection, setMaxSelection] = useState<number>(100);
-  const [onContactsSelected, setOnContactsSelected] = useState<
-    ((contacts: ProcessedContact[]) => void) | null
-  >(null);
-
-  const showContactPicker = useCallback(
-    (options: {
-      existingPhones?: string[];
-      maxSelection?: number;
-      onContactsSelected: (contacts: ProcessedContact[]) => void;
-    }) => {
-      setExistingPhones(options.existingPhones || []);
-      setMaxSelection(options.maxSelection || 100);
-      setOnContactsSelected(() => options.onContactsSelected);
-      setIsVisible(true);
-    },
-    []
+  const [pickerProps, setPickerProps] = useState<ContactPickerProps | null>(
+    null
   );
 
-  const hideContactPicker = useCallback(() => {
-    setIsVisible(false);
-    setExistingPhones([]);
-    setMaxSelection(100);
-    setOnContactsSelected(null);
-  }, []);
+  const showContactPicker = (options: ContactPickerOptions) => {
+    setPickerProps({
+      visible: true,
+      onDismiss: () => {
+        setIsVisible(false);
+        setPickerProps(null);
+      },
+      onContactsSelected: (contacts) => {
+        options.onContactsSelected(contacts);
+        setIsVisible(false);
+        setPickerProps(null);
+      },
+      existingPhones: options.existingPhones,
+      maxSelection: options.maxSelection,
+    });
+    setIsVisible(true);
+  };
 
-  const ContactPickerComponent = useCallback(() => {
-    if (!isVisible) return null;
+  const ContactPickerComponent = () => {
+    if (!pickerProps) return null;
 
     return (
       <ContactPicker
         visible={isVisible}
-        onDismiss={hideContactPicker}
-        onContactsSelected={(contacts) => {
-          onContactsSelected?.(contacts);
-          hideContactPicker();
-        }}
-        existingPhones={existingPhones}
-        maxSelection={maxSelection}
+        onDismiss={pickerProps.onDismiss}
+        onContactsSelected={pickerProps.onContactsSelected}
+        existingPhones={pickerProps.existingPhones}
+        maxSelection={pickerProps.maxSelection}
       />
     );
-  }, [
-    isVisible,
-    existingPhones,
-    maxSelection,
-    onContactsSelected,
-    hideContactPicker,
-  ]);
+  };
 
   return {
     showContactPicker,
-    hideContactPicker,
     ContactPickerComponent,
   };
 };

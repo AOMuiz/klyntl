@@ -1,4 +1,5 @@
-import { ProcessedContact, useContactPicker } from "@/components/ContactPicker";
+import { ProcessedContact } from "@/components/ContactPicker";
+import { useContactPicker } from "@/hooks/useContactPicker";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
