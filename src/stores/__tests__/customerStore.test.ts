@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { act, renderHook } from "@testing-library/react-native";
 import { createMockCustomers, mockCustomer } from "../../__tests__/test-utils";
-import { databaseService } from "../../services/database/oldIndex";
+import { databaseService } from "../../services/database/oldUnusedIndex";
 import { useCustomerStore } from "../customerStore";
 
 // Mock the database service

@@ -9,10 +9,15 @@ export {
   runMigrations,
   setVersion,
 } from "./migrations";
-export { DatabaseService, createDatabaseService } from "./service";
+
+// Use refactored service as main export
+export {
+  createDatabaseService,
+  DatabaseService,
+} from "./refactored_db_service";
 
 // Re-export types for convenience
 export type { Migration } from "./migrations";
 
-// Legacy export for backward compatibility
-export { DatabaseService as databaseService } from "./service";
+// Legacy export for backward compatibility - points to refactored service
+export { DatabaseService as databaseService } from "./refactored_db_service";

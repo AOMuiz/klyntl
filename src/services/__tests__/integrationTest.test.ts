@@ -5,7 +5,7 @@
 
 import { Customer } from "../../types/customer";
 import { CustomerFilters } from "../../types/filters";
-import { databaseService } from "../database/oldIndex";
+import { databaseService } from "../database/oldUnusedIndex";
 
 describe("Customer System Integration", () => {
   beforeAll(async () => {

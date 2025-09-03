@@ -1,7 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { CreateCustomerInput, UpdateCustomerInput } from "../../types/customer";
 import { CreateTransactionInput } from "../../types/transaction";
-import { DatabaseService } from "../database/oldIndex";
+import { DatabaseService } from "../database/oldUnusedIndex";
 
 // Mock expo-sqlite for testing
 jest.mock("expo-sqlite", () => ({

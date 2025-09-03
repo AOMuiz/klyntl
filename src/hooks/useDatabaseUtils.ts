@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDatabase } from "../services/database/hooks";
-import { DatabaseService } from "../services/database/oldIndex";
+import { DatabaseService } from "../services/database/oldUnusedIndex";
 
 // Hook for database utilities and operations
 export function useDatabaseUtils() {

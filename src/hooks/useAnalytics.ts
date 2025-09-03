@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createDatabaseService } from "../services/database";
 import { useDatabase } from "../services/database/hooks";
-import { Analytics } from "../types/analytics";
+import {
+  Analytics,
+  BusinessInsight,
+  CustomerAnalytics,
+  PurchaseBehaviorAnalytics,
+  RevenueAnalytics,
+} from "../types/analytics";
 
 export function useAnalytics() {
   const { db } = useDatabase();
@@ -58,6 +64,77 @@ export function useRevenueAnalytics() {
     enabled: Boolean(databaseService),
     staleTime: 3 * 60 * 1000, // Revenue data should be relatively fresh
     gcTime: 10 * 60 * 1000,
+    retry: 3,
+  });
+}
+
+// Enhanced Analytics Hooks
+
+export function useEnhancedRevenueAnalytics(days: number = 30) {
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+
+  return useQuery({
+    queryKey: ["analytics", "enhanced-revenue", days, db ? "main" : "default"],
+    queryFn: async (): Promise<RevenueAnalytics> => {
+      return databaseService!.getRevenueAnalytics(days);
+    },
+    enabled: Boolean(databaseService),
+    staleTime: 5 * 60 * 1000, // Revenue analytics can be stale for 5 minutes
+    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    retry: 3,
+  });
+}
+
+export function useEnhancedCustomerAnalytics(days?: number) {
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+
+  return useQuery({
+    queryKey: [
+      "analytics",
+      "enhanced-customers",
+      days,
+      db ? "main" : "default",
+    ],
+    queryFn: async (): Promise<CustomerAnalytics> => {
+      return databaseService!.getCustomerAnalytics(days);
+    },
+    enabled: Boolean(databaseService),
+    staleTime: 10 * 60 * 1000, // Customer analytics can be stale for 10 minutes
+    gcTime: 20 * 60 * 1000, // Keep in cache for 20 minutes
+    retry: 3,
+  });
+}
+
+export function usePurchaseBehaviorAnalytics() {
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+
+  return useQuery({
+    queryKey: ["analytics", "purchase-behavior", db ? "main" : "default"],
+    queryFn: async (): Promise<PurchaseBehaviorAnalytics> => {
+      return databaseService!.getPurchaseBehaviorAnalytics();
+    },
+    enabled: Boolean(databaseService),
+    staleTime: 15 * 60 * 1000, // Purchase behavior can be stale for 15 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (longer for behavioral data)
+    retry: 3,
+  });
+}
+
+export function useBusinessInsights() {
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+
+  return useQuery({
+    queryKey: ["analytics", "business-insights", db ? "main" : "default"],
+    queryFn: async (): Promise<BusinessInsight[]> => {
+      return databaseService!.getBusinessInsights();
+    },
+    enabled: Boolean(databaseService),
+    staleTime: 10 * 60 * 1000, // Insights should be relatively fresh
+    gcTime: 20 * 60 * 1000,
     retry: 3,
   });
 }

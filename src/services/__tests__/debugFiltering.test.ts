@@ -2,7 +2,7 @@ import {
   executeQueryForResults,
   getDatabaseInstance,
 } from "../../services/database/helper";
-import { DatabaseService } from "../database/oldIndex";
+import { DatabaseService } from "../database/oldUnusedIndex";
 
 describe("Debug Customer Filtering", () => {
   let testDatabaseService: DatabaseService;
