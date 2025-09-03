@@ -311,13 +311,13 @@ const migration003: Migration = {
         FOREIGN KEY (parentId) REFERENCES product_categories (id) ON DELETE SET NULL
       );
 
-  -- Add indexes for products
-  CREATE INDEX IF NOT EXISTS idx_product_categoryId ON products(categoryId);
-  CREATE INDEX IF NOT EXISTS idx_product_sku ON products(sku);
-  CREATE INDEX IF NOT EXISTS idx_product_active ON products(isActive);
-  CREATE INDEX IF NOT EXISTS idx_product_price ON products(price);
-  CREATE INDEX IF NOT EXISTS idx_product_stock ON products(stockQuantity);
-  CREATE INDEX IF NOT EXISTS idx_product_name ON products(name);
+      -- Add indexes for products
+      CREATE INDEX IF NOT EXISTS idx_product_categoryId ON products(categoryId);
+      CREATE INDEX IF NOT EXISTS idx_product_sku ON products(sku);
+      CREATE INDEX IF NOT EXISTS idx_product_active ON products(isActive);
+      CREATE INDEX IF NOT EXISTS idx_product_price ON products(price);
+      CREATE INDEX IF NOT EXISTS idx_product_stock ON products(stockQuantity);
+      CREATE INDEX IF NOT EXISTS idx_product_name ON products(name);
 
       -- Add indexes for categories
       CREATE INDEX IF NOT EXISTS idx_category_parent ON product_categories(parentId);
@@ -346,6 +346,85 @@ const migration003: Migration = {
 };
 
 /**
+ * Migration 5: Add performance indexes for repository pattern
+ */
+const migration005: Migration = {
+  version: 5,
+  name: "repository_performance_indexes",
+  up: async (db: SQLiteDatabase) => {
+    await db.execAsync(`
+      -- Composite indexes for customer queries
+      CREATE INDEX IF NOT EXISTS idx_customer_last_contact ON customers(lastContactDate DESC, createdAt DESC);
+      CREATE INDEX IF NOT EXISTS idx_customer_company_name ON customers(company, name);
+      CREATE INDEX IF NOT EXISTS idx_customer_total_spent_desc ON customers(totalSpent DESC);
+      CREATE INDEX IF NOT EXISTS idx_customer_contact_source_name ON customers(contactSource, name);
+      CREATE INDEX IF NOT EXISTS idx_customer_preferred_method_name ON customers(preferredContactMethod, name);
+      
+      -- Transaction indexes for analytics
+      CREATE INDEX IF NOT EXISTS idx_transaction_customer_date ON transactions(customerId, date DESC);
+      CREATE INDEX IF NOT EXISTS idx_transaction_type_date ON transactions(type, date);
+      CREATE INDEX IF NOT EXISTS idx_transaction_amount ON transactions(amount);
+      
+      -- Product indexes for analytics
+      CREATE INDEX IF NOT EXISTS idx_product_name_active ON products(name, isActive);
+      CREATE INDEX IF NOT EXISTS idx_product_price_active ON products(price, isActive);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_customer_last_contact;
+      DROP INDEX IF EXISTS idx_customer_company_name;
+      DROP INDEX IF EXISTS idx_customer_total_spent_desc;
+      DROP INDEX IF EXISTS idx_customer_contact_source_name;
+      DROP INDEX IF EXISTS idx_customer_preferred_method_name;
+      DROP INDEX IF EXISTS idx_transaction_customer_date;
+      DROP INDEX IF EXISTS idx_transaction_type_date;
+      DROP INDEX IF EXISTS idx_transaction_amount;
+      DROP INDEX IF EXISTS idx_product_name_active;
+      DROP INDEX IF EXISTS idx_product_price_active;
+    `);
+  },
+};
+
+/**
+ * Migration 6: Add product tracking to transactions for inventory management
+ */
+const migration006: Migration = {
+  version: 6,
+  name: "transaction_product_tracking",
+  up: async (db: SQLiteDatabase) => {
+    // Add productId to transactions table
+    await addColumnIfNotExists(db, "transactions", "productId", "TEXT");
+
+    // Add foreign key constraint
+    try {
+      await db.runAsync(
+        "ALTER TABLE transactions ADD CONSTRAINT fk_transaction_product FOREIGN KEY (productId) REFERENCES products(id) ON DELETE SET NULL"
+      );
+    } catch {
+      // Constraint might already exist or not be supported in all SQLite versions
+      console.log(
+        "Foreign key constraint for productId may not be supported in this SQLite version"
+      );
+    }
+
+    // Add index for product queries
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_transaction_product ON transactions(productId);
+      CREATE INDEX IF NOT EXISTS idx_transaction_customer_product ON transactions(customerId, productId);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Note: SQLite doesn't support DROP COLUMN, so we leave the column
+    // but remove the indexes
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_transaction_product;
+      DROP INDEX IF EXISTS idx_transaction_customer_product;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -354,6 +433,8 @@ export const migrations: Migration[] = [
   migration002,
   migration003,
   migration004,
+  migration005,
+  migration006,
 ];
 
 /**

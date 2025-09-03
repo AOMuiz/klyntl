@@ -17,8 +17,8 @@ export function useTransactions(customerId?: string) {
     queryFn: async () => {
       if (!databaseService) throw new Error("Database not available");
       return customerId
-        ? databaseService.getTransactionsByCustomer(customerId)
-        : databaseService.getAllTransactions();
+        ? databaseService.transactions.findByCustomer(customerId)
+        : databaseService.transactions.getAllTransactions();
     },
     enabled: !!db,
     staleTime: 1 * 60 * 1000, // Transaction data should be fresh for 1 minute
@@ -30,7 +30,7 @@ export function useTransactions(customerId?: string) {
   const createMutation = useMutation({
     mutationFn: async (data: CreateTransactionInput) => {
       if (!databaseService) throw new Error("Database not available");
-      return databaseService.createTransaction(data);
+      return databaseService.transactions.create(data);
     },
     onSuccess: (newTransaction) => {
       // Update transactions cache
@@ -63,7 +63,7 @@ export function useTransactions(customerId?: string) {
       updates: UpdateTransactionInput;
     }) => {
       if (!databaseService) throw new Error("Database not available");
-      await databaseService.updateTransaction(id, updates);
+      await databaseService.transactions.update(id, updates);
       return { id, updates };
     },
     onSuccess: ({ id, updates }) => {
@@ -84,7 +84,7 @@ export function useTransactions(customerId?: string) {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!databaseService) throw new Error("Database not available");
-      await databaseService.deleteTransaction(id);
+      await databaseService.transactions.delete(id);
       return id;
     },
     onSuccess: (deletedId) => {
@@ -147,7 +147,7 @@ export function useTransaction(id?: string) {
     queryFn: async () => {
       if (!databaseService || !id)
         throw new Error("Database not available or no ID provided");
-      return databaseService.getTransactionById(id);
+      return databaseService.transactions.findById(id);
     },
     enabled: !!db && !!id,
     staleTime: 5 * 60 * 1000, // Individual transaction data can be stale for 5 minutes

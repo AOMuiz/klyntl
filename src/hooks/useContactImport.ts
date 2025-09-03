@@ -269,7 +269,7 @@ export function useContactImport() {
       }
 
       // Get fresh customer list from database to check for existing phone numbers
-      const latestCustomers = await databaseService.getCustomersWithFilters();
+      const latestCustomers = await databaseService.customers.findWithFilters();
       const existingPhones = new Set(
         latestCustomers
           .filter((c: Customer) => c.phone)
@@ -318,7 +318,7 @@ export function useContactImport() {
 
             try {
               // Create customer from contact
-              await databaseService.createCustomer({
+              await databaseService.customers.createCustomer({
                 name:
                   [contact.firstName, contact.lastName]
                     .filter(Boolean)
@@ -394,7 +394,7 @@ export function useContactImport() {
       );
 
       // Get fresh customer list from database to check for existing phone numbers
-      const latestCustomers = await databaseService.getCustomersWithFilters();
+      const latestCustomers = await databaseService.customers.findWithFilters();
       const existingPhones = new Set(
         latestCustomers
           .filter((c: Customer) => c.phone)
@@ -417,7 +417,7 @@ export function useContactImport() {
 
         try {
           // Create customer from selected contact
-          await databaseService.createCustomer({
+          await databaseService.customers.createCustomer({
             name: contact.name || "Unknown",
             phone: contact.phone,
             email: contact.email,

@@ -1,6 +1,7 @@
 export interface Transaction {
   id: string;
   customerId: string;
+  productId?: string;
   amount: number;
   description?: string;
   date: string;
@@ -9,6 +10,7 @@ export interface Transaction {
 
 export interface CreateTransactionInput {
   customerId: string;
+  productId?: string;
   amount: number;
   description?: string;
   date: string;
@@ -16,6 +18,7 @@ export interface CreateTransactionInput {
 }
 
 export interface UpdateTransactionInput {
+  productId?: string;
   amount?: number;
   description?: string;
   date?: string;

@@ -20,7 +20,7 @@ import type {
   Transaction,
   UpdateTransactionInput,
 } from "@/types/transaction";
-import { generateId } from "@/utils/helpers";
+import { generateId, validateNigerianPhone } from "@/utils/helpers";
 import type { SQLiteDatabase } from "expo-sqlite";
 import {
   DatabaseError,
@@ -103,10 +103,21 @@ export class DatabaseService {
           "phone"
         );
       }
-      // Basic phone validation - adjust regex based on your needs
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      if (!phoneRegex.test(data.phone.replace(/[\s\-\(\)]/g, ""))) {
-        throw new ValidationError("Invalid phone number format", "phone");
+      // Use Nigerian phone validation
+      // Assumes validateNigerianPhone returns boolean or { isValid: boolean }
+      // and is imported from your helpers
+      // import { validateNigerianPhone } from "@/utils/helpers";
+      const cleanPhone = data.phone.replace(/\D/g, "");
+      const validationResult = validateNigerianPhone(cleanPhone);
+      const isValid =
+        typeof validationResult === "boolean"
+          ? validationResult
+          : validationResult.isValid;
+      if (!isValid) {
+        throw new ValidationError(
+          "Invalid Nigerian phone number format",
+          "phone"
+        );
       }
     }
 

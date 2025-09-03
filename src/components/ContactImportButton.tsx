@@ -51,7 +51,7 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   useEffect(() => {
     const loadExistingPhones = async () => {
       try {
-        const customers = await databaseService.getCustomersWithFilters();
+        const customers = await databaseService.customers.findWithFilters();
         const phones = customers
           .filter((c) => c.phone)
           .map((c) => c.phone.replace(/\D/g, ""));

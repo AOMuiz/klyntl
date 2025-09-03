@@ -37,6 +37,7 @@ export class TransactionRepository {
       const transaction: Transaction = {
         id,
         customerId: transactionData.customerId,
+        productId: transactionData.productId,
         amount: transactionData.amount,
         description: transactionData.description || undefined,
         date: transactionData.date,
@@ -45,11 +46,12 @@ export class TransactionRepository {
 
       await this.db.withTransactionAsync(async () => {
         await this.db.runAsync(
-          `INSERT INTO transactions (id, customerId, amount, description, date, type) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type) 
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             transaction.id,
             transaction.customerId,
+            transaction.productId || null,
             transaction.amount,
             transaction.description || null,
             transaction.date,

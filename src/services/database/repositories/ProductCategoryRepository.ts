@@ -1,9 +1,9 @@
 import { CreateCategoryInput, ProductCategory } from "@/types/product";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
-import { DatabaseConfig } from "../service";
 import { AuditLogService } from "../service/AuditLogService";
 import { DatabaseError, ValidationError } from "../service/utilService";
+import { DatabaseConfig } from "../types";
 
 // ===== PRODUCT CATEGORY REPOSITORY =====
 export class ProductCategoryRepository {

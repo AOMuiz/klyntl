@@ -8,9 +8,9 @@ import {
 } from "@/types/analytics";
 import { Customer } from "@/types/customer";
 import { SQLiteDatabase } from "expo-sqlite";
-import { DatabaseConfig } from "../service";
 import { AuditLogService } from "../service/AuditLogService";
 import { DatabaseError } from "../service/utilService";
+import { DatabaseConfig } from "../types";
 
 // ===== ANALYTICS REPOSITORY =====
 export class AnalyticsRepository {

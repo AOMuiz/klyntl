@@ -27,11 +27,10 @@ export function useCustomers(
       db ? "main" : "default",
     ],
     queryFn: async ({ pageParam = 0 }) => {
-      const customers = await databaseService!.getCustomersWithFilters(
-        searchQuery,
+      const customers = await databaseService!.customers.findWithFilters(
         filters,
-        sort,
-        pageParam, // page number
+        searchQuery,
+        pageParam,
         pageSize
       );
       return {
@@ -66,7 +65,7 @@ export function useCustomers(
   // Create customer mutation
   const createMutation = useMutation({
     mutationFn: (customerData: CreateCustomerInput) =>
-      databaseService!.createCustomer(customerData),
+      databaseService!.customers.createCustomer(customerData),
     onSuccess: (newCustomer) => {
       // Add to first page
       queryClient.setQueryData(
@@ -105,7 +104,7 @@ export function useCustomers(
     }: {
       id: string;
       updates: UpdateCustomerInput;
-    }) => databaseService!.updateCustomer(id, updates),
+    }) => databaseService!.customers.update(id, updates),
     onSuccess: (_, { id, updates }) => {
       // Update across all pages
       queryClient.setQueryData(
@@ -132,7 +131,7 @@ export function useCustomers(
 
   // Delete customer mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => databaseService!.deleteCustomer(id),
+    mutationFn: (id: string) => databaseService!.customers.delete(id),
     onSuccess: (_, deletedId) => {
       // Remove from all pages
       queryClient.setQueryData(
@@ -202,7 +201,7 @@ export function useCustomer(id?: string) {
     queryKey: ["customer", id, db ? "main" : "default"],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      const customer = await databaseService!.getCustomerById(id);
+      const customer = await databaseService!.customers.findById(id);
       if (!customer) {
         throw new Error("Customer not found");
       }
@@ -229,7 +228,7 @@ export function useCustomerByPhone(phone?: string) {
     queryKey: ["customers", "phone", phone, db ? "main" : "default"],
     queryFn: async () => {
       if (!phone) throw new Error("No phone provided");
-      return databaseService!.getCustomerByPhone(phone);
+      return databaseService!.customers.findByPhone(phone);
     },
     enabled: Boolean(databaseService) && Boolean(phone),
     staleTime: 1 * 60 * 1000, // Phone searches should be relatively fresh

@@ -11,7 +11,7 @@ export function useProductCategories() {
   const categoriesQuery = useQuery({
     queryKey: ["product-categories", db ? "main" : "default"],
     queryFn: async () => {
-      return databaseService!.getCategories();
+      return databaseService!.productCategories.findAll();
     },
     enabled: Boolean(databaseService),
     staleTime: 5 * 60 * 1000, // Categories can be stale for 5 minutes
@@ -21,7 +21,7 @@ export function useProductCategories() {
 
   const createMutation = useMutation({
     mutationFn: async (categoryData: CreateCategoryInput) => {
-      return databaseService!.createCategory(categoryData);
+      return databaseService!.productCategories.create(categoryData);
     },
     onSuccess: (newCategory) => {
       // Add to categories cache
@@ -74,7 +74,7 @@ export function useProductCategory(id?: string) {
     queryKey: ["product-categories", "detail", id, db ? "main" : "default"],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      return databaseService!.getCategoryById(id);
+      return databaseService!.productCategories.findById(id);
     },
     enabled: Boolean(databaseService) && Boolean(id),
     staleTime: 5 * 60 * 1000, // Individual category data can be stale for 5 minutes

@@ -7,7 +7,6 @@ import {
 } from "@/types/product";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
-import { DatabaseConfig } from "../service";
 import { AuditLogService } from "../service/AuditLogService";
 import { QueryBuilderService } from "../service/QueryBuilderService";
 import {
@@ -17,6 +16,7 @@ import {
   ValidationError,
 } from "../service/utilService";
 import { ValidationService } from "../service/ValidationService";
+import { DatabaseConfig } from "../types";
 
 // ===== PRODUCT REPOSITORY =====
 export class ProductRepository {

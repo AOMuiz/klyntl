@@ -1,7 +1,6 @@
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
-import { DatabaseConfig } from ".";
-import { AuditLogEntry } from "../types";
+import { AuditLogEntry, DatabaseConfig } from "../types";
 import { DatabaseError } from "./utilService";
 
 // ===== AUDIT LOG SERVICE =====
