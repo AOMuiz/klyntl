@@ -73,9 +73,9 @@ export default function Onboarding() {
     setIsProcessing(true);
     try {
       console.log("Finishing onboarding...");
-      await setHasSeenOnboarding(true);
+      setHasSeenOnboarding(true);
       console.log("Onboarding completed successfully");
-      router.replace("/(tabs)");
+      router.replace("/welcome");
     } catch (error) {
       console.error("Error finishing onboarding:", error);
     } finally {
@@ -99,9 +99,9 @@ export default function Onboarding() {
     setIsProcessing(true);
     try {
       console.log("Skipping onboarding...");
-      await setHasSeenOnboarding(true);
+      setHasSeenOnboarding(true);
       console.log("Onboarding skipped successfully");
-      router.replace("/(tabs)");
+      router.replace("/welcome");
     } catch (error) {
       console.error("Error skipping onboarding:", error);
     } finally {

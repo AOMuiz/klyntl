@@ -3,7 +3,9 @@ import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useStoreConfig } from "@/hooks/useStoreConfig";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -13,22 +15,41 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
-  const { customers } = useCustomers();
+  const {
+    customers,
+    isLoading: customersLoading,
+    error: customersError,
+  } = useCustomers();
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+  } = useAnalytics();
+  const {
+    storeConfig,
+    isLoading: storeConfigLoading,
+    error: storeConfigError,
+  } = useStoreConfig();
+
+  // Loading state for the entire screen
+  const isLoading = customersLoading || analyticsLoading || storeConfigLoading;
+
+  // Error state
+  const hasError = customersError || analyticsError || storeConfigError;
 
   // Mock data - replace with actual hooks/data
   const userData = {
-    name: "Opticrafts Atellier",
+    name: storeConfig?.storeName || "Your Store",
     avatar:
+      storeConfig?.logoUrl ||
       "https://pbs.twimg.com/profile_images/1944623608719912960/jFs_gxjP_400x400.jpg",
   };
 
-  //  avatar: createThemedAvatarUrl("Opticrafts Atellier", "primary", 100),
-
+  // Use real analytics data with safe fallbacks
   const overviewData = {
-    totalCustomers: customers?.length || 0,
-    recentTransactions: 12,
-    pendingTasks: 3,
-    totalRevenue: 125000,
+    totalCustomers: analytics?.totalCustomers ?? 0,
+    recentTransactions: analytics?.totalTransactions ?? 0,
+    totalRevenue: analytics?.totalRevenue ?? 0,
   };
 
   const handleQuickAction = (action: string) => {
@@ -74,271 +95,355 @@ export default function HomeScreen() {
       scrollable={true}
       withPadding={false}
       scrollViewProps={{ showsVerticalScrollIndicator: false }}
+      // containerStyle={styles.exampleContainer}
     >
-      {/* Header */}
-      <View style={[styles.header]}>
-        <View style={styles.headerContent}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <Image
-                source={{ uri: userData.avatar }}
-                style={styles.avatarImage}
-              />
-            </View>
-            <View>
-              <ThemedText
+      {hasError ? (
+        <View style={styles.errorContainer}>
+          <ThemedText style={[styles.errorText, { color: colors.error[600] }]}>
+            Failed to load data. Please try again.
+          </ThemedText>
+          <Button
+            mode="outlined"
+            onPress={() => {
+              // Refetch all data
+              // Note: This would require adding refetch functions from the hooks
+            }}
+            style={styles.retryButton}
+          >
+            Retry
+          </Button>
+        </View>
+      ) : (
+        <>
+          {/* Header */}
+          <View
+            style={[styles.header, { backgroundColor: theme.colors.surface }]}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.userInfo}>
+                <View style={styles.avatar}>
+                  <Image
+                    source={{ uri: userData.avatar }}
+                    style={styles.avatarImage}
+                  />
+                </View>
+                <View>
+                  <ThemedText
+                    style={[
+                      styles.welcomeText,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    Welcome back,
+                  </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.userName,
+                      { color: theme.colors.onBackground },
+                    ]}
+                  >
+                    {userData.name}
+                  </ThemedText>
+                </View>
+              </View>
+              <TouchableOpacity
                 style={[
-                  styles.welcomeText,
-                  { color: theme.colors.onSurfaceVariant },
+                  styles.notificationButton,
+                  { backgroundColor: theme.colors.surfaceVariant },
                 ]}
               >
-                Welcome back,
-              </ThemedText>
-              <ThemedText
-                style={[styles.userName, { color: theme.colors.onBackground }]}
-              >
-                {userData.name}
-              </ThemedText>
+                <IconSymbol
+                  name="bell"
+                  size={wp(24)}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity
+
+          <Divider />
+
+          {/* Overview Section */}
+          <View
             style={[
-              styles.notificationButton,
-              { backgroundColor: theme.colors.surfaceVariant },
+              styles.section,
+              { backgroundColor: theme.colors.background },
             ]}
           >
-            <IconSymbol
-              name="bell"
-              size={wp(24)}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <Divider />
-
-      {/* Overview Section */}
-      <View
-        style={[styles.section, { backgroundColor: theme.colors.background }]}
-      >
-        <View style={styles.overviewContainer}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.colors.onBackground }]}
-          >
-            Overview
-          </ThemedText>
-          <View style={styles.overviewCards}>
-            <View style={styles.topRow}>
-              {/* Primary Card */}
-              <TouchableOpacity
-                style={[
-                  styles.overviewCard,
-                  {
-                    backgroundColor: colors.primary[50],
-                    borderColor: colors.primary[100],
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardIcon,
-                    { backgroundColor: colors.primary[100] },
-                  ]}
-                >
-                  <IconSymbol
-                    name="person.2"
-                    size={wp(32)}
-                    color={colors.primary[700]}
-                  />
-                </View>
-                <View style={styles.cardContent}>
-                  <ThemedText
-                    style={[styles.cardValue, { color: colors.primary[900] }]}
-                  >
-                    {overviewData.totalCustomers}
-                  </ThemedText>
-                  <ThemedText
-                    style={[styles.cardLabel, { color: colors.primary[600] }]}
-                  >
-                    Total Customers
-                  </ThemedText>
-                </View>
-              </TouchableOpacity>
-
-              {/* Secondary Card */}
-              <TouchableOpacity
-                style={[
-                  styles.overviewCard,
-                  {
-                    backgroundColor: colors.secondary[50],
-                    borderColor: colors.secondary[100],
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardIcon,
-                    { backgroundColor: colors.secondary[100] },
-                  ]}
-                >
-                  <IconSymbol
-                    name="arrow.up.arrow.down"
-                    size={wp(32)}
-                    color={colors.secondary[700]}
-                  />
-                </View>
-                <View style={styles.cardContent}>
-                  <ThemedText
-                    style={[styles.cardValue, { color: colors.secondary[900] }]}
-                  >
-                    {overviewData.recentTransactions}
-                  </ThemedText>
-                  <ThemedText
-                    style={[styles.cardLabel, { color: colors.secondary[600] }]}
-                  >
-                    Total Transactions
-                  </ThemedText>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomRow}>
-              {/* Accent Card */}
-              <TouchableOpacity
-                style={[
-                  styles.overviewCard,
-                  {
-                    backgroundColor: colors.accent[50],
-                    borderColor: colors.accent[100],
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardIcon,
-                    { backgroundColor: colors.accent[100] },
-                  ]}
-                >
-                  <IconSymbol
-                    name="chart.line.uptrend.xyaxis"
-                    size={wp(32)}
-                    color={colors.accent[700]}
-                  />
-                </View>
-                <View style={styles.cardContent}>
-                  <ThemedText
-                    style={[styles.cardValue, { color: colors.accent[900] }]}
-                  >
-                    ₦{(overviewData.totalRevenue / 1000).toFixed(0)}K
-                  </ThemedText>
-                  <ThemedText
-                    style={[styles.cardLabel, { color: colors.accent[600] }]}
-                  >
-                    Total Revenue
-                  </ThemedText>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View
-        style={[styles.section, { backgroundColor: theme.colors.background }]}
-      >
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.colors.onBackground }]}
-        >
-          Quick Actions
-        </ThemedText>
-        <View style={styles.quickActionsGrid}>
-          {renderQuickAction(
-            "Add Customer",
-            "person.badge.plus",
-            theme.colors.primary,
-            () => handleQuickAction("add-customer")
-          )}
-          {renderQuickAction(
-            "Record Sale",
-            "doc.text",
-            theme.colors.secondary,
-            () => handleQuickAction("record-sale")
-          )}
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.recentActivityContainer}>
-        <View style={styles.sectionHeader}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.colors.onBackground }]}
-          >
-            Recent Customers
-          </ThemedText>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/customers")}>
-            <ThemedText
-              style={[styles.seeAllText, { color: theme.colors.primary }]}
-            >
-              See All
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {/* Recent Customers */}
-        <View style={styles.customersSection}>
-          {customers && customers.length > 0 ? (
-            <>
-              {customers.slice(0, 3).map((customer) => (
-                <CustomerCard
-                  key={customer.id}
-                  customer={customer}
-                  onPress={() => router.push(`/customer/${customer.id}`)}
-                  testID={`home-customer-${customer.id}`}
-                />
-              ))}
-              <View style={styles.viewAllContainer}>
-                <Button
-                  mode="text"
-                  onPress={() => router.push("/(tabs)/customers")}
-                  labelStyle={{
-                    color: colors.primary[600],
-                    fontSize: fontSize(16),
-                  }}
-                >
-                  View All Customers
-                </Button>
-              </View>
-            </>
-          ) : (
-            <View style={styles.emptyCustomers}>
+            <View style={styles.overviewContainer}>
               <ThemedText
                 style={[
-                  styles.emptyText,
-                  { color: colors.paper.onSurfaceVariant },
+                  styles.sectionTitle,
+                  { color: theme.colors.onBackground },
                 ]}
               >
-                No customers yet
+                Overview
               </ThemedText>
-              <Button
-                mode="contained"
-                onPress={() => router.push("/customer/add")}
-                style={styles.addCustomerButton}
-              >
-                Add First Customer
-              </Button>
+              <View style={styles.overviewCards}>
+                <View style={styles.topRow}>
+                  {/* Primary Card */}
+                  <TouchableOpacity
+                    style={[
+                      styles.overviewCard,
+                      {
+                        backgroundColor: colors.primary[50],
+                        borderColor: colors.primary[100],
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardIcon,
+                        { backgroundColor: colors.primary[100] },
+                      ]}
+                    >
+                      <IconSymbol
+                        name="person.2"
+                        size={wp(32)}
+                        color={colors.primary[700]}
+                      />
+                    </View>
+                    <View style={styles.cardContent}>
+                      <ThemedText
+                        style={[
+                          styles.cardValue,
+                          { color: colors.primary[900] },
+                        ]}
+                      >
+                        {isLoading ? "..." : overviewData.totalCustomers}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.cardLabel,
+                          { color: colors.primary[600] },
+                        ]}
+                      >
+                        Total Customers
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Secondary Card */}
+                  <TouchableOpacity
+                    style={[
+                      styles.overviewCard,
+                      {
+                        backgroundColor: colors.secondary[50],
+                        borderColor: colors.secondary[100],
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardIcon,
+                        { backgroundColor: colors.secondary[100] },
+                      ]}
+                    >
+                      <IconSymbol
+                        name="arrow.up.arrow.down"
+                        size={wp(32)}
+                        color={colors.secondary[700]}
+                      />
+                    </View>
+                    <View style={styles.cardContent}>
+                      <ThemedText
+                        style={[
+                          styles.cardValue,
+                          { color: colors.secondary[900] },
+                        ]}
+                      >
+                        {isLoading ? "..." : overviewData.recentTransactions}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.cardLabel,
+                          { color: colors.secondary[600] },
+                        ]}
+                      >
+                        Total Transactions
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.bottomRow}>
+                  {/* Accent Card */}
+                  <TouchableOpacity
+                    style={[
+                      styles.overviewCard,
+                      {
+                        backgroundColor: colors.accent[50],
+                        borderColor: colors.accent[100],
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardIcon,
+                        { backgroundColor: colors.accent[100] },
+                      ]}
+                    >
+                      <IconSymbol
+                        name="chart.line.uptrend.xyaxis"
+                        size={wp(32)}
+                        color={colors.accent[700]}
+                      />
+                    </View>
+                    <View style={styles.cardContent}>
+                      <ThemedText
+                        style={[
+                          styles.cardValue,
+                          { color: colors.accent[900] },
+                        ]}
+                      >
+                        {isLoading
+                          ? "..."
+                          : overviewData.totalRevenue >= 1000
+                          ? `₦${(overviewData.totalRevenue / 1000).toFixed(0)}K`
+                          : `₦${overviewData.totalRevenue}`}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.cardLabel,
+                          { color: colors.accent[600] },
+                        ]}
+                      >
+                        Total Revenue
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          )}
-        </View>
-      </View>
+          </View>
+
+          {/* Quick Actions */}
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: theme.colors.background },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.sectionTitle,
+                { color: theme.colors.onBackground },
+              ]}
+            >
+              Quick Actions
+            </ThemedText>
+            <View style={styles.quickActionsGrid}>
+              {renderQuickAction(
+                "Add Customer",
+                "person.badge.plus",
+                theme.colors.primary,
+                () => handleQuickAction("add-customer")
+              )}
+              {renderQuickAction(
+                "Record Sale",
+                "doc.text",
+                theme.colors.secondary,
+                () => handleQuickAction("record-sale")
+              )}
+            </View>
+          </View>
+
+          {/* Recent Activity */}
+          <View style={styles.recentActivityContainer}>
+            <View style={styles.sectionHeader}>
+              <ThemedText
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.onBackground },
+                ]}
+              >
+                Recent Customers
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/customers")}
+              >
+                <ThemedText
+                  style={[styles.seeAllText, { color: theme.colors.primary }]}
+                >
+                  See All
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            {/* Recent Customers */}
+            <View style={styles.customersSection}>
+              {customersLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ThemedText
+                    style={[
+                      styles.loadingText,
+                      { color: colors.paper.onSurfaceVariant },
+                    ]}
+                  >
+                    Loading customers...
+                  </ThemedText>
+                </View>
+              ) : customers && customers.length > 0 ? (
+                <>
+                  {customers.slice(0, 3).map((customer) => (
+                    <CustomerCard
+                      key={customer.id}
+                      customer={customer}
+                      onPress={() => router.push(`/customer/${customer.id}`)}
+                      testID={`home-customer-${customer.id}`}
+                    />
+                  ))}
+                  <View style={styles.viewAllContainer}>
+                    <Button
+                      mode="text"
+                      onPress={() => router.push("/(tabs)/customers")}
+                      labelStyle={{
+                        color: colors.primary[600],
+                        fontSize: fontSize(16),
+                      }}
+                    >
+                      View All Customers
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyCustomers}>
+                  <ThemedText
+                    style={[
+                      styles.emptyText,
+                      { color: colors.paper.onSurfaceVariant },
+                    ]}
+                  >
+                    No customers yet
+                  </ThemedText>
+                  <Button
+                    mode="contained"
+                    onPress={() => router.push("/customer/add")}
+                    style={styles.addCustomerButton}
+                  >
+                    Add First Customer
+                  </Button>
+                </View>
+              )}
+            </View>
+          </View>
+        </>
+      )}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: wp(20),
-    paddingBottom: hp(20),
+    padding: wp(20),
+    elevation: 2,
+    shadowOffset: {
+      width: 3,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowColor: "#000",
   },
   headerContent: {
     flexDirection: "row",
@@ -348,7 +453,7 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: wp(12),
   },
   avatar: {
     width: wp(50),
@@ -461,6 +566,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
     marginTop: 16,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -510,7 +616,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
   },
   exampleContainer: {
-    padding: wp(20),
+    backgroundColor: "lightgray",
   },
   exampleText: {
     fontSize: fontSize(16),
@@ -542,5 +648,27 @@ const styles = StyleSheet.create({
   },
   addCustomerButton: {
     borderRadius: wp(12),
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: hp(40),
+    paddingHorizontal: wp(20),
+  },
+  loadingText: {
+    fontSize: fontSize(16),
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: wp(20),
+  },
+  errorText: {
+    fontSize: fontSize(16),
+    textAlign: "center",
+    marginBottom: hp(20),
+  },
+  retryButton: {
+    marginTop: hp(10),
   },
 });

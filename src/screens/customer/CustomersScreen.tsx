@@ -1,9 +1,12 @@
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterModal, FilterOptions } from "@/components/FilterModal";
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useContactImport } from "@/hooks/useContactImport";
 import { useContactPicker } from "@/hooks/useContactPicker";
 import { useCustomers } from "@/hooks/useCustomers";
+import { createDatabaseService } from "@/services/database";
+import { useDatabase } from "@/services/database/hooks";
 import {
   SortOptions,
   areFiltersEmpty,
@@ -11,6 +14,7 @@ import {
 } from "@/types/filters";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { FlashList } from "@shopify/flash-list";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
@@ -33,9 +37,11 @@ export default function CustomersScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
-  const { importFromContacts, importSelectedContacts, isImporting } =
-    useContactImport();
+  const { importSelectedContacts, isImporting } = useContactImport();
   const contactPicker = useContactPicker();
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
@@ -202,6 +208,37 @@ export default function CustomersScreen() {
     setSortMenuVisible(false);
   };
 
+  const handleClearDatabase = async () => {
+    if (!databaseService) return;
+
+    Alert.alert(
+      "Clear Database",
+      "Are you sure you want to clear all data? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await databaseService.clearAllData();
+              // Invalidate all related queries
+              queryClient.invalidateQueries({ queryKey: ["customers"] });
+              queryClient.invalidateQueries({ queryKey: ["analytics"] });
+              Alert.alert("Success", "Database cleared successfully");
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                "Failed to clear database: " +
+                  (error instanceof Error ? error.message : "Unknown error")
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getSortLabel = () => {
     const labels = {
       name: "Name",
@@ -226,12 +263,27 @@ export default function CustomersScreen() {
       <Surface style={styles.surface} elevation={0}>
         {/* Header */}
         <View style={styles.header}>
-          <Text
-            variant="headlineLarge"
-            style={[styles.title, { color: colors.paper.onBackground }]}
-          >
-            Customers
-          </Text>
+          <View style={styles.titleContainer}>
+            <Text
+              variant="headlineLarge"
+              style={[styles.title, { color: colors.paper.onBackground }]}
+            >
+              Customers
+            </Text>
+            {__DEV__ && (
+              <Button
+                mode="text"
+                compact
+                onPress={handleClearDatabase}
+                labelStyle={[
+                  styles.clearButtonText,
+                  { color: colors.error[600] },
+                ]}
+              >
+                Clear DB
+              </Button>
+            )}
+          </View>
         </View>
 
         {/* Search and Filter */}
@@ -419,6 +471,11 @@ export default function CustomersScreen() {
               </View>
             ) : (
               <View style={styles.centerContainer}>
+                <IconSymbol
+                  name="person"
+                  size={wp(70)}
+                  color={colors.paper.onSurfaceVariant}
+                />
                 <Text
                   variant="bodyLarge"
                   style={{ color: colors.paper.onSurfaceVariant }}
@@ -508,6 +565,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  titleContainer: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   title: {
     fontWeight: "600",
   },
@@ -586,5 +649,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: wp(16),
     bottom: hp(16),
+  },
+  clearButtonText: {
+    fontSize: fontSize(12),
   },
 });
