@@ -34,8 +34,7 @@ export const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 8,
     marginBottom: 20,
-    borderRadius: 16,
-    overflow: "hidden",
+    borderRadius: 20,
   },
   customerContent: {
     flexDirection: "row",
@@ -89,7 +88,6 @@ export const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     borderRadius: 16,
-    overflow: "hidden",
   },
   statCardContent: {
     alignItems: "center",
@@ -128,7 +126,6 @@ export const styles = StyleSheet.create({
   },
   emptyTransactions: {
     borderRadius: 16,
-    overflow: "hidden",
   },
   emptyTransactionsContent: {
     alignItems: "center",
@@ -145,7 +142,6 @@ export const styles = StyleSheet.create({
   },
   transactionsList: {
     borderRadius: 16,
-    overflow: "hidden",
   },
   transactionAmount: {
     fontWeight: "700",
@@ -157,7 +153,6 @@ export const styles = StyleSheet.create({
   },
   detailsCard: {
     borderRadius: 16,
-    overflow: "hidden",
   },
   detailRow: {
     flexDirection: "row",
@@ -184,11 +179,11 @@ export const styles = StyleSheet.create({
   },
   editButton: {
     flex: 2,
-    borderRadius: 50,
+    borderRadius: 16,
   },
   deleteButton: {
     flex: 1,
-    borderRadius: 50,
+    borderRadius: 16,
   },
   bottomButtonContent: {
     paddingVertical: 10,

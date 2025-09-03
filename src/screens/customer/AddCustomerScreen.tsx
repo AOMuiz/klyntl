@@ -141,19 +141,6 @@ export default function AddCustomerScreen() {
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <ThemedView style={dynamicStyles.content}>
-        <View style={dynamicStyles.header}>
-          <TouchableOpacity
-            style={dynamicStyles.cancelButton}
-            onPress={handleCancel}
-          >
-            <ThemedText style={dynamicStyles.cancelText}>Cancel</ThemedText>
-          </TouchableOpacity>
-          <ThemedText type="title" style={dynamicStyles.headerTitle}>
-            Add Customer
-          </ThemedText>
-          <View style={dynamicStyles.placeholder} />
-        </View>
-
         <ScrollView
           style={dynamicStyles.form}
           showsVerticalScrollIndicator={false}

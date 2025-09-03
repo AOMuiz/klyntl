@@ -1,17 +1,20 @@
+import { CustomerCard } from "@/components/CustomerCard";
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol, IconSymbolName } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useCustomers } from "@/hooks/useCustomers";
 import { createThemedAvatarUrl } from "@/utils/avatar-utils";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
-import { useTheme } from "react-native-paper";
+import { Button, Divider, useTheme } from "react-native-paper";
 
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
+  const { customers } = useCustomers();
 
   // Mock data - replace with actual hooks/data
   const userData = {
@@ -20,41 +23,11 @@ export default function HomeScreen() {
   };
 
   const overviewData = {
-    totalCustomers: 250,
+    totalCustomers: customers?.length || 0,
     recentTransactions: 12,
     pendingTasks: 3,
     totalRevenue: 125000,
   };
-
-  const recentActivity = [
-    {
-      id: 1,
-      type: "customer",
-      title: "New customer added",
-      subtitle: "Aisha Bello",
-      time: "2m ago",
-      icon: "person.badge.plus",
-      color: colors.success[500], // Direct shade access!
-    },
-    {
-      id: 2,
-      type: "transaction",
-      title: "Transaction recorded",
-      subtitle: "Sale of goods - ₦15,000",
-      time: "1h ago",
-      icon: "creditcard",
-      color: colors.primary[600], // Much simpler!
-    },
-    {
-      id: 3,
-      type: "task",
-      title: "Task completed",
-      subtitle: "Follow up with client",
-      time: "3h ago",
-      icon: "checkmark.circle",
-      color: colors.warning[500],
-    },
-  ];
 
   const handleQuickAction = (action: string) => {
     switch (action) {
@@ -80,7 +53,7 @@ export default function HomeScreen() {
     >
       <IconSymbol
         name={icon}
-        size={20}
+        size={wp(20)}
         color={iconAndTextColor ?? theme.colors.onPrimary}
       />
       <ThemedText
@@ -134,12 +107,13 @@ export default function HomeScreen() {
           >
             <IconSymbol
               name="bell"
-              size={24}
+              size={wp(24)}
               color={theme.colors.onSurfaceVariant}
             />
           </TouchableOpacity>
         </View>
       </View>
+      <Divider />
 
       {/* Overview Section */}
       <View
@@ -152,98 +126,117 @@ export default function HomeScreen() {
             Overview
           </ThemedText>
           <View style={styles.overviewCards}>
-            {/* Primary Card */}
-            <TouchableOpacity
-              style={[
-                styles.overviewCard,
-                {
-                  backgroundColor: colors.primary[100],
-                  borderColor: colors.primary[200],
-                },
-              ]}
-            >
-              <View style={styles.cardIcon}>
-                <IconSymbol
-                  name="person.2"
-                  size={24}
-                  color={colors.primary[700]}
-                />
-              </View>
-              <View style={styles.cardContent}>
-                <ThemedText
-                  style={[styles.cardValue, { color: colors.primary[900] }]}
+            <View style={styles.topRow}>
+              {/* Primary Card */}
+              <TouchableOpacity
+                style={[
+                  styles.overviewCard,
+                  {
+                    backgroundColor: colors.primary[50],
+                    borderColor: colors.primary[100],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.cardIcon,
+                    { backgroundColor: colors.primary[100] },
+                  ]}
                 >
-                  {overviewData.totalCustomers}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.cardLabel, { color: colors.primary[600] }]}
-                >
-                  Total Customers
-                </ThemedText>
-              </View>
-            </TouchableOpacity>
+                  <IconSymbol
+                    name="person.2"
+                    size={wp(32)}
+                    color={colors.primary[700]}
+                  />
+                </View>
+                <View style={styles.cardContent}>
+                  <ThemedText
+                    style={[styles.cardValue, { color: colors.primary[900] }]}
+                  >
+                    {overviewData.totalCustomers}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.cardLabel, { color: colors.primary[600] }]}
+                  >
+                    Total{"\n"}Customers
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
 
-            {/* Secondary Card */}
-            <TouchableOpacity
-              style={[
-                styles.overviewCard,
-                {
-                  backgroundColor: colors.secondary[100],
-                  borderColor: colors.secondary[200],
-                },
-              ]}
-            >
-              <View style={styles.cardIcon}>
-                <IconSymbol
-                  name="arrow.up.arrow.down"
-                  size={24}
-                  color={colors.secondary[700]}
-                />
-              </View>
-              <View style={styles.cardContent}>
-                <ThemedText
-                  style={[styles.cardValue, { color: colors.secondary[900] }]}
+              {/* Secondary Card */}
+              <TouchableOpacity
+                style={[
+                  styles.overviewCard,
+                  {
+                    backgroundColor: colors.secondary[50],
+                    borderColor: colors.secondary[100],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.cardIcon,
+                    { backgroundColor: colors.secondary[100] },
+                  ]}
                 >
-                  {overviewData.recentTransactions}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.cardLabel, { color: colors.secondary[600] }]}
-                >
-                  Total Transactions
-                </ThemedText>
-              </View>
-            </TouchableOpacity>
+                  <IconSymbol
+                    name="arrow.up.arrow.down"
+                    size={wp(32)}
+                    color={colors.secondary[700]}
+                  />
+                </View>
+                <View style={styles.cardContent}>
+                  <ThemedText
+                    style={[styles.cardValue, { color: colors.secondary[900] }]}
+                  >
+                    {overviewData.recentTransactions}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.cardLabel, { color: colors.secondary[600] }]}
+                  >
+                    Total{"\n"}Transactions
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-            {/* Accent Card */}
-            <TouchableOpacity
-              style={[
-                styles.overviewCard,
-                {
-                  backgroundColor: colors.accent[100],
-                  borderColor: colors.accent[200],
-                },
-              ]}
-            >
-              <View style={styles.cardIcon}>
-                <IconSymbol
-                  name="chart.line.uptrend.xyaxis"
-                  size={24}
-                  color={colors.accent[700]}
-                />
-              </View>
-              <View style={styles.cardContent}>
-                <ThemedText
-                  style={[styles.cardValue, { color: colors.accent[900] }]}
+            <View style={styles.bottomRow}>
+              {/* Accent Card */}
+              <TouchableOpacity
+                style={[
+                  styles.overviewCard,
+                  {
+                    backgroundColor: colors.accent[50],
+                    borderColor: colors.accent[100],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.cardIcon,
+                    { backgroundColor: colors.accent[100] },
+                  ]}
                 >
-                  ₦{overviewData.totalRevenue.toLocaleString()}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.cardLabel, { color: colors.accent[600] }]}
-                >
-                  Total Revenue
-                </ThemedText>
-              </View>
-            </TouchableOpacity>
+                  <IconSymbol
+                    name="chart.line.uptrend.xyaxis"
+                    size={wp(32)}
+                    color={colors.accent[700]}
+                  />
+                </View>
+                <View style={styles.cardContent}>
+                  <ThemedText
+                    style={[styles.cardValue, { color: colors.accent[900] }]}
+                  >
+                    ₦{(overviewData.totalRevenue / 1000).toFixed(0)}K
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.cardLabel, { color: colors.accent[600] }]}
+                  >
+                    Total{"\n"}Revenue
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -270,12 +263,6 @@ export default function HomeScreen() {
             theme.colors.secondary,
             () => handleQuickAction("record-sale")
           )}
-          {/* {renderQuickAction(
-            "View Reports",
-            "chart.bar",
-            theme.colors.tertiary,
-            () => handleQuickAction("view-reports")
-          )} */}
         </View>
       </View>
 
@@ -285,9 +272,9 @@ export default function HomeScreen() {
           <ThemedText
             style={[styles.sectionTitle, { color: theme.colors.onBackground }]}
           >
-            Recent Activity
+            Recent Customers
           </ThemedText>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/customers")}>
             <ThemedText
               style={[styles.seeAllText, { color: theme.colors.primary }]}
             >
@@ -296,53 +283,50 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.activityList}>
-          {recentActivity.map((activity, index) => (
-            <View
-              key={index}
-              style={[
-                styles.activityItem,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.outline,
-                },
-              ]}
-            >
-              <View style={styles.activityIcon}>
-                <IconSymbol
-                  name={activity.icon as IconSymbolName}
-                  size={20}
-                  color={activity.color}
+        {/* Recent Customers */}
+        <View style={styles.customersSection}>
+          {customers && customers.length > 0 ? (
+            <>
+              {customers.slice(0, 3).map((customer) => (
+                <CustomerCard
+                  key={customer.id}
+                  customer={customer}
+                  onPress={() => router.push(`/customer/${customer.id}`)}
+                  testID={`home-customer-${customer.id}`}
                 />
-              </View>
-              <View style={styles.activityContent}>
-                <ThemedText
-                  style={[
-                    styles.activityTitle,
-                    { color: theme.colors.onSurface },
-                  ]}
+              ))}
+              <View style={styles.viewAllContainer}>
+                <Button
+                  mode="text"
+                  onPress={() => router.push("/(tabs)/customers")}
+                  labelStyle={{
+                    color: colors.primary[600],
+                    fontSize: fontSize(16),
+                  }}
                 >
-                  {activity.title}
-                </ThemedText>
-                <ThemedText
-                  style={[
-                    styles.activitySubtitle,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  {activity.subtitle}
-                </ThemedText>
+                  View All Customers
+                </Button>
               </View>
+            </>
+          ) : (
+            <View style={styles.emptyCustomers}>
               <ThemedText
                 style={[
-                  styles.activityTime,
-                  { color: theme.colors.onSurfaceVariant },
+                  styles.emptyText,
+                  { color: colors.paper.onSurfaceVariant },
                 ]}
               >
-                {activity.time}
+                No customers yet
               </ThemedText>
+              <Button
+                mode="contained"
+                onPress={() => router.push("/customer/add")}
+                style={styles.addCustomerButton}
+              >
+                Add First Customer
+              </Button>
             </View>
-          ))}
+          )}
         </View>
       </View>
     </ScreenContainer>
@@ -365,9 +349,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: wp(50),
+    height: hp(50),
+    borderRadius: wp(25),
     overflow: "hidden",
   },
   avatarImage: {
@@ -383,12 +367,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   notificationButton: {
-    padding: 8,
-    borderRadius: 20,
+    padding: wp(8),
+    borderRadius: wp(20),
   },
   section: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: wp(20),
+    paddingVertical: hp(20),
   },
   sectionTitle: {
     fontSize: fontSize(18),
@@ -396,42 +380,59 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   overviewContainer: {
-    marginBottom: 24,
+    marginBottom: 8,
   },
   overviewCards: {
+    flexDirection: "column",
+    gap: wp(20),
+    marginTop: 8,
+  },
+  topRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: wp(16),
+  },
+  bottomRow: {
+    flexDirection: "row",
   },
   overviewCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    padding: wp(24),
+    borderRadius: wp(16),
     borderWidth: 1,
     alignItems: "center",
-    minHeight: hp(100),
+    minHeight: hp(140),
     justifyContent: "center",
-    gap: 8,
+    gap: wp(16),
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp(48),
+    height: wp(48),
+    borderRadius: wp(24),
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: wp(12),
   },
   cardContent: {
     alignItems: "center",
   },
   cardValue: {
-    fontSize: fontSize(24),
+    fontSize: wp(24),
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: wp(6),
   },
   cardLabel: {
-    fontSize: fontSize(14),
+    fontSize: wp(12),
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: wp(18),
+    fontWeight: "500",
   },
   quickActionsGrid: {
     flexDirection: "row",
@@ -439,12 +440,12 @@ const styles = StyleSheet.create({
   },
   quickActionCard: {
     flex: 1,
-    padding: 24,
-    borderRadius: 16,
+    padding: wp(24),
+    borderRadius: wp(16),
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 120,
-    gap: 12,
+    minHeight: hp(120),
+    gap: wp(12),
   },
   quickActionText: {
     fontSize: fontSize(16),
@@ -463,7 +464,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    padding: wp(16),
     paddingBottom: 0,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
@@ -473,22 +474,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   activityList: {
-    gap: 16,
-    padding: 16,
+    gap: wp(16),
+    padding: wp(16),
   },
   activityItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 8,
+    gap: wp(12),
+    padding: wp(12),
+    borderRadius: wp(8),
     borderWidth: 1,
     borderColor: "transparent",
   },
   activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -507,10 +508,37 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
   },
   exampleContainer: {
-    padding: 20,
+    padding: wp(20),
   },
   exampleText: {
     fontSize: fontSize(16),
     textAlign: "center",
+  },
+  searchSection: {
+    paddingHorizontal: wp(16),
+    paddingBottom: hp(16),
+  },
+  searchbar: {
+    elevation: 0,
+    borderRadius: 25,
+  },
+  customersSection: {
+    paddingHorizontal: wp(10),
+  },
+  viewAllContainer: {
+    alignItems: "center",
+    paddingVertical: hp(16),
+  },
+  emptyCustomers: {
+    alignItems: "center",
+    paddingVertical: hp(40),
+    paddingHorizontal: wp(20),
+  },
+  emptyText: {
+    fontSize: fontSize(16),
+    marginBottom: 16,
+  },
+  addCustomerButton: {
+    borderRadius: wp(12),
   },
 });

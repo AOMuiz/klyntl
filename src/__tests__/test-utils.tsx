@@ -5,16 +5,16 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { render, RenderOptions } from "@testing-library/react-native";
 import React from "react";
-import { PaperProvider } from "react-native-paper";
+import { KlyntlThemeProvider } from "../components/ThemeProvider";
 
 // Custom render function that includes providers
 const AllTheProviders: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <PaperProvider>
+    <KlyntlThemeProvider forcedTheme="light">
       <NavigationContainer>{children}</NavigationContainer>
-    </PaperProvider>
+    </KlyntlThemeProvider>
   );
 };
 

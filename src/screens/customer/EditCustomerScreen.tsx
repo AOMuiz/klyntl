@@ -1,4 +1,4 @@
-import { useAppTheme } from "@/components/ThemeProvider";
+import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomerStore } from "@/stores/customerStore";
 import { Customer, UpdateCustomerInput } from "@/types/customer";
 import { useRouter } from "expo-router";
@@ -12,6 +12,7 @@ import {
   Surface,
   Text,
   TextInput,
+  useTheme,
 } from "react-native-paper";
 import { styles } from "./EditCustomerScreen.styles";
 
@@ -32,7 +33,8 @@ export default function EditCustomerScreen({
   const router = useRouter();
   const { getCustomerById, updateCustomer, loading, clearError } =
     useCustomerStore();
-  const { colors } = useAppTheme();
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -134,10 +136,13 @@ export default function EditCustomerScreen({
   if (initialLoading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: colors.paper.background }]}
       >
         <Surface style={styles.loadingContainer} elevation={0}>
-          <Text variant="bodyLarge" style={{ color: colors.text }}>
+          <Text
+            variant="bodyLarge"
+            style={{ color: colors.paper.onBackground }}
+          >
             Loading customer information...
           </Text>
         </Surface>
@@ -148,10 +153,13 @@ export default function EditCustomerScreen({
   if (!customer) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: colors.paper.background }]}
       >
         <Surface style={styles.errorContainer} elevation={0}>
-          <Text variant="bodyLarge" style={{ color: colors.text }}>
+          <Text
+            variant="bodyLarge"
+            style={{ color: colors.paper.onBackground }}
+          >
             Customer not found
           </Text>
           <Button
@@ -168,7 +176,7 @@ export default function EditCustomerScreen({
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colors.paper.background }]}
     >
       <Surface style={styles.content} elevation={0}>
         {/* Modern Header with Back Navigation
@@ -206,18 +214,32 @@ export default function EditCustomerScreen({
             <Card
               style={[
                 styles.infoCard,
-                { backgroundColor: colors.primarySurface },
+                {
+                  backgroundColor: colors.primary[50],
+                  borderWidth: 1,
+                  borderColor: colors.primary[100],
+                },
               ]}
-              elevation={0}
+              elevation={2}
+              mode="elevated"
             >
               <Card.Content style={styles.infoCardContent}>
                 <View style={styles.avatarContainer}>
                   <View
-                    style={[styles.avatar, { backgroundColor: colors.primary }]}
+                    style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: colors.primary[600],
+                        shadowColor: colors.primary[600],
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                      },
+                    ]}
                   >
                     <Text
                       variant="headlineMedium"
-                      style={{ color: colors.surface }}
+                      style={{ color: colors.paper.onPrimary }}
                     >
                       {customer.name.charAt(0).toUpperCase()}
                     </Text>
@@ -225,7 +247,10 @@ export default function EditCustomerScreen({
                 </View>
                 <Text
                   variant="bodyLarge"
-                  style={[styles.infoText, { color: colors.text }]}
+                  style={[
+                    styles.infoText,
+                    { color: colors.paper.onBackground },
+                  ]}
                 >
                   Update customer information
                 </Text>
@@ -382,7 +407,12 @@ export default function EditCustomerScreen({
             <Card
               style={[
                 styles.helpCard,
-                { backgroundColor: colors.surfaceVariant },
+                {
+                  backgroundColor: colors.neutral[50],
+                  borderWidth: 2,
+                  borderColor: colors.primary[100],
+                  borderStyle: "dashed",
+                },
               ]}
               elevation={0}
             >
@@ -390,7 +420,10 @@ export default function EditCustomerScreen({
                 <View style={styles.helpContent}>
                   <Text
                     variant="bodySmall"
-                    style={[styles.helpTitle, { color: colors.textSecondary }]}
+                    style={[
+                      styles.helpTitle,
+                      { color: colors.paper.onSurfaceVariant },
+                    ]}
                   >
                     📝 Required fields
                   </Text>
@@ -398,7 +431,7 @@ export default function EditCustomerScreen({
                     variant="bodySmall"
                     style={[
                       styles.helpDescription,
-                      { color: colors.textTertiary },
+                      { color: colors.neutral[500] },
                     ]}
                   >
                     Changes will be saved immediately and reflected across the

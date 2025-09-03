@@ -1,3 +1,4 @@
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
@@ -93,22 +94,23 @@ export const createStyles = (theme: MD3Theme) =>
     },
     customerOption: {
       alignItems: "center",
-      marginRight: 12,
+      marginRight: wp(12),
       paddingVertical: 8,
       paddingHorizontal: 12,
-      borderRadius: 8,
-      borderWidth: 2,
-      borderColor: "transparent",
-      minWidth: 80,
+      borderWidth: 1,
+      borderColor: "lightgray",
+      borderStyle: "dashed",
+      minWidth: wp(80),
+      borderRadius: 5,
     },
     customerOptionSelected: {
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.primaryContainer,
     },
     customerAvatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: wp(40),
+      height: hp(40),
+      borderRadius: wp(20),
       backgroundColor: theme.colors.primary,
       justifyContent: "center",
       alignItems: "center",

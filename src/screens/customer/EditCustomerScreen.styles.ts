@@ -54,7 +54,6 @@ export const styles = StyleSheet.create({
   infoCard: {
     marginBottom: 24,
     borderRadius: 20,
-    overflow: "hidden",
   },
   infoCardContent: {
     alignItems: "center",

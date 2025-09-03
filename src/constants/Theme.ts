@@ -45,30 +45,6 @@ export interface ExtendedKlyntlTheme extends MD3Theme {
   };
 }
 
-// Extended theme interface with direct shade access
-export interface ExtendedKlyntlTheme extends MD3Theme {
-  brandColors: typeof BrandColors;
-  shades: {
-    primary: typeof BrandColors.primary;
-    secondary: typeof BrandColors.secondary;
-    accent: typeof BrandColors.accent;
-    success: typeof BrandColors.success;
-    warning: typeof BrandColors.warning;
-    error: typeof BrandColors.error;
-    neutral: typeof BrandColors.neutral;
-  };
-  customColors: {
-    success: string;
-    onSuccess: string;
-    successContainer: string;
-    onSuccessContainer: string;
-    warning: string;
-    onWarning: string;
-    warningContainer: string;
-    onWarningContainer: string;
-  };
-}
-
 // Configure fonts for React Native Paper
 const fontConfig = {
   displayLarge: {

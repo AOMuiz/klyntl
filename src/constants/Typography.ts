@@ -7,34 +7,34 @@
 
 import { Platform } from "react-native";
 
-// Font families - using system fonts for better performance and native feel
+// Font families - Modern Inter font family for excellent readability and professional look
 export const FontFamilies = {
-  // Primary font family (System default)
+  // Primary font family (Inter - modern, professional, excellent for fintech)
   regular: Platform.select({
-    ios: "SF Pro Text",
-    android: "Roboto",
-    default: "System",
+    ios: "Inter",
+    android: "Inter",
+    default: "Inter",
   }),
 
   // Medium weight
   medium: Platform.select({
-    ios: "SF Pro Text",
-    android: "Roboto_medium",
-    default: "System",
+    ios: "Inter-Medium",
+    android: "Inter-Medium",
+    default: "Inter-Medium",
   }),
 
   // Bold weight
   bold: Platform.select({
-    ios: "SF Pro Text",
-    android: "Roboto",
-    default: "System",
+    ios: "Inter-Bold",
+    android: "Inter-Bold",
+    default: "Inter-Bold",
   }),
 
-  // Numbers and currency (monospace for better alignment)
+  // Numbers and currency (Inter has excellent number readability)
   monospace: Platform.select({
-    ios: "SF Mono",
-    android: "monospace",
-    default: "monospace",
+    ios: "Inter",
+    android: "Inter",
+    default: "Inter",
   }),
 };
 

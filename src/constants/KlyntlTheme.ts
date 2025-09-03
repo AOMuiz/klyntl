@@ -280,23 +280,112 @@ export const getKlyntlTheme = (
   return colorScheme === "dark" ? KlyntlDarkTheme : KlyntlLightTheme;
 };
 
+// Theme-aware shade mapping for consistent perceived lightness
+const DARK_SHADE_MAP: Record<number, number> = {
+  50: 900, // Very light becomes very dark
+  100: 800, // Light becomes dark
+  200: 700, // Lighter becomes darker
+  300: 600, // Light-medium becomes dark-medium
+  400: 500, // Medium-light becomes medium-dark
+  500: 400, // Medium becomes medium (inverted)
+  600: 300, // Medium-dark becomes light-medium
+  700: 200, // Darker becomes lighter
+  800: 100, // Dark becomes light
+  900: 50, // Very dark becomes very light
+};
+
+// Helper function to get theme-aware shade
+export const getThemeAwareShade = (
+  theme: ExtendedKlyntlTheme,
+  colorFamily: keyof typeof BrandColors,
+  shade: number
+): string => {
+  const isDark = theme.dark;
+  const targetShade = isDark ? DARK_SHADE_MAP[shade] ?? shade : shade;
+  const family = BrandColors[colorFamily] as any;
+  return family[targetShade] || family[shade] || family.main;
+};
+
+// Create theme-aware color family object
+const createThemeAwareColorFamily = (
+  theme: ExtendedKlyntlTheme,
+  colorFamily: keyof typeof BrandColors
+) => {
+  const family = BrandColors[colorFamily] as any;
+  const themeAwareFamily: any = {};
+
+  // Copy all properties first
+  Object.keys(family).forEach((key) => {
+    themeAwareFamily[key] = family[key];
+  });
+
+  // Override numeric shades with theme-aware versions
+  [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].forEach((shade) => {
+    if (family[shade]) {
+      themeAwareFamily[shade] = getThemeAwareShade(theme, colorFamily, shade);
+    }
+  });
+
+  return themeAwareFamily;
+};
+
 // Utility hook for easy color access in components
-export const useKlyntlColors = (theme: ExtendedKlyntlTheme) => ({
-  // Direct shade access - now simplified!
-  primary: theme.shades.primary,
-  secondary: theme.shades.secondary,
-  accent: theme.shades.accent,
-  success: theme.shades.success,
-  warning: theme.shades.warning,
-  error: theme.shades.error,
-  neutral: theme.shades.neutral,
+export const useKlyntlColors = (theme: ExtendedKlyntlTheme) => {
+  // Safety check for theme
+  if (!theme || !theme.shades) {
+    console.warn(
+      "Theme or theme.shades is undefined, falling back to default colors"
+    );
+    return {
+      primary: BrandColors.primary,
+      secondary: BrandColors.secondary,
+      accent: BrandColors.accent,
+      success: BrandColors.success,
+      warning: BrandColors.warning,
+      error: BrandColors.error,
+      neutral: BrandColors.neutral,
+      paper: theme?.colors || {},
+      custom: theme?.customColors || {},
+      static: {
+        primary: BrandColors.primary,
+        secondary: BrandColors.secondary,
+        accent: BrandColors.accent,
+        success: BrandColors.success,
+        warning: BrandColors.warning,
+        error: BrandColors.error,
+        neutral: BrandColors.neutral,
+      },
+    };
+  }
 
-  // Paper's semantic colors (these work with Paper components automatically)
-  paper: theme.colors,
+  return {
+    // Theme-aware shade access - automatically inverts in dark mode!
+    primary: createThemeAwareColorFamily(theme, "primary"),
+    secondary: createThemeAwareColorFamily(theme, "secondary"),
+    accent: createThemeAwareColorFamily(theme, "accent"),
+    success: createThemeAwareColorFamily(theme, "success"),
+    warning: createThemeAwareColorFamily(theme, "warning"),
+    error: createThemeAwareColorFamily(theme, "error"),
+    neutral: createThemeAwareColorFamily(theme, "neutral"),
 
-  // Custom colors for success/warning
-  custom: theme.customColors,
-});
+    // Paper's semantic colors (these work with Paper components automatically)
+    paper: theme.colors,
+
+    // Custom colors for success/warning
+    custom: theme.customColors,
+
+    // Direct access to original shades (if you need static colors)
+    static: {
+      primary: theme.shades.primary,
+      secondary: theme.shades.secondary,
+      accent: theme.shades.accent,
+      success: theme.shades.success,
+      warning: theme.shades.warning,
+      error: theme.shades.error,
+      neutral: theme.shades.neutral,
+    },
+  };
+};
 
 // Component-specific theme overrides
 export const ComponentThemes = {

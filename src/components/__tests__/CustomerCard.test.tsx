@@ -1,5 +1,5 @@
-import { fireEvent, render } from "@testing-library/react-native";
-import { mockCustomer } from "../../__tests__/test-utils";
+import { fireEvent } from "@testing-library/react-native";
+import { mockCustomer, render } from "../../__tests__/test-utils";
 import { CustomerCard } from "../CustomerCard";
 
 describe("CustomerCard", () => {

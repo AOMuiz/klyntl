@@ -2,7 +2,7 @@ import ScreenContainer, {
   edgesHorizontal,
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
-import { useAppTheme } from "@/components/ThemeProvider";
+import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useContactActions } from "@/hooks/useContactActions";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -18,6 +18,7 @@ import {
   SegmentedButtons,
   Surface,
   Text,
+  useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "./CustomerDetailScreen.styles";
@@ -36,7 +37,8 @@ export default function CustomerDetailScreen({
   const transactionsQuery = useTransactions(customerId);
   const { deleteCustomer } = useCustomers();
 
-  const { colors } = useAppTheme();
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
 
   // Get data from React Query
   const customer = customerQuery.data;
@@ -101,10 +103,13 @@ export default function CustomerDetailScreen({
   if (loading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: colors.paper.background }]}
       >
         <Surface style={styles.loadingContainer} elevation={0}>
-          <Text variant="bodyLarge" style={{ color: colors.text }}>
+          <Text
+            variant="bodyLarge"
+            style={{ color: colors.paper.onBackground }}
+          >
             Loading customer details...
           </Text>
         </Surface>
@@ -115,10 +120,13 @@ export default function CustomerDetailScreen({
   if (error) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: colors.paper.background }]}
       >
         <Surface style={styles.errorContainer} elevation={0}>
-          <Text variant="bodyLarge" style={{ color: colors.text }}>
+          <Text
+            variant="bodyLarge"
+            style={{ color: colors.paper.onBackground }}
+          >
             {error instanceof Error && error.message === "Customer not found"
               ? "Customer not found"
               : "Error loading customer details"}
@@ -139,10 +147,13 @@ export default function CustomerDetailScreen({
   if (!customer) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: colors.paper.background }]}
       >
         <Surface style={styles.errorContainer} elevation={0}>
-          <Text variant="bodyLarge" style={{ color: colors.text }}>
+          <Text
+            variant="bodyLarge"
+            style={{ color: colors.paper.onBackground }}
+          >
             Customer not found
           </Text>
           <Button
@@ -167,21 +178,30 @@ export default function CustomerDetailScreen({
         >
           {/* Customer Header */}
           <Card
-            style={[styles.customerHeader, { backgroundColor: colors.surface }]}
-            elevation={1}
+            style={[
+              styles.customerHeader,
+              {
+                backgroundColor: colors.primary[50],
+                borderWidth: 1,
+                borderColor: colors.primary[100],
+              },
+            ]}
+            elevation={0}
             mode="elevated"
           >
             <Card.Content style={styles.customerContent}>
               <Surface
                 style={[
                   styles.customerAvatar,
-                  { backgroundColor: colors.primary },
+                  {
+                    backgroundColor: colors.primary[600],
+                  },
                 ]}
-                elevation={2}
+                elevation={0}
               >
                 <Text
                   variant="headlineMedium"
-                  style={[styles.avatarText, { color: "#FFFFFF" }]}
+                  style={[styles.avatarText, { color: colors.paper.onPrimary }]}
                 >
                   {getCustomerInitials(customer.name)}
                 </Text>
@@ -189,15 +209,15 @@ export default function CustomerDetailScreen({
               <View style={styles.customerInfo}>
                 <ThemedText
                   type="h2"
-                  style={{ color: colors.text, fontWeight: "700" }}
+                  style={{
+                    color: colors.paper.onBackground,
+                    fontWeight: "700",
+                  }}
                 >
                   {customer.name}
                 </ThemedText>
                 <ThemedText
-                  style={[
-                    styles.customerPhone,
-                    { color: colors.textSecondary },
-                  ]}
+                  style={[styles.customerPhone, { color: colors.neutral[600] }]}
                 >
                   {customer.phone}
                 </ThemedText>
@@ -206,7 +226,7 @@ export default function CustomerDetailScreen({
                     variant="bodyMedium"
                     style={[
                       styles.customerEmail,
-                      { color: colors.textSecondary },
+                      { color: colors.neutral[600] },
                     ]}
                   >
                     {customer.email}
@@ -217,7 +237,7 @@ export default function CustomerDetailScreen({
                     variant="bodyMedium"
                     style={[
                       styles.customerAddress,
-                      { color: colors.textSecondary },
+                      { color: colors.neutral[600] },
                     ]}
                   >
                     {customer.address}
@@ -229,89 +249,133 @@ export default function CustomerDetailScreen({
 
           {/* Action Buttons */}
           <View style={styles.actionButtonsContainer}>
-            <Surface
-              style={{ borderRadius: 20, overflow: "hidden" }}
-              elevation={1}
-            >
-              <SegmentedButtons
-                value=""
-                onValueChange={() => {}}
-                buttons={[
-                  {
-                    value: "call",
-                    label: "Call",
-                    icon: "phone",
-                    onPress: handleCall,
-                  },
-                  {
-                    value: "sms",
-                    label: "SMS",
-                    icon: "message",
-                    onPress: handleSMS,
-                  },
-                  {
-                    value: "whatsapp",
-                    label: "WhatsApp",
-                    icon: "whatsapp",
-                    onPress: handleWhatsApp,
-                  },
-                ]}
-                style={styles.segmentedButtons}
-              />
+            <Surface elevation={1}>
+              <View style={{ borderRadius: 20, overflow: "hidden" }}>
+                <SegmentedButtons
+                  value=""
+                  onValueChange={() => {}}
+                  buttons={[
+                    {
+                      value: "call",
+                      label: "Call",
+                      icon: "phone",
+                      onPress: handleCall,
+                    },
+                    {
+                      value: "sms",
+                      label: "SMS",
+                      icon: "message",
+                      onPress: handleSMS,
+                    },
+                    {
+                      value: "whatsapp",
+                      label: "WhatsApp",
+                      icon: "whatsapp",
+                      onPress: handleWhatsApp,
+                    },
+                  ]}
+                  style={styles.segmentedButtons}
+                />
+              </View>
             </Surface>
           </View>
 
           {/* Customer Stats */}
           <View style={styles.statsContainer}>
             <Card
-              style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={1}
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: colors.paper.surface,
+                  borderWidth: 1,
+                  borderColor: colors.primary[100],
+                },
+              ]}
+              elevation={0}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
                 <Text
                   variant="headlineSmall"
-                  style={[styles.statValue, { color: colors.primary }]}
+                  style={[
+                    styles.statValue,
+                    {
+                      color: colors.primary[600],
+                      textShadowColor: colors.primary[100],
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 1,
+                    },
+                  ]}
                 >
                   {formatCurrency(customer.totalSpent)}
                 </Text>
                 <Text
                   variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                  style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
                   Total Spent
                 </Text>
               </Card.Content>
             </Card>
             <Card
-              style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={1}
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: colors.paper.surface,
+                  borderWidth: 1,
+                  borderColor: colors.secondary[100],
+                },
+              ]}
+              elevation={0}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
                 <Text
                   variant="headlineSmall"
-                  style={[styles.statValue, { color: colors.primary }]}
+                  style={[
+                    styles.statValue,
+                    {
+                      color: colors.secondary[600],
+                      textShadowColor: colors.secondary[100],
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 1,
+                    },
+                  ]}
                 >
                   {transactions.length}
                 </Text>
                 <Text
                   variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                  style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
                   Transactions
                 </Text>
               </Card.Content>
             </Card>
             <Card
-              style={[styles.statCard, { backgroundColor: colors.surface }]}
-              elevation={1}
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: colors.paper.surface,
+                  borderWidth: 1,
+                  borderColor: colors.accent[100],
+                },
+              ]}
+              elevation={0}
               mode="elevated"
             >
               <Card.Content style={styles.statCardContent}>
                 <Text
                   variant="titleMedium"
-                  style={[styles.statValue, { color: colors.primary }]}
+                  style={[
+                    styles.statValue,
+                    {
+                      color: colors.accent[600],
+                      textShadowColor: colors.accent[100],
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 1,
+                    },
+                  ]}
                 >
                   {customer.lastPurchase
                     ? formatDate(customer.lastPurchase)
@@ -319,7 +383,7 @@ export default function CustomerDetailScreen({
                 </Text>
                 <Text
                   variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.textSecondary }]}
+                  style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
                   Last Purchase
                 </Text>
@@ -332,7 +396,10 @@ export default function CustomerDetailScreen({
             <View style={styles.sectionHeader}>
               <Text
                 variant="headlineSmall"
-                style={[styles.sectionTitle, { color: colors.text }]}
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.paper.onBackground },
+                ]}
               >
                 Recent Transactions
               </Text>
@@ -351,14 +418,20 @@ export default function CustomerDetailScreen({
               <Card
                 style={[
                   styles.emptyTransactions,
-                  { backgroundColor: colors.surface },
+                  {
+                    backgroundColor: colors.neutral[50],
+                    borderWidth: 2,
+                    borderColor: colors.primary[100],
+                    borderStyle: "dashed",
+                  },
                 ]}
                 mode="elevated"
+                elevation={0}
               >
                 <Card.Content style={styles.emptyTransactionsContent}>
                   <Text
                     variant="titleMedium"
-                    style={[styles.emptyText, { color: colors.textSecondary }]}
+                    style={[styles.emptyText, { color: colors.neutral[600] }]}
                   >
                     No transactions yet
                   </Text>
@@ -379,9 +452,14 @@ export default function CustomerDetailScreen({
               <Card
                 style={[
                   styles.transactionsList,
-                  { backgroundColor: colors.surface },
+                  {
+                    backgroundColor: colors.paper.surface,
+                    borderWidth: 1,
+                    borderColor: colors.primary[100],
+                  },
                 ]}
                 mode="elevated"
+                elevation={0}
               >
                 {transactions.slice(0, 5).map((transaction, index) => (
                   <View key={transaction.id}>
@@ -410,24 +488,28 @@ export default function CustomerDetailScreen({
                         </Text>
                       )}
                       titleStyle={{
-                        color: colors.text,
+                        color: colors.paper.onBackground,
                         fontWeight: "600",
                         fontSize: 16,
                       }}
                       descriptionStyle={{
-                        color: colors.textSecondary,
+                        color: colors.neutral[600],
                         fontSize: 14,
                       }}
                       style={{ paddingVertical: 16, paddingHorizontal: 20 }}
                     />
                     {index < transactions.slice(0, 5).length - 1 && (
-                      <Divider style={{ backgroundColor: colors.divider }} />
+                      <Divider
+                        style={{ backgroundColor: colors.paper.outline }}
+                      />
                     )}
                   </View>
                 ))}
                 {transactions.length > 5 && (
                   <>
-                    <Divider style={{ backgroundColor: colors.divider }} />
+                    <Divider
+                      style={{ backgroundColor: colors.paper.outline }}
+                    />
                     <Button
                       mode="text"
                       onPress={() => {}} // TODO: Navigate to all transactions
@@ -446,74 +528,85 @@ export default function CustomerDetailScreen({
           <View style={styles.section}>
             <Text
               variant="headlineSmall"
-              style={[styles.sectionTitle, { color: colors.text }]}
+              style={[
+                styles.sectionTitle,
+                { color: colors.paper.onBackground },
+              ]}
             >
               Customer Details
             </Text>
             <Card
-              style={[styles.detailsCard, { backgroundColor: colors.surface }]}
+              style={[
+                styles.detailsCard,
+                {
+                  backgroundColor: colors.paper.surface,
+                  borderWidth: 1,
+                  borderColor: colors.primary[100],
+                },
+              ]}
               mode="elevated"
+              elevation={0}
             >
               <Card.Content style={{ padding: 20 }}>
                 <View style={styles.detailRow}>
                   <Text
                     variant="bodyMedium"
-                    style={[
-                      styles.detailLabel,
-                      { color: colors.textSecondary },
-                    ]}
+                    style={[styles.detailLabel, { color: colors.neutral[600] }]}
                   >
                     Customer ID:
                   </Text>
                   <Text
                     variant="bodyMedium"
-                    style={[styles.detailValue, { color: colors.text }]}
+                    style={[
+                      styles.detailValue,
+                      { color: colors.paper.onBackground },
+                    ]}
                   >
                     {customer.id}
                   </Text>
                 </View>
                 <Divider
                   style={{
-                    backgroundColor: colors.divider,
+                    backgroundColor: colors.paper.outline,
                     marginVertical: 12,
                   }}
                 />
                 <View style={styles.detailRow}>
                   <Text
                     variant="bodyMedium"
-                    style={[
-                      styles.detailLabel,
-                      { color: colors.textSecondary },
-                    ]}
+                    style={[styles.detailLabel, { color: colors.neutral[600] }]}
                   >
                     Created:
                   </Text>
                   <Text
                     variant="bodyMedium"
-                    style={[styles.detailValue, { color: colors.text }]}
+                    style={[
+                      styles.detailValue,
+                      { color: colors.paper.onBackground },
+                    ]}
                   >
                     {formatDate(customer.createdAt)}
                   </Text>
                 </View>
                 <Divider
                   style={{
-                    backgroundColor: colors.divider,
+                    backgroundColor: colors.paper.outline,
                     marginVertical: 12,
                   }}
                 />
                 <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
                   <Text
                     variant="bodyMedium"
-                    style={[
-                      styles.detailLabel,
-                      { color: colors.textSecondary },
-                    ]}
+                    style={[styles.detailLabel, { color: colors.neutral[600] }]}
                   >
                     Last Updated:
                   </Text>
                   <Text
                     variant="bodyMedium"
-                    style={[styles.detailValue, { color: colors.text }]}
+                    style={[
+                      styles.detailValue,
+                      { color: colors.paper.onBackground },
+                    ]}
                   >
                     {formatDate(customer.updatedAt)}
                   </Text>
@@ -528,17 +621,39 @@ export default function CustomerDetailScreen({
               mode="contained"
               icon="pencil"
               onPress={handleEdit}
-              style={[styles.editButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.editButton,
+                {
+                  backgroundColor: colors.primary[600],
+                  elevation: 2,
+                },
+              ]}
               contentStyle={styles.bottomButtonContent}
+              labelStyle={{
+                color: colors.paper.onPrimary,
+                fontWeight: "600",
+                fontSize: 16,
+              }}
             >
               Edit Customer
             </Button>
             <Button
-              mode="contained"
+              mode="outlined"
               icon="trash-can"
               onPress={handleDelete}
-              style={[styles.deleteButton, { backgroundColor: colors.error }]}
+              style={[
+                styles.deleteButton,
+                {
+                  borderColor: colors.error[600],
+                  borderWidth: 2,
+                },
+              ]}
               contentStyle={styles.bottomButtonContent}
+              labelStyle={{
+                color: colors.error[600],
+                fontWeight: "600",
+                fontSize: 16,
+              }}
             >
               Delete
             </Button>

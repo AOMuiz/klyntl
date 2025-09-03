@@ -4,6 +4,12 @@ import { DatabaseProvider } from "@/services/database/context";
 import { queryClient } from "@/services/query-client";
 import useOnboardingStore from "@/stores/onboardingStore";
 import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
@@ -38,6 +44,12 @@ function AppLayout() {
     useOnboardingStore();
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
+    // Inter font family for modern, professional look
+    Inter: Inter_400Regular,
+    "Inter-Medium": Inter_500Medium,
+    "Inter-SemiBold": Inter_600SemiBold,
+    "Inter-Bold": Inter_700Bold,
+    // Keep SpaceMono for compatibility
     SpaceMono: require("assets/fonts/SpaceMono-Regular.ttf"),
   });
 
