@@ -36,7 +36,7 @@ export function useProducts(
         searchQuery,
       };
 
-      const products = await databaseService!.getProducts(
+      const products = await databaseService!.products.findWithFilters(
         productFilters,
         sort,
         pageParam, // page number
@@ -66,7 +66,7 @@ export function useProducts(
         ...filters,
         searchQuery,
       };
-      return databaseService!.getProductsCount(productFilters);
+      return databaseService!.products.count(productFilters);
     },
     enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
@@ -79,7 +79,7 @@ export function useProducts(
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: (productData: CreateProductInput) => {
-      return databaseService!.createProduct(productData);
+      return databaseService!.products.create(productData);
     },
     onSuccess: (newProduct) => {
       // Add to first page
@@ -123,7 +123,7 @@ export function useProducts(
       id: string;
       updates: UpdateProductInput;
     }) => {
-      return databaseService!.updateProduct(id, updates);
+      return databaseService!.products.update(id, updates);
     },
     onSuccess: (updatedProduct, { id, updates }) => {
       // Update across all pages
@@ -153,7 +153,7 @@ export function useProducts(
   // Delete product mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => {
-      return databaseService!.deleteProduct(id);
+      return databaseService!.products.delete(id);
     },
     onSuccess: (_, deletedId) => {
       // Remove from all pages
@@ -222,7 +222,7 @@ export function useProduct(id?: string) {
     queryKey: ["products", "detail", id, db ? "main" : "default"],
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
-      return databaseService!.getProductById(id);
+      return databaseService!.products.findById(id);
     },
     enabled: Boolean(databaseService) && Boolean(id),
     staleTime: 5 * 60 * 1000, // Individual product data can be stale for 5 minutes
@@ -239,7 +239,7 @@ export function useProductBySku(sku?: string) {
     queryKey: ["products", "sku", sku, db ? "main" : "default"],
     queryFn: async () => {
       if (!sku) throw new Error("No SKU provided");
-      return databaseService!.getProductBySku(sku);
+      return databaseService!.products.getBySku(sku);
     },
     enabled: Boolean(databaseService) && Boolean(sku),
     staleTime: 1 * 60 * 1000, // SKU searches should be relatively fresh
@@ -255,7 +255,7 @@ export function useLowStockProducts() {
   return useQuery({
     queryKey: ["products", "low-stock", db ? "main" : "default"],
     queryFn: async () => {
-      return databaseService!.getLowStockProducts();
+      return databaseService!.products.getLowStockProducts();
     },
     enabled: Boolean(databaseService),
     staleTime: 1 * 60 * 1000, // Low stock alerts should be fresh

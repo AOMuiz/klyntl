@@ -1,5 +1,6 @@
 import { CustomerCard } from "@/components/CustomerCard";
 import { FilterModal, FilterOptions } from "@/components/FilterModal";
+import ScreenContainer from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useContactImport } from "@/hooks/useContactImport";
@@ -25,11 +26,10 @@ import {
   IconButton,
   Menu,
   Searchbar,
-  Surface,
   Text,
   useTheme,
 } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type SortOption = "name" | "totalSpent" | "lastPurchase" | "createdAt";
 
@@ -42,6 +42,7 @@ export default function CustomersScreen() {
   const { db } = useDatabase();
   const databaseService = db ? createDatabaseService(db) : undefined;
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
@@ -257,305 +258,303 @@ export default function CustomersScreen() {
   }, [filters]);
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.paper.background }]}
+    <ScreenContainer
+      withPadding={false}
+      containerStyle={[
+        styles.container,
+        { backgroundColor: colors.paper.background },
+      ]}
     >
-      <Surface style={styles.surface} elevation={0}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Text
-              variant="headlineLarge"
-              style={[styles.title, { color: colors.paper.onBackground }]}
-            >
-              Customers
-            </Text>
-            {__DEV__ && (
-              <Button
-                mode="text"
-                compact
-                onPress={handleClearDatabase}
-                labelStyle={[
-                  styles.clearButtonText,
-                  { color: colors.error[600] },
-                ]}
-              >
-                Clear DB
-              </Button>
-            )}
-          </View>
-        </View>
-
-        {/* Search and Filter */}
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="Search customers..."
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={[
-              styles.searchbar,
-              { backgroundColor: colors.paper.surfaceVariant },
-            ]}
-            inputStyle={{ color: colors.paper.onSurfaceVariant }}
-            placeholderTextColor={colors.paper.onSurfaceVariant}
-            iconColor={colors.paper.onSurfaceVariant}
-          />
-          <IconButton
-            icon="tune"
-            size={wp(28)}
-            onPress={() => setFilterVisible(true)}
-            style={[
-              styles.filterButton,
-              {
-                backgroundColor: hasActiveFilters
-                  ? colors.primary[100]
-                  : colors.paper.surfaceVariant,
-              },
-            ]}
-            iconColor={
-              hasActiveFilters
-                ? colors.primary[700]
-                : colors.paper.onSurfaceVariant
-            }
-          />
-        </View>
-
-        {/* Filter Status Bar */}
-        {hasActiveFilters && (
-          <View style={styles.filterStatusBar}>
-            <Text
-              variant="bodySmall"
-              style={[
-                styles.filterDescriptionText,
-                { color: colors.primary[600] },
-              ]}
-            >
-              {getFilterDescription(filters)}
-            </Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Text
+            variant="headlineLarge"
+            style={[styles.title, { color: colors.paper.onBackground }]}
+          >
+            Customers
+          </Text>
+          {__DEV__ && (
             <Button
               mode="text"
               compact
-              onPress={() =>
-                handleFiltersChange(
-                  {
-                    customerType: "all",
-                    hasTransactions: undefined,
-                    isActive: undefined,
-                    contactSource: "all",
-                    spendingRange: undefined,
-                    dateRange: undefined,
-                    preferredContactMethod: undefined,
-                  },
-                  { field: "name", direction: "asc" }
-                )
-              }
+              onPress={handleClearDatabase}
               labelStyle={[
-                { color: colors.primary[600], fontSize: fontSize(12) },
+                styles.clearButtonText,
+                { color: colors.error[600] },
               ]}
-              contentStyle={styles.clearFiltersButtonContent}
             >
-              Clear Filters
+              Clear DB
             </Button>
-          </View>
-        )}
-
-        {/* Results Info */}
-        <View style={styles.resultsInfo}>
-          <Text
-            variant="bodyMedium"
-            style={{ color: colors.paper.onSurfaceVariant }}
-          >
-            Showing {filteredCustomers.length} of {totalCount || 0} customers
-            {filteredCustomers.length < (totalCount || 0) &&
-              " (scroll for more)"}
-          </Text>
-        </View>
-
-        {/* Sort and List Header */}
-        <View style={styles.listHeader}>
-          <Text
-            variant="titleMedium"
-            style={{ color: colors.paper.onBackground }}
-          >
-            All customers
-          </Text>
-          <Menu
-            visible={sortMenuVisible}
-            onDismiss={() => setSortMenuVisible(false)}
-            anchor={
-              <Button
-                mode="text"
-                onPress={() => setSortMenuVisible(true)}
-                contentStyle={styles.sortButtonContent}
-                labelStyle={{
-                  color: colors.primary[600],
-                  fontSize: fontSize(14),
-                }}
-              >
-                {getSortLabel()}
-              </Button>
-            }
-            contentStyle={{ backgroundColor: colors.paper.surface }}
-          >
-            <Menu.Item
-              onPress={() => handleSort("name")}
-              title="Name"
-              titleStyle={{ color: colors.paper.onSurface }}
-            />
-            <Menu.Item
-              onPress={() => handleSort("totalSpent")}
-              title="Total Spent"
-              titleStyle={{ color: colors.paper.onSurface }}
-            />
-            <Menu.Item
-              onPress={() => handleSort("lastPurchase")}
-              title="Last Purchase"
-              titleStyle={{ color: colors.paper.onSurface }}
-            />
-            <Menu.Item
-              onPress={() => handleSort("createdAt")}
-              title="Date Added"
-              titleStyle={{ color: colors.paper.onSurface }}
-            />
-          </Menu>
-        </View>
-
-        <Divider />
-
-        {/* Error State */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text variant="bodyLarge" style={{ color: colors.error[600] }}>
-              Error loading customers:{" "}
-              {error instanceof Error ? error.message : "Unknown error"}
-            </Text>
-            <Button
-              mode="outlined"
-              onPress={() => refetch()}
-              style={styles.retryButton}
-            >
-              Retry
-            </Button>
-          </View>
-        )}
-
-        {/* Customer List */}
-        <FlashList
-          data={filteredCustomers}
-          renderItem={({ item: customer }) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onPress={() => handleCustomerPress(customer.id)}
-              testID={`customer-card-${customer.id}`}
-            />
           )}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage();
-            }
-          }}
-          onEndReachedThreshold={0.1}
-          ListEmptyComponent={
-            isLoading ? (
-              <View style={styles.centerContainer}>
-                <Text
-                  variant="bodyLarge"
-                  style={{ color: colors.paper.onSurfaceVariant }}
-                >
-                  Loading customers...
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.centerContainer}>
-                <IconSymbol
-                  name="person"
-                  size={wp(70)}
-                  color={colors.paper.onSurfaceVariant}
-                />
-                <Text
-                  variant="bodyLarge"
-                  style={{ color: colors.paper.onSurfaceVariant }}
-                >
-                  {searchQuery || hasActiveFilters
-                    ? "No customers match your filters"
-                    : "No customers yet"}
-                </Text>
-                {!searchQuery && !hasActiveFilters && (
-                  <Button
-                    mode="contained"
-                    onPress={() => router.push("/customer/add")}
-                    style={styles.addButton}
-                  >
-                    Add First Customer
-                  </Button>
-                )}
-              </View>
-            )
-          }
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <View style={styles.loadingMore}>
-                <Text
-                  variant="bodyMedium"
-                  style={{ color: colors.paper.onSurfaceVariant }}
-                >
-                  Loading more customers...
-                </Text>
-              </View>
-            ) : null
-          }
-        />
+        </View>
+      </View>
 
-        {/* Filter Modal */}
-        <FilterModal
-          visible={filterVisible}
-          onDismiss={() => setFilterVisible(false)}
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          sortOptions={sortOptions}
+      {/* Search and Filter */}
+      <View style={styles.searchContainer}>
+        <Searchbar
+          placeholder="Search customers..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={[
+            styles.searchbar,
+            { backgroundColor: colors.paper.surfaceVariant },
+          ]}
+          inputStyle={{ color: colors.paper.onSurfaceVariant }}
+          placeholderTextColor={colors.paper.onSurfaceVariant}
+          iconColor={colors.paper.onSurfaceVariant}
         />
-
-        {/* FAB Group for Add and Import actions */}
-        <FAB.Group
-          visible={true}
-          open={fabOpen}
-          icon={fabOpen ? "close" : "plus"}
-          actions={[
+        <IconButton
+          icon="tune"
+          size={wp(28)}
+          onPress={() => setFilterVisible(true)}
+          style={[
+            styles.filterButton,
             {
-              icon: "account-plus",
-              label: "Add Customer",
-              onPress: handleAddCustomer,
-              color: colors.primary[600],
-            },
-            {
-              icon: "account-multiple-plus",
-              label: "Import Contacts",
-              onPress: handleImportContacts,
-              color: colors.primary[600],
+              backgroundColor: hasActiveFilters
+                ? colors.primary[100]
+                : colors.paper.surfaceVariant,
             },
           ]}
-          onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
-          style={styles.fabGroup}
-          color={`${colors.paper.onPrimary}`}
-          fabStyle={{ backgroundColor: colors.primary[600] }}
+          iconColor={
+            hasActiveFilters
+              ? colors.primary[700]
+              : colors.paper.onSurfaceVariant
+          }
         />
+      </View>
 
-        {/* Contact Picker Component */}
-        {contactPicker.ContactPickerComponent()}
-      </Surface>
-    </SafeAreaView>
+      {/* Filter Status Bar */}
+      {hasActiveFilters && (
+        <View style={styles.filterStatusBar}>
+          <Text
+            variant="bodySmall"
+            style={[
+              styles.filterDescriptionText,
+              { color: colors.primary[600] },
+            ]}
+          >
+            {getFilterDescription(filters)}
+          </Text>
+          <Button
+            mode="text"
+            compact
+            onPress={() =>
+              handleFiltersChange(
+                {
+                  customerType: "all",
+                  hasTransactions: undefined,
+                  isActive: undefined,
+                  contactSource: "all",
+                  spendingRange: undefined,
+                  dateRange: undefined,
+                  preferredContactMethod: undefined,
+                },
+                { field: "name", direction: "asc" }
+              )
+            }
+            labelStyle={[
+              { color: colors.primary[600], fontSize: fontSize(12) },
+            ]}
+            contentStyle={styles.clearFiltersButtonContent}
+          >
+            Clear Filters
+          </Button>
+        </View>
+      )}
+
+      {/* Results Info */}
+      <View style={styles.resultsInfo}>
+        <Text
+          variant="bodyMedium"
+          style={{ color: colors.paper.onSurfaceVariant }}
+        >
+          Showing {filteredCustomers.length} of {totalCount || 0} customers
+          {filteredCustomers.length < (totalCount || 0) && " (scroll for more)"}
+        </Text>
+      </View>
+
+      {/* Sort and List Header */}
+      <View style={styles.listHeader}>
+        <Text
+          variant="titleMedium"
+          style={{ color: colors.paper.onBackground }}
+        >
+          All customers
+        </Text>
+        <Menu
+          visible={sortMenuVisible}
+          onDismiss={() => setSortMenuVisible(false)}
+          anchor={
+            <Button
+              mode="text"
+              onPress={() => setSortMenuVisible(true)}
+              contentStyle={styles.sortButtonContent}
+              labelStyle={{
+                color: colors.primary[600],
+                fontSize: fontSize(14),
+              }}
+            >
+              {getSortLabel()}
+            </Button>
+          }
+          contentStyle={{ backgroundColor: colors.paper.surface }}
+        >
+          <Menu.Item
+            onPress={() => handleSort("name")}
+            title="Name"
+            titleStyle={{ color: colors.paper.onSurface }}
+          />
+          <Menu.Item
+            onPress={() => handleSort("totalSpent")}
+            title="Total Spent"
+            titleStyle={{ color: colors.paper.onSurface }}
+          />
+          <Menu.Item
+            onPress={() => handleSort("lastPurchase")}
+            title="Last Purchase"
+            titleStyle={{ color: colors.paper.onSurface }}
+          />
+          <Menu.Item
+            onPress={() => handleSort("createdAt")}
+            title="Date Added"
+            titleStyle={{ color: colors.paper.onSurface }}
+          />
+        </Menu>
+      </View>
+
+      <Divider />
+
+      {/* Error State */}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text variant="bodyLarge" style={{ color: colors.error[600] }}>
+            Error loading customers:{" "}
+            {error instanceof Error ? error.message : "Unknown error"}
+          </Text>
+          <Button
+            mode="outlined"
+            onPress={() => refetch()}
+            style={styles.retryButton}
+          >
+            Retry
+          </Button>
+        </View>
+      )}
+
+      {/* Customer List */}
+      <FlashList
+        data={filteredCustomers}
+        renderItem={({ item: customer }) => (
+          <CustomerCard
+            key={customer.id}
+            customer={customer}
+            onPress={() => handleCustomerPress(customer.id)}
+            testID={`customer-card-${customer.id}`}
+          />
+        )}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.1}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.centerContainer}>
+              <Text
+                variant="bodyLarge"
+                style={{ color: colors.paper.onSurfaceVariant }}
+              >
+                Loading customers...
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.centerContainer}>
+              <IconSymbol
+                name="person"
+                size={wp(70)}
+                color={colors.paper.onSurfaceVariant}
+              />
+              <Text
+                variant="bodyLarge"
+                style={{ color: colors.paper.onSurfaceVariant }}
+              >
+                {searchQuery || hasActiveFilters
+                  ? "No customers match your filters"
+                  : "No customers yet"}
+              </Text>
+              {!searchQuery && !hasActiveFilters && (
+                <Button
+                  mode="contained"
+                  onPress={() => router.push("/customer/add")}
+                  style={styles.addButton}
+                >
+                  Add First Customer
+                </Button>
+              )}
+            </View>
+          )
+        }
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={styles.loadingMore}>
+              <Text
+                variant="bodyMedium"
+                style={{ color: colors.paper.onSurfaceVariant }}
+              >
+                Loading more customers...
+              </Text>
+            </View>
+          ) : null
+        }
+      />
+
+      {/* Filter Modal */}
+      <FilterModal
+        visible={filterVisible}
+        onDismiss={() => setFilterVisible(false)}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        sortOptions={sortOptions}
+      />
+
+      {/* FAB Group for Add and Import actions */}
+      <FAB.Group
+        visible={true}
+        open={fabOpen}
+        icon={fabOpen ? "close" : "plus"}
+        actions={[
+          {
+            icon: "account-plus",
+            label: "Add Customer",
+            onPress: handleAddCustomer,
+            color: colors.primary[600],
+          },
+          {
+            icon: "account-multiple-plus",
+            label: "Import Contacts",
+            onPress: handleImportContacts,
+            color: colors.primary[600],
+          },
+        ]}
+        onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
+        style={[styles.fabGroup, { bottom: insets.bottom + hp(16) }]}
+        color={`${colors.paper.onPrimary}`}
+        fabStyle={{ backgroundColor: colors.primary[600] }}
+      />
+
+      {/* Contact Picker Component */}
+      {contactPicker.ContactPickerComponent()}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  surface: {
     flex: 1,
     paddingHorizontal: wp(16),
   },
@@ -647,7 +646,7 @@ const styles = StyleSheet.create({
   },
   fabGroup: {
     position: "absolute",
-    right: wp(16),
+    // right: wp(16),
     bottom: hp(16),
   },
   clearButtonText: {

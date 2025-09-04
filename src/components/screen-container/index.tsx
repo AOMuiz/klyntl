@@ -20,6 +20,7 @@ import { hp, wp } from "@/utils/responsive_dimensions_system";
 
 export const edgesHorizontal = ["left", "right"] as Edge[];
 export const edgesVertical = ["top", "bottom"] as Edge[];
+export const edgesAll = [...edgesHorizontal, ...edgesVertical] as Edge[];
 
 export interface ScreenContainerProps {
   children?: ReactNode;

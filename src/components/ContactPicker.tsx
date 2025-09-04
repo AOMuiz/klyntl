@@ -16,7 +16,6 @@ import {
   Button,
   Checkbox,
   Chip,
-  Divider,
   IconButton,
   Modal,
   Portal,
@@ -576,7 +575,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
               {/* Non-scrollable header content */}
               <View style={styles.headerContent}>
                 {/* Quick actions section */}
-                <View style={styles.quickActions}>
+                {/* <View style={styles.quickActions}>
                   <TouchableOpacity style={styles.quickActionItem}>
                     <View style={styles.quickActionIcon}>
                       <IconButton
@@ -587,9 +586,9 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
                     </View>
                     <Text style={styles.quickActionText}>New contact</Text>
                   </TouchableOpacity>
-                </View>
+                </View> */}
 
-                <Divider style={styles.headerDivider} />
+                {/* <Divider style={styles.headerDivider} /> */}
 
                 {/* Stats and selection controls */}
                 <View style={styles.statsContainer}>

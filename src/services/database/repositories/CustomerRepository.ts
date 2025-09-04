@@ -178,7 +178,8 @@ export class CustomerRepository
     filters?: CustomerFilters,
     searchQuery?: string,
     page?: number,
-    pageSize?: number
+    pageSize?: number,
+    sort?: SortOptions
   ): Promise<Customer[]> {
     try {
       const { whereClause, params } =
@@ -186,9 +187,20 @@ export class CustomerRepository
 
       let sql = `SELECT * FROM customers`;
       if (whereClause) {
-        sql += ` WHERE ${whereClause}`;
+        // Remove the "WHERE " prefix since we're adding it here
+        const filterConditions = whereClause.replace(/^WHERE\s+/, "");
+        sql += ` WHERE ${filterConditions}`;
       }
-      sql += ` ORDER BY name ASC`;
+
+      // Handle sorting
+      if (sort) {
+        const sortField = sort.field;
+        const sortDirection =
+          sort.direction.toUpperCase() === "DESC" ? "DESC" : "ASC";
+        sql += ` ORDER BY ${sortField} ${sortDirection}`;
+      } else {
+        sql += ` ORDER BY name ASC`;
+      }
 
       if (pageSize && page !== undefined) {
         sql += ` LIMIT ? OFFSET ?`;
@@ -382,7 +394,9 @@ export class CustomerRepository
 
       let sql = `SELECT COUNT(*) as count FROM customers`;
       if (whereClause) {
-        sql += ` WHERE ${whereClause}`;
+        // Remove the "WHERE " prefix since we're adding it here
+        const filterConditions = whereClause.replace(/^WHERE\s+/, "");
+        sql += ` WHERE ${filterConditions}`;
       }
       if (searchQuery?.trim()) {
         const searchCondition = whereClause ? " AND " : " WHERE ";

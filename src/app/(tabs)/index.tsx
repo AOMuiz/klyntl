@@ -6,6 +6,7 @@ import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useStoreConfig } from "@/hooks/useStoreConfig";
+import { formatCurrency } from "@/utils/currency";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -299,8 +300,10 @@ export default function HomeScreen() {
                         {isLoading
                           ? "..."
                           : overviewData.totalRevenue >= 1000
-                          ? `₦${(overviewData.totalRevenue / 1000).toFixed(0)}K`
-                          : `₦${overviewData.totalRevenue}`}
+                          ? `${formatCurrency(overviewData.totalRevenue, {
+                              short: true,
+                            })}`
+                          : `${formatCurrency(overviewData.totalRevenue)}`}
                       </ThemedText>
                       <ThemedText
                         style={[

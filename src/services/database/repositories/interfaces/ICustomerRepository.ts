@@ -60,7 +60,8 @@ export interface ICustomerRepository
     filters?: CustomerFilters,
     searchQuery?: string,
     page?: number,
-    pageSize?: number
+    pageSize?: number,
+    sort?: SortOptions
   ): Promise<Customer[]>;
   search(query: string): Promise<Customer[]>;
   findByContactSource(source: string): Promise<Customer[]>;

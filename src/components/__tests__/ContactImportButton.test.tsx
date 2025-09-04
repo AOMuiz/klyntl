@@ -1,11 +1,43 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
-import { useCustomerStore } from "../../stores/customerStore";
+import { useContactImport } from "../../hooks/useContactImport";
 import { ContactImportButton } from "../ContactImportButton";
 
-// Mock the customer store
-jest.mock("../../stores/customerStore", () => ({
-  useCustomerStore: jest.fn(),
+// Mock the contact import hook
+jest.mock("../../hooks/useContactImport", () => ({
+  useContactImport: jest.fn(),
+}));
+
+// Mock the contact picker hook
+jest.mock("../../hooks/useContactPicker", () => ({
+  useContactPicker: jest.fn(() => ({
+    showContactPicker: jest.fn(),
+    ContactPickerComponent: () => null,
+  })),
+}));
+
+// Mock the database hook
+jest.mock("../../services/database", () => ({
+  useDatabase: jest.fn(() => ({
+    db: {
+      runAsync: jest.fn(),
+      getAllAsync: jest.fn(),
+      getFirstAsync: jest.fn(),
+    },
+  })),
+}));
+
+// Mock the database service
+jest.mock("../../services/database/service", () => ({
+  createDatabaseService: jest.fn(() => ({
+    customers: {
+      findWithFilters: jest.fn(() =>
+        Promise.resolve([
+          { id: "1", name: "Existing", phone: "+2348012345678" },
+        ])
+      ),
+    },
+  })),
 }));
 
 // Mock Alert
@@ -16,22 +48,26 @@ jest.mock("../ui/IconSymbol", () => ({
   IconSymbol: ({ name, size, color }: any) => null,
 }));
 
-const mockUseCustomerStore = useCustomerStore as jest.MockedFunction<
-  typeof useCustomerStore
+const mockUseContactImport = useContactImport as jest.MockedFunction<
+  typeof useContactImport
 >;
 
 describe("ContactImportButton", () => {
   const mockImportFromContacts = jest.fn();
+  const mockImportSelectedContacts = jest.fn();
   const mockCheckContactAccess = jest.fn();
   const mockClearImportCache = jest.fn();
   const mockOnImportComplete = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseCustomerStore.mockReturnValue({
+    mockUseContactImport.mockReturnValue({
       importFromContacts: mockImportFromContacts,
+      importSelectedContacts: mockImportSelectedContacts,
       checkContactAccess: mockCheckContactAccess,
       clearImportCache: mockClearImportCache,
+      isImporting: false,
+      error: null,
     } as any);
 
     // Default mock implementation for checkContactAccess
@@ -52,15 +88,18 @@ describe("ContactImportButton", () => {
     it("should show confirmation dialog when pressed", async () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           "Import Contacts",
-          expect.stringContaining("This will import contacts from your phone"),
+          "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n100 contacts available.",
           expect.arrayContaining([
             expect.objectContaining({ text: "Cancel" }),
-            expect.objectContaining({ text: "Import" }),
+            expect.objectContaining({ text: "Select Contacts" }),
+            expect.objectContaining({ text: "Import All (up to 100)" }),
           ])
         );
       });
@@ -75,18 +114,19 @@ describe("ContactImportButton", () => {
 
       const { getByText } = render(<ContactImportButton variant="button" />);
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          "Limited Contact Access Detected",
-          expect.stringContaining(
-            "You currently have limited access to contacts (4 contacts available)"
-          ),
+          "Import Contacts",
+          "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n4 contacts available.",
           expect.arrayContaining([
             expect.objectContaining({ text: "Cancel" }),
+            expect.objectContaining({ text: "Select Contacts" }),
+            expect.objectContaining({ text: "Import Limited (4)" }),
             expect.objectContaining({ text: "Grant More Access" }),
-            expect.objectContaining({ text: "Import Available" }),
           ])
         );
       });
@@ -103,7 +143,9 @@ describe("ContactImportButton", () => {
         />
       );
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalled();
@@ -130,9 +172,9 @@ describe("ContactImportButton", () => {
         expect(Alert.alert).toHaveBeenCalled();
       });
 
-      // Simulate pressing "Import" in the alert
+      // Simulate pressing "Import All" in the alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][1].onPress;
+      const importCallback = alertCalls[0][2][2].onPress; // Import All button is at index 2
       await importCallback();
 
       await waitFor(() => {
@@ -168,13 +210,15 @@ describe("ContactImportButton", () => {
       });
     });
 
-    it("should be disabled when disabled prop is true", () => {
+    it("should be disabled when disabled prop is true", async () => {
       const { getByText } = render(
         <ContactImportButton variant="button" disabled={true} />
       );
 
       const button = getByText("Import Contacts").parent;
-      fireEvent.press(button);
+      await act(async () => {
+        fireEvent.press(button);
+      });
 
       expect(Alert.alert).not.toHaveBeenCalled();
     });
@@ -188,7 +232,9 @@ describe("ContactImportButton", () => {
 
       const { getByText } = render(<ContactImportButton variant="button" />);
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalled();
@@ -249,7 +295,9 @@ describe("ContactImportButton", () => {
 
       const { getByText } = render(<ContactImportButton variant="text" />);
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalled();
@@ -303,7 +351,9 @@ describe("ContactImportButton", () => {
 
       const { getByText } = render(<ContactImportButton variant="button" />);
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalled();
@@ -322,14 +372,16 @@ describe("ContactImportButton", () => {
       });
     });
 
-    it("should handle import start errors", () => {
+    it("should handle import start errors", async () => {
       const { getByText } = render(<ContactImportButton variant="button" />);
 
       // Mock console.error to prevent console output during test
       const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
       // This will trigger the catch block in handleImportContacts
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
 
       consoleSpy.mockRestore();
     });

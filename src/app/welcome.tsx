@@ -1,5 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, { edgesAll } from "@/components/screen-container";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
@@ -12,7 +12,7 @@ export default function Welcome() {
   const colors = useKlyntlColors(theme);
 
   return (
-    <ScreenContainer scrollable={false} withPadding={false}>
+    <ScreenContainer scrollable={false} withPadding={false} edges={edgesAll}>
       <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
         <View style={styles.heroContainer}>
           <Image
@@ -61,6 +61,7 @@ export default function Welcome() {
 
             <Button
               mode="outlined"
+              elevation={2}
               onPress={() => router.push("/auth/login")}
               contentStyle={styles.secondaryContent}
               labelStyle={[
@@ -107,7 +108,7 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   heroContainer: {
-    height: hp(420),
+    height: hp(400),
     alignItems: "center",
     justifyContent: "flex-start",
     overflow: "hidden",
@@ -119,7 +120,6 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-
     marginTop: -hp(80),
     borderTopLeftRadius: wp(24),
     borderTopRightRadius: wp(24),

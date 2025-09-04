@@ -25,12 +25,20 @@ export function convertCurrency(
  */
 export function formatCurrency(
   amount: number,
-  currency: keyof typeof RATES = "NGN"
+  options: { short?: boolean; currency?: "NGN" | "USD" | "EUR" } = {
+    currency: "NGN",
+  }
 ) {
-  const symbol = currency === "NGN" ? "₦" : currency === "USD" ? "$" : "€";
-  return `${symbol}${amount.toLocaleString("en-NG", {
-    minimumFractionDigits: 0,
-  })}`;
+  const { short, currency = "NGN" } = options;
+
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency,
+    currencyDisplay: "symbol", // ensures ₦ / $ / €
+    notation: short ? "compact" : "standard", // short = 100K, standard = 100,000
+    compactDisplay: short ? "short" : undefined,
+    maximumFractionDigits: short ? 1 : 0, // 1 decimal for compact, none for normal
+  }).format(amount);
 }
 
 /**

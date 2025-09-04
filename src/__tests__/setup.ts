@@ -5,6 +5,18 @@
 
 import "react-native-gesture-handler/jestSetup";
 
+// Mock AsyncStorage
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  getItem: jest.fn(() => Promise.resolve(null)),
+  setItem: jest.fn(() => Promise.resolve()),
+  removeItem: jest.fn(() => Promise.resolve()),
+  getAllKeys: jest.fn(() => Promise.resolve([])),
+  multiGet: jest.fn(() => Promise.resolve([])),
+  multiSet: jest.fn(() => Promise.resolve()),
+  multiRemove: jest.fn(() => Promise.resolve()),
+  clear: jest.fn(() => Promise.resolve()),
+}));
+
 // Mock react-native-reanimated
 jest.mock("react-native-reanimated", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -16,9 +28,6 @@ jest.mock("react-native-reanimated", () => {
 
   return Reanimated;
 });
-
-// Silence the warning: Animated: `useNativeDriver` is not supported because the native animated module is missing
-// jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
 
 // Mock expo-sqlite with the new async API and stateful storage
 jest.mock("expo-sqlite", () => {
@@ -429,59 +438,52 @@ jest.mock("expo-sqlite", () => {
         callback(tx);
       }),
     })),
+    // Mock useSQLiteContext hook
+    useSQLiteContext: jest.fn(() => createMockDb("test.db")),
   };
 });
 
 // Mock expo-contacts
 jest.mock("expo-contacts", () => ({
+  getPermissionsAsync: jest.fn(() =>
+    Promise.resolve({
+      status: "granted",
+      accessPrivileges: "all",
+    })
+  ),
   requestPermissionsAsync: jest.fn(() =>
-    Promise.resolve({ status: "granted" })
+    Promise.resolve({
+      status: "granted",
+      accessPrivileges: "all",
+    })
   ),
   getContactsAsync: jest.fn(() =>
     Promise.resolve({
       data: [
         {
-          id: "1",
-          name: "John Doe",
+          id: "contact_1",
+          firstName: "John",
+          lastName: "Doe",
           phoneNumbers: [{ number: "+2348012345678" }],
+          emails: [{ email: "john@example.com" }],
+        },
+        {
+          id: "contact_2",
+          firstName: "Jane",
+          lastName: "Smith",
+          phoneNumbers: [{ number: "+2348012345679" }],
+          emails: [{ email: "jane@example.com" }],
         },
       ],
     })
   ),
   Fields: {
-    Name: "name",
+    FirstName: "firstName",
+    LastName: "lastName",
     PhoneNumbers: "phoneNumbers",
+    Emails: "emails",
+  },
+  SortTypes: {
+    FirstName: "firstName",
   },
 }));
-
-// Mock expo-linking
-jest.mock("expo-linking", () => ({
-  openURL: jest.fn(() => Promise.resolve()),
-  canOpenURL: jest.fn(() => Promise.resolve(true)),
-}));
-
-// Mock AsyncStorage
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-  getAllKeys: jest.fn(),
-  multiGet: jest.fn(),
-  multiSet: jest.fn(),
-  multiRemove: jest.fn(),
-}));
-
-// Global test helpers
-global.console = {
-  ...console,
-  // Uncomment to ignore a specific log level
-  // log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-};
-
-// Setup test timeouts
-jest.setTimeout(10000);

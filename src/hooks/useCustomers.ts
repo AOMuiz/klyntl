@@ -31,7 +31,8 @@ export function useCustomers(
         filters,
         searchQuery,
         pageParam,
-        pageSize
+        pageSize,
+        sort
       );
       return {
         customers,
