@@ -11,9 +11,10 @@ import { SQLiteDatabase } from "expo-sqlite";
 import { AuditLogService } from "../service/AuditLogService";
 import { DatabaseError } from "../service/utilService";
 import { DatabaseConfig } from "../types";
+import { IAnalyticsRepository } from "./interfaces/IAnalyticsRepository";
 
 // ===== ANALYTICS REPOSITORY =====
-export class AnalyticsRepository {
+export class AnalyticsRepository implements IAnalyticsRepository {
   constructor(
     private db: SQLiteDatabase,
     private config: DatabaseConfig,
@@ -309,7 +310,7 @@ export class AnalyticsRepository {
 
       const totalCustomers = orderStats?.total_customers || 1;
       const totalTransactions = orderStats?.total_transactions || 0;
-      const purchaseFrequency = totalTransactions / totalCustomers / 12; // Per month
+      const purchaseFrequency = totalTransactions / totalCustomers; // Transactions per customer
 
       return {
         averageOrderValue: orderStats?.avg_order || 0,
