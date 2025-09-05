@@ -1,10 +1,11 @@
+import { formatCurrency } from "@/utils/currency";
+import { getCustomerInitials } from "@/utils/helpers";
 import { wp } from "@/utils/responsive_dimensions_system";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, Text, useTheme } from "react-native-paper";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "../constants/KlyntlTheme";
 import { Customer } from "../types/customer";
-import { formatCurrency } from "@/utils/currency";
 
 interface CustomerCardProps {
   customer: Customer;
@@ -21,16 +22,6 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 }) => {
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
-
-  
-  const getInitials = (name: string): string => {
-    return name
-      .split(" ")
-      .map((part) => part.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const formatLastPurchase = (date?: string): string => {
     if (!date) return "No purchases yet";
@@ -81,7 +72,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             <View style={styles.avatarContainer}>
               <Avatar.Text
                 size={56}
-                label={getInitials(customer.name)}
+                label={getCustomerInitials(customer.name)}
                 style={[
                   styles.avatar,
                   { backgroundColor: colors.primary[100] },

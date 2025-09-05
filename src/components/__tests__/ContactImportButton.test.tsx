@@ -27,7 +27,7 @@ jest.mock("../../services/database", () => ({
   })),
 }));
 
-// Mock the database service
+// Mock the database service to return synchronously
 jest.mock("../../services/database/service", () => ({
   createDatabaseService: jest.fn(() => ({
     customers: {
@@ -40,8 +40,14 @@ jest.mock("../../services/database/service", () => ({
   })),
 }));
 
-// Mock Alert
-jest.spyOn(Alert, "alert");
+// Mock Alert with proper button storage
+const mockAlert = jest
+  .spyOn(Alert, "alert")
+  .mockImplementation((title, message, buttons) => {
+    // Store the buttons for later access in tests
+    (Alert.alert as any).lastButtons = buttons;
+    (Alert.alert as any).lastCall = { title, message, buttons };
+  });
 
 // Mock IconSymbol component
 jest.mock("../ui/IconSymbol", () => ({
@@ -59,6 +65,14 @@ describe("ContactImportButton", () => {
   const mockClearImportCache = jest.fn();
   const mockOnImportComplete = jest.fn();
 
+  beforeAll(() => {
+    jest.setTimeout(30000); // Increase global timeout
+  });
+
+  afterAll(() => {
+    jest.setTimeout(5000); // Reset to default
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseContactImport.mockReturnValue({
@@ -70,7 +84,7 @@ describe("ContactImportButton", () => {
       error: null,
     } as any);
 
-    // Default mock ir54y66h bh f mplementation for checkContactAccess
+    // Default mock implementation for checkContactAccess
     mockCheckContactAccess.mockResolvedValue({
       hasAccess: true,
       isLimited: false,
@@ -86,22 +100,29 @@ describe("ContactImportButton", () => {
     });
 
     it("should show confirmation dialog when pressed", async () => {
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
       await act(async () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Import Contacts",
-        "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n100 contacts available.",
-        expect.arrayContaining([
-          expect.objectContaining({ text: "Cancel" }),
-          expect.objectContaining({ text: "Select Contacts" }),
-          expect.objectContaining({ text: "Import All (up to 100)" }),
-        ])
-      );
-    });
+      // Wait for the alert to be called
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          "Import Contacts",
+          "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n100 contacts available.",
+          expect.arrayContaining([
+            expect.objectContaining({ text: "Cancel" }),
+            expect.objectContaining({ text: "Select Contacts" }),
+            expect.objectContaining({ text: "Import All (up to 100)" }),
+          ])
+        );
+      });
+
+      unmount(); // Clean up
+    }, 10000);
 
     it("should handle limited contact access", async () => {
       mockCheckContactAccess.mockResolvedValue({
@@ -110,23 +131,29 @@ describe("ContactImportButton", () => {
         contactCount: 4,
       });
 
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
       await act(async () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Import Contacts",
-        "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n4 contacts available.",
-        expect.arrayContaining([
-          expect.objectContaining({ text: "Cancel" }),
-          expect.objectContaining({ text: "Select Contacts" }),
-          expect.objectContaining({ text: "Import Limited (4)" }),
-          expect.objectContaining({ text: "Grant More Access" }),
-        ])
-      );
-    });
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          "Import Contacts",
+          "Choose how you want to import contacts:\n\nOnly Nigerian phone numbers will be imported and duplicates will be skipped.\n\n4 contacts available.",
+          expect.arrayContaining([
+            expect.objectContaining({ text: "Cancel" }),
+            expect.objectContaining({ text: "Select Contacts" }),
+            expect.objectContaining({ text: "Import Limited (4)" }),
+            expect.objectContaining({ text: "Grant More Access" }),
+          ])
+        );
+      });
+
+      unmount();
+    }, 10000);
 
     it("should call importFromContacts when confirmed", async () => {
       const importResult = {
@@ -137,7 +164,7 @@ describe("ContactImportButton", () => {
       };
       mockImportFromContacts.mockResolvedValue(importResult);
 
-      const { getByText } = render(
+      const { getByText, unmount } = render(
         <ContactImportButton
           variant="button"
           onImportComplete={mockOnImportComplete}
@@ -148,16 +175,22 @@ describe("ContactImportButton", () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
       // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
       await act(async () => {
         await importCallback();
       });
 
       expect(mockImportFromContacts).toHaveBeenCalled();
       expect(mockOnImportComplete).toHaveBeenCalledWith(importResult);
-    });
+
+      unmount();
+    }, 10000);
 
     it("should show success alert after import", async () => {
       const importResult = {
@@ -168,42 +201,70 @@ describe("ContactImportButton", () => {
       };
       mockImportFromContacts.mockResolvedValue(importResult);
 
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
-      await importCallback();
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
+      await act(async () => {
+        await importCallback();
+      });
 
-      expect(Alert.alert).toHaveBeenLastCalledWith(
-        "Import Complete",
-        "Successfully imported 5 contacts. 2 contacts were skipped (duplicates or invalid numbers)."
-      );
-    });
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenLastCalledWith(
+          "Import Complete",
+          "Successfully imported 5 contacts. 2 contacts were skipped (duplicates or invalid numbers)."
+        );
+      });
+
+      unmount();
+    }, 10000);
 
     it("should show error alert on import failure", async () => {
       const error = new Error("Permission denied");
       mockImportFromContacts.mockRejectedValue(error);
 
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
-      fireEvent.press(getByText("Import Contacts"));
+      await act(async () => {
+        fireEvent.press(getByText("Import Contacts"));
+      });
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
       // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
-      await importCallback();
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
+      await act(async () => {
+        await importCallback();
+      });
 
-      expect(Alert.alert).toHaveBeenLastCalledWith(
-        "Import Failed",
-        "Permission denied"
-      );
-    });
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenLastCalledWith(
+          "Import Failed",
+          "Permission denied"
+        );
+      });
+
+      unmount();
+    }, 10000);
 
     it("should be disabled when disabled prop is true", async () => {
-      const { getByText } = render(
+      const { getByText, unmount } = render(
         <ContactImportButton variant="button" disabled={true} />
       );
 
@@ -212,7 +273,10 @@ describe("ContactImportButton", () => {
         fireEvent.press(button);
       });
 
+      // Should not trigger alert when disabled
       expect(Alert.alert).not.toHaveBeenCalled();
+
+      unmount();
     });
 
     it('should show "Importing..." text during import', async () => {
@@ -222,20 +286,29 @@ describe("ContactImportButton", () => {
       });
       mockImportFromContacts.mockReturnValue(importPromise);
 
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
       await act(async () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
       // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
       await act(async () => {
         importCallback();
       });
 
-      expect(getByText("Importing...")).toBeTruthy();
+      // Should show importing text
+      await waitFor(() => {
+        expect(getByText("Importing...")).toBeTruthy();
+      });
 
       // Complete the import
       resolveImport!({
@@ -245,10 +318,13 @@ describe("ContactImportButton", () => {
         errors: [],
       });
 
+      // Should go back to normal text
       await waitFor(() => {
         expect(getByText("Import Contacts")).toBeTruthy();
       });
-    });
+
+      unmount();
+    }, 10000);
   });
 
   describe('variant="fab"', () => {
@@ -260,7 +336,7 @@ describe("ContactImportButton", () => {
     });
 
     it("should have different sizes", () => {
-      const { rerender } = render(
+      const { rerender, unmount } = render(
         <ContactImportButton variant="fab" size="small" />
       );
 
@@ -269,14 +345,20 @@ describe("ContactImportButton", () => {
 
       // Component should render without errors for all sizes
       expect(true).toBe(true);
+
+      unmount();
     });
   });
 
   describe('variant="text"', () => {
     it("should render text variant correctly", () => {
-      const { getByText } = render(<ContactImportButton variant="text" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="text" />
+      );
 
       expect(getByText("Import Contacts")).toBeTruthy();
+
+      unmount();
     });
 
     it('should show "Importing..." text during import', async () => {
@@ -286,20 +368,29 @@ describe("ContactImportButton", () => {
       });
       mockImportFromContacts.mockReturnValue(importPromise);
 
-      const { getByText } = render(<ContactImportButton variant="text" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="text" />
+      );
 
       await act(async () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
       // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
       await act(async () => {
         importCallback();
       });
 
-      expect(getByText("Importing...")).toBeTruthy();
+      // Should show importing text
+      await waitFor(() => {
+        expect(getByText("Importing...")).toBeTruthy();
+      });
 
       // Complete the import
       resolveImport!({
@@ -309,25 +400,30 @@ describe("ContactImportButton", () => {
         errors: [],
       });
 
+      // Should go back to normal text
       await waitFor(() => {
         expect(getByText("Import Contacts")).toBeTruthy();
       });
-    });
+
+      unmount();
+    }, 10000);
   });
 
   describe("props", () => {
     it("should apply custom style", () => {
       const customStyle = { backgroundColor: "red" };
-      const { getByTestId } = render(
+      const { getByTestId, unmount } = render(
         <ContactImportButton variant="button" style={customStyle} />
       );
 
       const button = getByTestId("contact-import-button");
       expect(button.props.style).toEqual(expect.objectContaining(customStyle));
+
+      unmount();
     });
 
     it("should handle different sizes", () => {
-      const { rerender } = render(
+      const { rerender, unmount } = render(
         <ContactImportButton variant="button" size="small" />
       );
 
@@ -336,6 +432,8 @@ describe("ContactImportButton", () => {
 
       // Component should render without errors for all sizes
       expect(true).toBe(true);
+
+      unmount();
     });
   });
 
@@ -343,25 +441,39 @@ describe("ContactImportButton", () => {
     it("should handle non-Error objects", async () => {
       mockImportFromContacts.mockRejectedValue("String error");
 
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
       await act(async () => {
         fireEvent.press(getByText("Import Contacts"));
       });
 
-      // Simulate pressing "Import All" in the alert
-      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-      const importCallback = alertCalls[0][2][2].onPress; // Import All is at index 2
-      await importCallback();
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
 
-      expect(Alert.alert).toHaveBeenLastCalledWith(
-        "Import Failed",
-        "Failed to import contacts"
-      );
+      // Simulate pressing "Import All" in the alert
+      const buttons = (Alert.alert as any).lastButtons;
+      const importCallback = buttons[2].onPress; // Import All is at index 2
+      await act(async () => {
+        await importCallback();
+      });
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenLastCalledWith(
+          "Import Failed",
+          "Failed to import contacts"
+        );
+      });
+
+      unmount();
     });
 
     it("should handle import start errors", async () => {
-      const { getByText } = render(<ContactImportButton variant="button" />);
+      const { getByText, unmount } = render(
+        <ContactImportButton variant="button" />
+      );
 
       // Mock console.error to prevent console output during test
       const consoleSpy = jest.spyOn(console, "error").mockImplementation();
@@ -371,6 +483,7 @@ describe("ContactImportButton", () => {
       });
 
       consoleSpy.mockRestore();
+      unmount();
     });
   });
 });

@@ -391,6 +391,7 @@ export default function TransactionsScreen() {
           <View style={styles.transactionInfo}>
             <ThemedText
               style={[styles.customerName, { color: colors.paper.onSurface }]}
+              numberOfLines={2}
             >
               {transaction.customerName}
             </ThemedText>
@@ -729,6 +730,7 @@ const styles = StyleSheet.create({
   transactionRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: wp(2),
   },
   transactionIcon: {
     width: wp(48),
@@ -754,7 +756,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   amountText: {
-    fontSize: fontSize(18),
+    fontSize: fontSize(14),
     fontWeight: "700",
     marginBottom: hp(4),
   },

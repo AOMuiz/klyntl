@@ -43,6 +43,7 @@ describe("TransactionRepository", () => {
     mockCustomerRepo = {
       findById: jest.fn(),
       updateTotalSpent: jest.fn(),
+      updateTotals: jest.fn(),
       increaseOutstandingBalance: jest.fn(),
       decreaseOutstandingBalance: jest.fn(),
       getOutstandingBalance: jest.fn(),
@@ -72,6 +73,7 @@ describe("TransactionRepository", () => {
     });
 
     mockCustomerRepo.updateTotalSpent.mockResolvedValue(undefined);
+    mockCustomerRepo.updateTotals.mockResolvedValue(undefined);
     mockAudit.logEntry.mockResolvedValue(undefined);
     mockGenerateId.mockReturnValue("txn_test_123");
 
@@ -400,9 +402,7 @@ describe("TransactionRepository", () => {
         "DELETE FROM transactions WHERE id = ?",
         ["txn_1"]
       );
-      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
-        "cust_1",
-      ]);
+      expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith(["cust_1"]);
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",
@@ -784,7 +784,7 @@ describe("TransactionRepository", () => {
         expect(result).toHaveLength(2);
         expect(result[0].id).toBe("txn_test_123");
         expect(result[1].id).toBe("txn_test_123");
-        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);
@@ -843,7 +843,7 @@ describe("TransactionRepository", () => {
         await transactionRepository.updateBulk(updates);
 
         expect(mockDb.runAsync).toHaveBeenCalledTimes(2);
-        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);
@@ -873,7 +873,7 @@ describe("TransactionRepository", () => {
         await transactionRepository.deleteBulk(transactionIds);
 
         expect(mockDb.runAsync).toHaveBeenCalledTimes(2);
-        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);

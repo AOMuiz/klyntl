@@ -1,3 +1,7 @@
+export type ContactSource = "manual" | "imported" | "updated";
+export type PreferredContactMethod = "phone" | "email" | "sms";
+export type CustomerType = "individual" | "business";
+
 export interface Customer {
   id: string;
   name: string;
@@ -11,9 +15,9 @@ export interface Customer {
   nickname?: string;
   photoUri?: string;
   // Contact metadata
-  contactSource?: "manual" | "imported" | "updated";
+  contactSource?: ContactSource;
   lastContactDate?: string;
-  preferredContactMethod?: "phone" | "email" | "sms";
+  preferredContactMethod?: PreferredContactMethod;
   // Business fields
   totalSpent: number;
   outstandingBalance: number; // Amount customer owes (in kobo)
@@ -21,7 +25,7 @@ export interface Customer {
   createdAt: string;
   updatedAt: string;
   // Computed fields for filtering
-  customerType?: "individual" | "business";
+  customerType?: CustomerType;
   isActive?: boolean;
 }
 
@@ -36,8 +40,8 @@ export interface CreateCustomerInput {
   notes?: string;
   nickname?: string;
   photoUri?: string;
-  contactSource?: "manual" | "imported" | "updated";
-  preferredContactMethod?: "phone" | "email" | "sms";
+  contactSource?: ContactSource;
+  preferredContactMethod?: PreferredContactMethod;
 }
 
 export interface UpdateCustomerInput {
@@ -51,7 +55,7 @@ export interface UpdateCustomerInput {
   notes?: string;
   nickname?: string;
   photoUri?: string;
-  contactSource?: "manual" | "imported" | "updated";
+  contactSource?: ContactSource;
   lastContactDate?: string;
-  preferredContactMethod?: "phone" | "email" | "sms";
+  preferredContactMethod?: PreferredContactMethod;
 }

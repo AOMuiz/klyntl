@@ -31,13 +31,34 @@ export function formatCurrency(
 ) {
   const { short, currency = "NGN" } = options;
 
+  if (short) {
+    // Compact decimal (no currency, avoids RN bug)
+    const compactNumber = new Intl.NumberFormat("en-NG", {
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: 1,
+    }).format(amount);
+
+    // Extract currency symbol once
+    const sample = new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency,
+      currencyDisplay: "symbol",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(1);
+
+    const symbol = sample.replace(/\d/g, "").trim();
+
+    return `${symbol}${compactNumber}`;
+  }
+
+  // Standard currency
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency,
-    currencyDisplay: "symbol", // ensures ₦ / $ / €
-    notation: short ? "compact" : "standard", // short = 100K, standard = 100,000
-    compactDisplay: short ? "short" : undefined,
-    maximumFractionDigits: short ? 1 : 0, // 1 decimal for compact, none for normal
+    currencyDisplay: "symbol",
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
