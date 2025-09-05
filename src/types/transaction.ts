@@ -48,6 +48,7 @@ export interface CreateTransactionInput {
   paidAmount?: number; // Amount paid immediately (in kobo)
   remainingAmount?: number; // Amount remaining as debt (in kobo)
   linkedTransactionId?: string;
+  appliedToDebt?: boolean; // For payments - whether it was applied to existing debt
   dueDate?: string;
   currency?: string;
   exchangeRate?: number;
@@ -66,6 +67,7 @@ export interface UpdateTransactionInput {
   remainingAmount?: number; // Amount remaining as debt (in kobo)
   status?: TransactionStatus;
   linkedTransactionId?: string;
+  appliedToDebt?: boolean; // For payments - whether it was applied to existing debt
   dueDate?: string;
   currency?: string;
   exchangeRate?: number;

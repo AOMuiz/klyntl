@@ -1,4 +1,4 @@
-import { hp, wp } from "@/utils/responsive_dimensions_system";
+import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
@@ -259,12 +259,34 @@ export const createStyles = (theme: MD3Theme) =>
       borderColor: theme.colors.outline,
     },
     descriptionPresetText: {
-      fontSize: 12,
+      fontSize: fontSize(11),
       fontWeight: "500",
       color: theme.colors.onSurfaceVariant,
     },
     loadingContainer: {
       flexDirection: "row",
       alignItems: "center",
+    },
+    paymentMethodSelector: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    paymentMethodOption: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    paymentMethodOptionSelected: {
+      borderWidth: 2,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    paymentMethodOptionText: {
+      fontSize: fontSize(11),
+      fontWeight: "600",
+      color: theme.colors.onSurfaceVariant,
     },
   });

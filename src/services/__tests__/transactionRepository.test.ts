@@ -127,7 +127,10 @@ describe("TransactionRepository", () => {
         expect.stringContaining("INSERT INTO transactions"),
         expect.any(Array)
       );
-      expect(mockCustomerRepo.updateTotalSpent).not.toHaveBeenCalled();
+      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
+        "cust_1",
+        25000
+      );
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",
@@ -321,7 +324,10 @@ describe("TransactionRepository", () => {
         expect.stringContaining("UPDATE transactions SET"),
         expect.any(Array)
       );
-      expect(mockCustomerRepo.updateTotalSpent).not.toHaveBeenCalled();
+      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
+        "cust_1",
+        5000
+      );
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",

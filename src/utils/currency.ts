@@ -23,37 +23,65 @@ export function convertCurrency(
 /**
  * Format currency for display
  */
+type Curr = "NGN" | "USD" | "EUR";
+
+const CURRENCY_SYMBOL: Record<Curr, string> = {
+  NGN: "₦",
+  USD: "$",
+  EUR: "€",
+};
+
+function toCompact(n: number) {
+  const abs = Math.abs(n);
+  const units = [
+    { v: 1e12, s: "T" },
+    { v: 1e9, s: "B" },
+    { v: 1e6, s: "M" },
+    { v: 1e3, s: "K" },
+  ];
+  for (let i = 0; i < units.length; i++) {
+    const { v, s } = units[i];
+    if (abs >= v) {
+      let num = Math.round((abs / v) * 10) / 10; // 1 decimal
+      // If we rounded up to 1000 of a unit, bump to next unit
+      if (num >= 1000 && i > 0) {
+        const next = units[i - 1];
+        num = Math.round((abs / next.v) * 10) / 10;
+        return `${num % 1 === 0 ? num.toFixed(0) : num}${next.s}`;
+      }
+      return `${num % 1 === 0 ? num.toFixed(0) : num}${s}`;
+    }
+  }
+  return String(n);
+}
+
 export function formatCurrency(
   amount: number,
-  options: { short?: boolean; currency?: "NGN" | "USD" | "EUR" } = {
+  options: {
+    short?: boolean;
+    currency?: Curr;
+    useCodeIfNairaMissing?: boolean;
+  } = {
     currency: "NGN",
   }
 ) {
-  const { short, currency = "NGN" } = options;
+  const {
+    short = false,
+    currency = "NGN",
+    useCodeIfNairaMissing = false,
+  } = options;
 
   if (short) {
-    // Compact decimal (no currency, avoids RN bug)
-    const compactNumber = new Intl.NumberFormat("en-NG", {
-      notation: "compact",
-      compactDisplay: "short",
-      maximumFractionDigits: 1,
-    }).format(amount);
-
-    // Extract currency symbol once
-    const sample = new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency,
-      currencyDisplay: "symbol",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(1);
-
-    const symbol = sample.replace(/\d/g, "").trim();
-
-    return `${symbol}${compactNumber}`;
+    const symbol =
+      currency === "NGN" && useCodeIfNairaMissing
+        ? "NGN "
+        : CURRENCY_SYMBOL[currency] ?? "";
+    const sign = amount < 0 ? "-" : "";
+    const compact = toCompact(Math.abs(amount));
+    return `${sign}${symbol}${compact}`;
   }
 
-  // Standard currency
+  // Standard (non-compact) uses Intl safely
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency,

@@ -357,7 +357,7 @@ export default function CustomerDetailScreen({
                 </Text>
               </Card.Content>
             </Card>
-            <Card
+            {/* <Card
               style={[
                 styles.statCard,
                 {
@@ -391,6 +391,47 @@ export default function CustomerDetailScreen({
                   style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
                   Last Purchase
+                </Text>
+              </Card.Content>
+            </Card> */}
+            <Card
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: colors.paper.surface,
+                  borderWidth: 1,
+                  borderColor: colors.warning[100],
+                },
+              ]}
+              elevation={0}
+              mode="elevated"
+            >
+              <Card.Content style={styles.statCardContent}>
+                <Text
+                  variant="headlineSmall"
+                  style={[
+                    styles.statValue,
+                    {
+                      color:
+                        customer.outstandingBalance > 0
+                          ? colors.warning[600]
+                          : colors.success[600],
+                      textShadowColor:
+                        customer.outstandingBalance > 0
+                          ? colors.warning[100]
+                          : colors.success[100],
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 1,
+                    },
+                  ]}
+                >
+                  {formatCurrency(customer.outstandingBalance)}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.statLabel, { color: colors.neutral[600] }]}
+                >
+                  Outstanding Balance
                 </Text>
               </Card.Content>
             </Card>

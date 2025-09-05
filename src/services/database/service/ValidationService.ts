@@ -103,7 +103,7 @@ export class ValidationService {
     }
 
     if ("type" in data && data.type) {
-      if (!["sale", "refund", "payment", "adjustment"].includes(data.type)) {
+      if (!["sale", "refund", "payment", "credit"].includes(data.type)) {
         throw new ValidationError("Invalid transaction type", "type");
       }
     }
@@ -120,6 +120,57 @@ export class ValidationService {
           "Transaction date cannot be in the future",
           "date"
         );
+      }
+    }
+
+    // Debt management validation
+    if ("paidAmount" in data && "remainingAmount" in data && "amount" in data) {
+      const paid = data.paidAmount || 0;
+      const remaining = data.remainingAmount || 0;
+      const total = data.amount || 0;
+      const paymentMethod = data.paymentMethod || "cash";
+
+      if (paymentMethod === "mixed") {
+        // For mixed payments, paid + remaining must equal total
+        if (paid + remaining !== total) {
+          throw new ValidationError(
+            "Paid amount + remaining amount must equal total amount for mixed payments",
+            "paidAmount"
+          );
+        }
+      } else if (paymentMethod === "cash") {
+        // For cash payments, paid must equal total and remaining must be 0
+        if (paid !== total || remaining !== 0) {
+          throw new ValidationError(
+            "Cash payments must have paid amount equal to total and remaining amount of 0",
+            "paidAmount"
+          );
+        }
+      } else if (paymentMethod === "credit") {
+        // For credit payments, paid must be 0 and remaining must equal total
+        if (paid !== 0 || remaining !== total) {
+          throw new ValidationError(
+            "Credit payments must have paid amount of 0 and remaining amount equal to total",
+            "paidAmount"
+          );
+        }
+      }
+    }
+
+    if ("paymentMethod" in data && data.paymentMethod) {
+      if (
+        !["cash", "bank_transfer", "pos_card", "credit", "mixed"].includes(
+          data.paymentMethod
+        )
+      ) {
+        throw new ValidationError("Invalid payment method", "paymentMethod");
+      }
+    }
+
+    if ("dueDate" in data && data.dueDate) {
+      const dueDate = new Date(data.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        throw new ValidationError("Invalid due date format", "dueDate");
       }
     }
   }

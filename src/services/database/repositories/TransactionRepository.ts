@@ -1,6 +1,7 @@
 import {
   CreateTransactionInput,
   Transaction,
+  TransactionStatus,
   UpdateTransactionInput,
 } from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
@@ -46,8 +47,9 @@ export class TransactionRepository implements ITransactionRepository {
         paymentMethod: transactionData.paymentMethod || "cash",
         paidAmount: transactionData.paidAmount || transactionData.amount,
         remainingAmount: transactionData.remainingAmount || 0,
-        status: transactionData.type === "payment" ? "completed" : "completed",
+        status: this.calculateTransactionStatus(transactionData),
         linkedTransactionId: transactionData.linkedTransactionId,
+        appliedToDebt: transactionData.appliedToDebt,
         dueDate: transactionData.dueDate,
         currency: transactionData.currency || "NGN",
         exchangeRate: transactionData.exchangeRate || 1,
@@ -57,8 +59,8 @@ export class TransactionRepository implements ITransactionRepository {
 
       await this.db.withTransactionAsync(async () => {
         await this.db.runAsync(
-          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             transaction.id,
             transaction.customerId,
@@ -72,6 +74,7 @@ export class TransactionRepository implements ITransactionRepository {
             transaction.remainingAmount || 0,
             transaction.status || "completed",
             transaction.linkedTransactionId || null,
+            transaction.appliedToDebt ? 1 : 0,
             transaction.dueDate || null,
             transaction.currency || "NGN",
             transaction.exchangeRate || 1,
@@ -148,23 +151,44 @@ export class TransactionRepository implements ITransactionRepository {
         const setClause = fields.map((field) => `${field} = ?`).join(", ");
         const values = fields.map((field) => {
           const value = (updates as any)[field];
-          return field === "date" && value
-            ? new Date(value).toISOString()
-            : value;
+          if (field === "date" && value) {
+            return new Date(value).toISOString();
+          }
+          if (field === "appliedToDebt") {
+            return value ? 1 : 0;
+          }
+          return value;
         });
 
         await this.db.runAsync(
           `UPDATE transactions SET ${setClause} WHERE id = ?`,
           [...values, id]
         );
-        await this.customerRepo.updateTotals([currentTransaction.customerId]);
+
+        // Handle debt management changes
+        const updatedTransaction = { ...currentTransaction, ...updates };
+        await this.handleDebtUpdate(currentTransaction, updatedTransaction);
+
+        // Handle total spent changes for sale transactions
+        if (
+          currentTransaction.type === "sale" &&
+          updates.amount !== undefined
+        ) {
+          const amountDifference = updates.amount - currentTransaction.amount;
+          if (amountDifference !== 0) {
+            await this.customerRepo.updateTotalSpent(
+              currentTransaction.customerId,
+              amountDifference
+            );
+          }
+        }
 
         await this.auditService.logEntry({
           tableName: "transactions",
           operation: "UPDATE",
           recordId: id,
           oldValues: currentTransaction,
-          newValues: { ...currentTransaction, ...updates },
+          newValues: updatedTransaction,
         });
       });
     } catch (error) {
@@ -869,15 +893,28 @@ export class TransactionRepository implements ITransactionRepository {
    * Handle debt management logic based on transaction type
    */
   private async handleDebtManagement(transaction: Transaction): Promise<void> {
+    const debtAmount = transaction.remainingAmount || 0;
+
     switch (transaction.type) {
       case "sale":
-        if (transaction.paymentMethod === "credit") {
-          // Credit sale: increase customer's outstanding balance
+        // Update total spent for all sales
+        await this.customerRepo.updateTotalSpent(
+          transaction.customerId,
+          transaction.amount
+        );
+
+        if (
+          (transaction.paymentMethod === "credit" ||
+            transaction.paymentMethod === "mixed") &&
+          debtAmount > 0
+        ) {
+          // Credit or mixed sale with remaining debt: increase customer's outstanding balance
           await this.customerRepo.increaseOutstandingBalance(
             transaction.customerId,
-            transaction.remainingAmount || 0
+            debtAmount
           );
         }
+        // For cash sales, no additional debt impact beyond total spent
         break;
 
       case "payment":
@@ -904,6 +941,34 @@ export class TransactionRepository implements ITransactionRepository {
         );
         break;
     }
+  }
+
+  /**
+   * Calculate transaction status based on payment details
+   */
+  private calculateTransactionStatus(
+    data: CreateTransactionInput
+  ): TransactionStatus {
+    if (data.type === "payment") {
+      return "completed";
+    }
+
+    if (
+      data.paymentMethod === "cash" ||
+      (data.paidAmount || 0) >= (data.amount || 0)
+    ) {
+      return "completed";
+    }
+
+    if (data.paymentMethod === "mixed") {
+      return (data.remainingAmount || 0) > 0 ? "partial" : "completed";
+    }
+
+    if (data.paymentMethod === "credit" || (data.remainingAmount || 0) > 0) {
+      return "pending";
+    }
+
+    return "completed";
   }
 
   /**
@@ -1109,6 +1174,48 @@ export class TransactionRepository implements ITransactionRepository {
       };
     } catch (error) {
       throw new DatabaseError("getCustomerStatement", error as Error);
+    }
+  }
+
+  /**
+   * Handle debt management updates when transaction is modified
+   */
+  private async handleDebtUpdate(
+    oldTx: Transaction,
+    newTx: Transaction
+  ): Promise<void> {
+    const oldDebtChange = this.calculateDebtChange(oldTx);
+    const newDebtChange = this.calculateDebtChange(newTx);
+    const debtDifference = newDebtChange - oldDebtChange;
+
+    if (debtDifference !== 0) {
+      if (debtDifference > 0) {
+        await this.customerRepo.increaseOutstandingBalance(
+          newTx.customerId,
+          debtDifference
+        );
+      } else {
+        await this.customerRepo.decreaseOutstandingBalance(
+          newTx.customerId,
+          Math.abs(debtDifference)
+        );
+      }
+    }
+  }
+
+  /**
+   * Calculate the debt impact of a transaction
+   */
+  private calculateDebtChange(transaction: Transaction): number {
+    switch (transaction.type) {
+      case "sale":
+      case "credit":
+        return transaction.remainingAmount || 0;
+      case "payment":
+      case "refund":
+        return -transaction.amount;
+      default:
+        return 0;
     }
   }
 }

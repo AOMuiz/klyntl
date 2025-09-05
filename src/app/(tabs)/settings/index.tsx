@@ -30,7 +30,7 @@ export default function SettingsIndex() {
         lightColor={lightText}
         darkColor={darkText}
       >
-        Account
+        My Account
       </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
@@ -117,7 +117,7 @@ export default function SettingsIndex() {
         lightColor={lightText}
         darkColor={darkText}
       >
-        Preferences
+        App Preferences
       </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
@@ -204,7 +204,7 @@ export default function SettingsIndex() {
         lightColor={lightText}
         darkColor={darkText}
       >
-        Support
+        Support & Help
       </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity

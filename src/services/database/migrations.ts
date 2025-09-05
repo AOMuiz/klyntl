@@ -500,6 +500,35 @@ const migration007: Migration = {
 };
 
 /**
+ * Migration 8: Add appliedToDebt column for debt management
+ */
+const migration008: Migration = {
+  version: 8,
+  name: "add_applied_to_debt_column",
+  up: async (db: SQLiteDatabase) => {
+    // Add appliedToDebt column to transactions table
+    await addColumnIfNotExists(
+      db,
+      "transactions",
+      "appliedToDebt",
+      "INTEGER DEFAULT 0"
+    );
+
+    // Add index for debt queries
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_applied_to_debt ON transactions(appliedToDebt);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Note: SQLite doesn't support DROP COLUMN, so we leave the column
+    // but remove the index
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_transactions_applied_to_debt;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -511,6 +540,7 @@ export const migrations: Migration[] = [
   migration005,
   migration006,
   migration007,
+  migration008,
 ];
 
 /**

@@ -8,6 +8,8 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
 import { UpdateTransactionInput } from "@/types/transaction";
+import { getCustomerInitials } from "@/utils/helpers";
+import { format } from "date-fns";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -18,14 +20,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { HelperText, TextInput } from "react-native-paper";
-import { styles } from "./EditTransactionScreen.styles";
+import { HelperText, TextInput, useTheme } from "react-native-paper";
+import { DatePickerModal } from "react-native-paper-dates";
+import { createStyles } from "./EditTransactionScreen.styles";
 
 interface TransactionFormData {
   amount: string;
   description: string;
   date: string;
   type: "sale" | "payment" | "refund";
+  paymentMethod: "cash" | "bank_transfer" | "pos_card" | "credit" | "mixed";
+  paidAmount: string;
+  remainingAmount: string;
+  dueDate: Date | null;
+  appliedToDebt?: boolean;
 }
 
 interface EditTransactionScreenProps {
@@ -36,6 +44,9 @@ export default function EditTransactionScreen({
   transactionId,
 }: EditTransactionScreenProps) {
   const router = useRouter();
+  const theme = useTheme();
+  // Create dynamic styles
+  const dynamicStyles = createStyles(theme);
 
   // Use React Query hooks
   const transactionQuery = useTransaction(transactionId);
@@ -44,6 +55,7 @@ export default function EditTransactionScreen({
 
   const [loading, setLoading] = useState(false);
   const [customer, setCustomer] = useState<any>(null);
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
 
   const transaction = transactionQuery.data;
   const initialLoading = transactionQuery.isLoading;
@@ -61,11 +73,17 @@ export default function EditTransactionScreen({
       description: "",
       date: "",
       type: "sale",
+      paymentMethod: "cash",
+      paidAmount: "",
+      remainingAmount: "",
+      dueDate: null,
+      appliedToDebt: false,
     },
   });
 
   const watchedType = watch("type");
   const watchedAmount = watch("amount");
+  const watchedPaymentMethod = watch("paymentMethod");
 
   // Load transaction data and set form values when transaction data is available
   const lastTransactionIdRef = useRef<string | null>(null);
@@ -93,7 +111,12 @@ export default function EditTransactionScreen({
       amount: transaction.amount.toString(),
       description: transaction.description || "",
       date: transaction.date,
-      type: transaction.type,
+      type: transaction.type as "sale" | "payment" | "refund",
+      paymentMethod: transaction.paymentMethod || "cash",
+      paidAmount: transaction.paidAmount?.toString() || "",
+      remainingAmount: transaction.remainingAmount?.toString() || "",
+      dueDate: transaction.dueDate ? new Date(transaction.dueDate) : null,
+      appliedToDebt: transaction.appliedToDebt || false,
     });
 
     // Intentionally only run when transaction id changes — customers array can be unstable
@@ -148,6 +171,36 @@ export default function EditTransactionScreen({
 
       if (data.type !== transaction.type) {
         updates.type = data.type;
+      }
+
+      if (data.paymentMethod !== (transaction.paymentMethod || "cash")) {
+        updates.paymentMethod = data.paymentMethod;
+      }
+
+      if (
+        parseFloat(data.paidAmount || "0") !== (transaction.paidAmount || 0)
+      ) {
+        updates.paidAmount = parseFloat(data.paidAmount || "0") || undefined;
+      }
+
+      if (
+        parseFloat(data.remainingAmount || "0") !==
+        (transaction.remainingAmount || 0)
+      ) {
+        updates.remainingAmount =
+          parseFloat(data.remainingAmount || "0") || undefined;
+      }
+
+      const formDueDate = data.dueDate
+        ? format(data.dueDate, "yyyy-MM-dd")
+        : null;
+      const transactionDueDate = transaction.dueDate || null;
+      if (formDueDate !== transactionDueDate) {
+        updates.dueDate = formDueDate || undefined;
+      }
+
+      if (data.appliedToDebt !== transaction.appliedToDebt) {
+        updates.appliedToDebt = data.appliedToDebt;
       }
 
       // Only update if there are changes
@@ -217,6 +270,8 @@ export default function EditTransactionScreen({
     }
   };
 
+  const styles = createStyles(theme);
+
   if (initialLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -270,16 +325,6 @@ export default function EditTransactionScreen({
       withPadding={false}
       edges={[...edgesHorizontal, ...edgesVertical]}
     >
-      {/* <View style={styles.header}>
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-          <ThemedText style={styles.cancelText}>Cancel</ThemedText>
-        </TouchableOpacity>
-        <ThemedText type="title" style={styles.headerTitle}>
-          Edit Transaction
-        </ThemedText>
-        <View style={styles.placeholder} />
-      </View> */}
-
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
         <View style={styles.formContent}>
           <View style={styles.iconContainer}>
@@ -299,12 +344,7 @@ export default function EditTransactionScreen({
             <View style={styles.customerInfo}>
               <View style={styles.customerAvatar}>
                 <ThemedText style={styles.customerAvatarText}>
-                  {customer.name
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)}
+                  {getCustomerInitials(customer.name)}
                 </ThemedText>
               </View>
               <View>
@@ -452,60 +492,95 @@ export default function EditTransactionScreen({
           </View>
 
           {/* Date Field */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>Date *</ThemedText>
+          <View style={dynamicStyles.fieldContainer}>
+            <ThemedText style={dynamicStyles.fieldLabel}>Date *</ThemedText>
             <Controller
               control={control}
               name="date"
               rules={{ required: "Date is required" }}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <View>
-                  <TextInput
-                    label="Transaction Date *"
-                    mode="outlined"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={!!errors.date}
-                    style={styles.input}
-                    placeholder="YYYY-MM-DD"
-                    left={<TextInput.Icon icon="calendar" />}
-                    right={
-                      <TextInput.Icon
-                        icon="calendar-today"
-                        onPress={() => {
-                          const today = new Date().toISOString().split("T")[0];
-                          onChange(today);
-                        }}
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setDatePickerVisible(true)}
+                    style={dynamicStyles.dateButton}
+                    activeOpacity={0.7}
+                  >
+                    <View pointerEvents="none">
+                      <TextInput
+                        label="Transaction Date *"
+                        mode="outlined"
+                        value={value}
+                        editable={false}
+                        style={dynamicStyles.input}
+                        left={<TextInput.Icon icon="calendar" />}
                       />
-                    }
-                  />
-                  <View style={styles.datePresetContainer}>
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={dynamicStyles.datePresetContainer}>
                     <TouchableOpacity
-                      style={styles.datePresetButton}
+                      style={[
+                        dynamicStyles.datePresetButton,
+                        {
+                          backgroundColor: theme.colors.primaryContainer,
+                        },
+                      ]}
                       onPress={() => {
-                        const today = new Date().toISOString().split("T")[0];
-                        onChange(today);
+                        onChange(new Date().toISOString().split("T")[0]);
                       }}
                     >
-                      <ThemedText style={styles.datePresetText}>
+                      <ThemedText
+                        style={[
+                          dynamicStyles.datePresetText,
+                          {
+                            color: theme.colors.onPrimaryContainer,
+                          },
+                        ]}
+                      >
                         Today
                       </ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.datePresetButton}
+                      style={[
+                        dynamicStyles.datePresetButton,
+                        {
+                          backgroundColor: theme.colors.secondaryContainer,
+                        },
+                      ]}
                       onPress={() => {
                         const yesterday = new Date();
                         yesterday.setDate(yesterday.getDate() - 1);
                         onChange(yesterday.toISOString().split("T")[0]);
                       }}
                     >
-                      <ThemedText style={styles.datePresetText}>
+                      <ThemedText
+                        style={[
+                          dynamicStyles.datePresetText,
+                          {
+                            color: theme.colors.onSecondaryContainer,
+                          },
+                        ]}
+                      >
                         Yesterday
                       </ThemedText>
                     </TouchableOpacity>
                   </View>
-                </View>
+
+                  <DatePickerModal
+                    visible={isDatePickerVisible}
+                    mode="single"
+                    onDismiss={() => setDatePickerVisible(false)}
+                    date={value ? new Date(value) : new Date()}
+                    onConfirm={({ date }) => {
+                      if (date) {
+                        onChange(date.toISOString().split("T")[0]);
+                      }
+                      setDatePickerVisible(false);
+                    }}
+                    presentationStyle="pageSheet"
+                    locale="en"
+                  />
+                </>
               )}
             />
             <HelperText type="error" visible={!!errors.date}>
@@ -605,7 +680,257 @@ export default function EditTransactionScreen({
             />
           </View>
 
-          <View style={styles.buttonContainer}>
+          {/* Payment Method Field */}
+          <View style={dynamicStyles.fieldContainer}>
+            <ThemedText style={dynamicStyles.fieldLabel}>
+              Payment Method *
+            </ThemedText>
+            <Controller
+              control={control}
+              name="paymentMethod"
+              rules={{
+                required: "Payment method is required",
+              }}
+              render={({ field: { onChange, value } }) => (
+                <View style={dynamicStyles.paymentMethodSelector}>
+                  {["cash", "bank_transfer", "pos_card", "credit", "mixed"].map(
+                    (method) => (
+                      <TouchableOpacity
+                        key={method}
+                        style={[
+                          dynamicStyles.paymentMethodOption,
+                          value === method &&
+                            dynamicStyles.paymentMethodOptionSelected,
+                          { borderColor: getTypeColor(method) },
+                          value === method && {
+                            backgroundColor: getTypeColor(method) + "20",
+                          },
+                        ]}
+                        onPress={() => onChange(method)}
+                      >
+                        <ThemedText
+                          style={[
+                            dynamicStyles.paymentMethodOptionText,
+                            value === method && { color: getTypeColor(method) },
+                          ]}
+                        >
+                          {method.charAt(0).toUpperCase() + method.slice(1)}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )
+                  )}
+                </View>
+              )}
+            />
+            <HelperText type="error" visible={!!errors.paymentMethod}>
+              {errors.paymentMethod?.message}
+            </HelperText>
+          </View>
+
+          {/* Paid Amount Field - only show for credit or mixed payments */}
+          {(watchedPaymentMethod === "credit" ||
+            watchedPaymentMethod === "mixed") && (
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>
+                Paid Amount *
+              </ThemedText>
+              <Controller
+                control={control}
+                name="paidAmount"
+                rules={{
+                  required: "Paid amount is required for credit/mixed payments",
+                  validate: (value) => {
+                    const paid = parseFloat(value || "0");
+                    const total = parseFloat(watchedAmount || "0");
+                    if (paid > total) {
+                      return "Paid amount cannot exceed total amount";
+                    }
+                    return true;
+                  },
+                }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    label="Amount Paid *"
+                    mode="outlined"
+                    value={value}
+                    onChangeText={(text) => {
+                      onChange(formatAmountInput(text));
+                      // Auto-calculate remaining amount
+                      const paid = parseFloat(text || "0");
+                      const total = parseFloat(watchedAmount || "0");
+                      const remaining = Math.max(0, total - paid);
+                      setValue("remainingAmount", remaining.toString());
+                    }}
+                    onBlur={onBlur}
+                    error={!!errors.paidAmount}
+                    style={dynamicStyles.input}
+                    keyboardType="numeric"
+                    placeholder="0.00"
+                    left={<TextInput.Icon icon="currency-ngn" />}
+                  />
+                )}
+              />
+              <HelperText type="error" visible={!!errors.paidAmount}>
+                {errors.paidAmount?.message}
+              </HelperText>
+            </View>
+          )}
+
+          {/* Remaining Amount Field - only show for credit or mixed payments */}
+          {(watchedPaymentMethod === "credit" ||
+            watchedPaymentMethod === "mixed") && (
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>
+                Remaining Amount
+              </ThemedText>
+              <Controller
+                control={control}
+                name="remainingAmount"
+                render={({ field: { value } }) => (
+                  <TextInput
+                    label="Outstanding Balance"
+                    mode="outlined"
+                    value={value}
+                    editable={false}
+                    style={[
+                      dynamicStyles.input,
+                      { backgroundColor: theme.colors.surfaceDisabled },
+                    ]}
+                    left={<TextInput.Icon icon="currency-ngn" />}
+                  />
+                )}
+              />
+              {parseFloat(watch("remainingAmount") || "0") > 0 && (
+                <ThemedText
+                  style={[dynamicStyles.amountPreviewLabel, { marginTop: 8 }]}
+                >
+                  This amount will be added to the customer&apos;s outstanding
+                  balance
+                </ThemedText>
+              )}
+            </View>
+          )}
+
+          {/* Due Date Field - only show for credit or mixed payments */}
+          {(watchedPaymentMethod === "credit" ||
+            watchedPaymentMethod === "mixed") && (
+            <View style={dynamicStyles.fieldContainer}>
+              <ThemedText style={dynamicStyles.fieldLabel}>Due Date</ThemedText>
+              <Controller
+                control={control}
+                name="dueDate"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <TouchableOpacity
+                      onPress={() => setDatePickerVisible(true)}
+                      style={dynamicStyles.dateButton}
+                      activeOpacity={0.7}
+                    >
+                      <View pointerEvents="none">
+                        <TextInput
+                          label="Payment Due Date"
+                          mode="outlined"
+                          value={value ? format(value, "MMM dd, yyyy") : ""}
+                          placeholder="Select due date"
+                          editable={false}
+                          style={dynamicStyles.input}
+                          left={<TextInput.Icon icon="calendar" />}
+                        />
+                      </View>
+                    </TouchableOpacity>
+
+                    <View style={dynamicStyles.datePresetContainer}>
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.datePresetButton,
+                          {
+                            backgroundColor: theme.colors.primaryContainer,
+                          },
+                        ]}
+                        onPress={() => {
+                          const nextWeek = new Date();
+                          nextWeek.setDate(nextWeek.getDate() + 7);
+                          onChange(nextWeek);
+                        }}
+                      >
+                        <ThemedText
+                          style={[
+                            dynamicStyles.datePresetText,
+                            {
+                              color: theme.colors.onPrimaryContainer,
+                            },
+                          ]}
+                        >
+                          1 Week
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.datePresetButton,
+                          {
+                            backgroundColor: theme.colors.secondaryContainer,
+                          },
+                        ]}
+                        onPress={() => {
+                          const nextMonth = new Date();
+                          nextMonth.setMonth(nextMonth.getMonth() + 1);
+                          onChange(nextMonth);
+                        }}
+                      >
+                        <ThemedText
+                          style={[
+                            dynamicStyles.datePresetText,
+                            {
+                              color: theme.colors.onSecondaryContainer,
+                            },
+                          ]}
+                        >
+                          1 Month
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.datePresetButton,
+                          {
+                            backgroundColor: theme.colors.tertiaryContainer,
+                          },
+                        ]}
+                        onPress={() => onChange(null)}
+                      >
+                        <ThemedText
+                          style={[
+                            dynamicStyles.datePresetText,
+                            {
+                              color: theme.colors.onTertiaryContainer,
+                            },
+                          ]}
+                        >
+                          No Due Date
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+
+                    <DatePickerModal
+                      visible={isDatePickerVisible}
+                      mode="single"
+                      onDismiss={() => setDatePickerVisible(false)}
+                      date={value || new Date()}
+                      onConfirm={({ date }) => {
+                        if (date) {
+                          onChange(date);
+                        }
+                        setDatePickerVisible(false);
+                      }}
+                      presentationStyle="pageSheet"
+                      locale="en"
+                    />
+                  </>
+                )}
+              />
+            </View>
+          )}
+
+          <View style={dynamicStyles.buttonContainer}>
             <TouchableOpacity
               style={[
                 styles.submitButton,
@@ -632,22 +957,46 @@ export default function EditTransactionScreen({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.helpText}>
-            <ThemedText style={styles.helpLabel}>Transaction Types:</ThemedText>
-            <ThemedText style={styles.helpDescription}>
+          <View style={dynamicStyles.helpText}>
+            <ThemedText style={dynamicStyles.helpLabel}>
+              Transaction Types & Payment Methods:
+            </ThemedText>
+            <ThemedText style={dynamicStyles.helpDescription}>
               •{" "}
-              <ThemedText style={[styles.helpType, { color: "#34C759" }]}>
+              <ThemedText
+                style={[dynamicStyles.helpType, { color: "#34C759" }]}
+              >
                 Sale
               </ThemedText>
               : Customer purchase{"\n"}•{" "}
-              <ThemedText style={[styles.helpType, { color: "#007AFF" }]}>
+              <ThemedText
+                style={[dynamicStyles.helpType, { color: "#007AFF" }]}
+              >
                 Payment
               </ThemedText>
               : Customer payment received{"\n"}•{" "}
-              <ThemedText style={[styles.helpType, { color: "#FF3B30" }]}>
+              <ThemedText
+                style={[dynamicStyles.helpType, { color: "#FF3B30" }]}
+              >
                 Refund
               </ThemedText>
-              : Money returned to customer
+              : Money returned to customer{"\n\n"}
+              <ThemedText style={dynamicStyles.helpLabel}>
+                Payment Methods:
+              </ThemedText>
+              {"\n"}•{" "}
+              <ThemedText style={dynamicStyles.helpType}>Cash</ThemedText>: Full
+              payment received{"\n"}•{" "}
+              <ThemedText style={dynamicStyles.helpType}>
+                Bank Transfer
+              </ThemedText>
+              : Bank payment{"\n"}•{" "}
+              <ThemedText style={dynamicStyles.helpType}>POS Card</ThemedText>:
+              Card payment{"\n"}•{" "}
+              <ThemedText style={dynamicStyles.helpType}>Credit</ThemedText>:
+              Payment on credit (outstanding balance){"\n"}•{" "}
+              <ThemedText style={dynamicStyles.helpType}>Mixed</ThemedText>:
+              Partial payment with outstanding balance
             </ThemedText>
           </View>
         </View>
