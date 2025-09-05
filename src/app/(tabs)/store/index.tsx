@@ -8,6 +8,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useLowStockProducts, useProducts } from "@/hooks/useProducts";
 
 import type { Product } from "@/types/product";
+import { formatCurrency } from "@/utils/currency";
 import { ds, fontSize, hp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -210,11 +211,12 @@ export default function StoreScreen() {
             >
               <View style={styles.statItem}>
                 <ThemedText
-                  style={[styles.statValue, { color: colors.secondary }]}
+                  style={[styles.statValue, { color: colors.accent500 }]}
                 >
                   0
                 </ThemedText>
                 <ThemedText
+                  type="body2"
                   style={[styles.statLabel, { color: colors.textSecondary }]}
                 >
                   Orders Today
@@ -228,11 +230,12 @@ export default function StoreScreen() {
               />
               <View style={styles.statItem}>
                 <ThemedText
-                  style={[styles.statValue, { color: colors.secondary }]}
+                  style={[styles.statValue, { color: colors.secondaryLight }]}
                 >
                   {productsLoading ? "..." : productCount}
                 </ThemedText>
                 <ThemedText
+                  type="body2"
                   style={[styles.statLabel, { color: colors.textSecondary }]}
                 >
                   Active Products
@@ -248,9 +251,10 @@ export default function StoreScreen() {
                 <ThemedText
                   style={[styles.statValue, { color: colors.currencyPositive }]}
                 >
-                  ₦0
+                  {formatCurrency(0)}
                 </ThemedText>
                 <ThemedText
+                  type="body2"
                   style={[styles.statLabel, { color: colors.textSecondary }]}
                 >
                   Store Revenue

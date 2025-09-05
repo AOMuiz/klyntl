@@ -2,6 +2,10 @@ import { useThemeColor } from "@/hooks/useThemeColor";
 import { fontSize } from "@/utils/responsive_dimensions_system";
 import { StyleSheet, Text, type TextProps } from "react-native";
 
+// Uncomment and adjust the import according to your theme setup
+import type { ExtendedKlyntlTheme } from "@/constants/KlyntlTheme";
+import { useTheme } from "react-native-paper";
+
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
@@ -27,7 +31,23 @@ export function ThemedText({
   type = "default",
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
+  // Recommended (optional) change — keep current implementation but consider using
+  // React Native Paper's theme as the default color source so ThemedText always
+  // follows the app Paper theme (forcedTheme, system theme, and runtime toggles).
+  // To apply this, you can uncomment the example below and import `useTheme`
+  // from 'react-native-paper' and `ExtendedKlyntlTheme` from your theme constants.
+
+  const paperTheme = useTheme<ExtendedKlyntlTheme>();
+  const paperDefault = paperTheme?.colors?.onBackground;
+  // Keep existing useThemeColor behavior for explicit overrides
+  const colorFromProps = useThemeColor(
+    { light: lightColor, dark: darkColor },
+    "text"
+  );
+  // Prefer explicit prop colors, otherwise fall back to Paper theme's onBackground
+  const color = colorFromProps ?? paperDefault;
+
+  // const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
 
   return (
     <Text
