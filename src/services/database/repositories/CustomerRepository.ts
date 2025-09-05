@@ -725,4 +725,177 @@ export class CustomerRepository
   ) {
     return this.findWithPagination(searchQuery, page, pageSize);
   }
+
+  // ===== DEBT MANAGEMENT METHODS =====
+
+  /**
+   * Increase customer's outstanding balance (when they incur debt)
+   */
+  async increaseOutstandingBalance(
+    customerId: string,
+    amount: number
+  ): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "increaseOutstandingBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (amount <= 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "increaseOutstandingBalance",
+        "amount",
+        "Amount must be positive"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+        [amount, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { outstandingBalance: `+${amount}` },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "increaseOutstandingBalance",
+        "Failed to increase outstanding balance",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Decrease customer's outstanding balance (when they make payment)
+   */
+  async decreaseOutstandingBalance(
+    customerId: string,
+    amount: number
+  ): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "decreaseOutstandingBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (amount <= 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "decreaseOutstandingBalance",
+        "amount",
+        "Amount must be positive"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+        [amount, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { outstandingBalance: `-${amount}` },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "decreaseOutstandingBalance",
+        "Failed to decrease outstanding balance",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Get customer's current outstanding balance
+   */
+  async getOutstandingBalance(customerId: string): Promise<number> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "getOutstandingBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+
+    try {
+      const result = await this.db.getFirstAsync<{
+        outstandingBalance: number;
+      }>("SELECT outstandingBalance FROM customers WHERE id = ?", [customerId]);
+
+      if (!result) {
+        throw new RepositoryNotFoundError("Customer", customerId);
+      }
+
+      return result.outstandingBalance || 0;
+    } catch (error) {
+      if (error instanceof RepositoryNotFoundError) {
+        throw error;
+      }
+      throw new RepositoryError(
+        "Customer",
+        "getOutstandingBalance",
+        "Failed to get outstanding balance",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Update customer's total spent (for cash transactions)
+   */
+  async updateTotalSpent(customerId: string, amount: number): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "updateTotalSpent",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (amount <= 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "updateTotalSpent",
+        "amount",
+        "Amount must be positive"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        `UPDATE customers SET totalSpent = totalSpent + ?, updatedAt = ? WHERE id = ?`,
+        [amount, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { totalSpent: `+${amount}` },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "updateTotalSpent",
+        "Failed to update total spent",
+        error as Error
+      );
+    }
+  }
 }

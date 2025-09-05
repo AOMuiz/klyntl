@@ -42,7 +42,10 @@ describe("TransactionRepository", () => {
     // Create mock instances
     mockCustomerRepo = {
       findById: jest.fn(),
-      updateTotals: jest.fn(),
+      updateTotalSpent: jest.fn(),
+      increaseOutstandingBalance: jest.fn(),
+      decreaseOutstandingBalance: jest.fn(),
+      getOutstandingBalance: jest.fn(),
     } as any;
 
     mockAudit = {
@@ -68,7 +71,7 @@ describe("TransactionRepository", () => {
       updatedAt: "2024-01-01T00:00:00Z",
     });
 
-    mockCustomerRepo.updateTotals.mockResolvedValue(undefined);
+    mockCustomerRepo.updateTotalSpent.mockResolvedValue(undefined);
     mockAudit.logEntry.mockResolvedValue(undefined);
     mockGenerateId.mockReturnValue("txn_test_123");
 
@@ -97,10 +100,21 @@ describe("TransactionRepository", () => {
       expect(result).toEqual({
         id: "txn_test_123",
         customerId: "cust_1",
+        productId: undefined,
         amount: 25000,
         description: "Product sale",
         date: "2024-01-15T10:30:00Z",
         type: "sale",
+        paymentMethod: "cash",
+        paidAmount: 25000,
+        remainingAmount: 0,
+        status: "completed",
+        linkedTransactionId: undefined,
+        dueDate: undefined,
+        currency: "NGN",
+        exchangeRate: 1,
+        metadata: undefined,
+        isDeleted: false,
       });
 
       expect(
@@ -111,7 +125,7 @@ describe("TransactionRepository", () => {
         expect.stringContaining("INSERT INTO transactions"),
         expect.any(Array)
       );
-      expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith(["cust_1"]);
+      expect(mockCustomerRepo.updateTotalSpent).not.toHaveBeenCalled();
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",
@@ -305,7 +319,7 @@ describe("TransactionRepository", () => {
         expect.stringContaining("UPDATE transactions SET"),
         expect.any(Array)
       );
-      expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith(["cust_1"]);
+      expect(mockCustomerRepo.updateTotalSpent).not.toHaveBeenCalled();
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",
@@ -343,7 +357,9 @@ describe("TransactionRepository", () => {
 
       await expect(
         transactionRepository.update("txn_nonexistent", updateData)
-      ).rejects.toThrow("Transaction with identifier 'txn_nonexistent' not found");
+      ).rejects.toThrow(
+        "Transaction with identifier 'txn_nonexistent' not found"
+      );
 
       expect(mockDb.runAsync).not.toHaveBeenCalled();
     });
@@ -384,7 +400,9 @@ describe("TransactionRepository", () => {
         "DELETE FROM transactions WHERE id = ?",
         ["txn_1"]
       );
-      expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith(["cust_1"]);
+      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
+        "cust_1",
+      ]);
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           tableName: "transactions",
@@ -399,7 +417,9 @@ describe("TransactionRepository", () => {
 
       await expect(
         transactionRepository.delete("txn_nonexistent")
-      ).rejects.toThrow("Transaction with identifier 'txn_nonexistent' not found");
+      ).rejects.toThrow(
+        "Transaction with identifier 'txn_nonexistent' not found"
+      );
 
       expect(mockDb.runAsync).not.toHaveBeenCalled();
     });
@@ -764,7 +784,7 @@ describe("TransactionRepository", () => {
         expect(result).toHaveLength(2);
         expect(result[0].id).toBe("txn_test_123");
         expect(result[1].id).toBe("txn_test_123");
-        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);
@@ -823,7 +843,7 @@ describe("TransactionRepository", () => {
         await transactionRepository.updateBulk(updates);
 
         expect(mockDb.runAsync).toHaveBeenCalledTimes(2);
-        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);
@@ -853,7 +873,7 @@ describe("TransactionRepository", () => {
         await transactionRepository.deleteBulk(transactionIds);
 
         expect(mockDb.runAsync).toHaveBeenCalledTimes(2);
-        expect(mockCustomerRepo.updateTotals).toHaveBeenCalledWith([
+        expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith([
           "cust_1",
           "cust_2",
         ]);

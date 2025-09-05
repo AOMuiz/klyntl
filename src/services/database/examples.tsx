@@ -26,7 +26,7 @@ function DatabaseExample() {
       const dbService = createDatabaseService(db);
 
       // Test creating a customer
-      const customer = await dbService.createCustomer({
+      const customer = await dbService.customers.createCustomer({
         name: "Test Customer",
         phone: "+1234567890",
         email: "test@example.com",
@@ -43,9 +43,13 @@ function DatabaseExample() {
   };
 
   if (error) {
+    const errorMessage =
+      typeof error === "object" && error !== null && "message" in error
+        ? (error as { message?: string }).message
+        : String(error);
     return (
       <View>
-        <Text>Database Error: {error.message}</Text>
+        <Text>Database Error: {errorMessage}</Text>
       </View>
     );
   }

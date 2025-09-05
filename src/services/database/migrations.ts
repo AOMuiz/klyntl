@@ -425,6 +425,81 @@ const migration006: Migration = {
 };
 
 /**
+ * Migration 7: Add debt management and enhanced transaction fields
+ */
+const migration007: Migration = {
+  version: 7,
+  name: "debt_management_enhancement",
+  up: async (db: SQLiteDatabase) => {
+    // Add new columns to transactions table
+    const transactionColumns = [
+      { name: "paymentMethod", type: "TEXT DEFAULT 'cash'" },
+      { name: "paidAmount", type: "INTEGER DEFAULT 0" },
+      { name: "remainingAmount", type: "INTEGER DEFAULT 0" },
+      { name: "status", type: "TEXT DEFAULT 'completed'" },
+      { name: "linkedTransactionId", type: "TEXT" },
+      { name: "dueDate", type: "TEXT" },
+      { name: "currency", type: "TEXT DEFAULT 'NGN'" },
+      { name: "exchangeRate", type: "REAL DEFAULT 1" },
+      { name: "metadata", type: "TEXT" },
+      { name: "isDeleted", type: "INTEGER DEFAULT 0" },
+    ];
+
+    for (const column of transactionColumns) {
+      await addColumnIfNotExists(db, "transactions", column.name, column.type);
+    }
+
+    // Add outstandingBalance to customers table
+    await addColumnIfNotExists(
+      db,
+      "customers",
+      "outstandingBalance",
+      "INTEGER DEFAULT 0"
+    );
+
+    // Update existing transactions to use kobo precision (multiply by 100)
+    await db.runAsync(`
+      UPDATE transactions 
+      SET amount = CAST(amount * 100 AS INTEGER),
+          paidAmount = CAST(amount * 100 AS INTEGER),
+          remainingAmount = 0
+      WHERE amount > 0
+    `);
+
+    // Update customers totalSpent to kobo precision
+    await db.runAsync(`
+      UPDATE customers 
+      SET totalSpent = CAST(totalSpent * 100 AS INTEGER),
+          outstandingBalance = 0
+    `);
+
+    // Add indexes for debt management
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_customerId ON transactions(customerId);
+      CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+      CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+      CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+      CREATE INDEX IF NOT EXISTS idx_transactions_linked ON transactions(linkedTransactionId);
+      CREATE INDEX IF NOT EXISTS idx_transactions_due_date ON transactions(dueDate);
+      CREATE INDEX IF NOT EXISTS idx_customers_outstanding ON customers(outstandingBalance);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Note: SQLite doesn't support DROP COLUMN, so we leave the columns
+    // but remove the indexes
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_customers_outstanding;
+      DROP INDEX IF EXISTS idx_transactions_due_date;
+      DROP INDEX IF EXISTS idx_transactions_linked;
+      DROP INDEX IF EXISTS idx_transactions_status;
+      DROP INDEX IF EXISTS idx_transactions_type;
+      DROP INDEX IF EXISTS idx_transactions_date;
+      DROP INDEX IF EXISTS idx_transactions_customerId;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -435,6 +510,7 @@ export const migrations: Migration[] = [
   migration004,
   migration005,
   migration006,
+  migration007,
 ];
 
 /**

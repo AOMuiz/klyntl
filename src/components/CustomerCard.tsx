@@ -4,6 +4,7 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, Text, useTheme } from "react-native-paper";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "../constants/KlyntlTheme";
 import { Customer } from "../types/customer";
+import { formatCurrency } from "@/utils/currency";
 
 interface CustomerCardProps {
   customer: Customer;
@@ -21,10 +22,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
 
-  const formatCurrency = (amount: number): string => {
-    return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 0 })}`;
-  };
-
+  
   const getInitials = (name: string): string => {
     return name
       .split(" ")

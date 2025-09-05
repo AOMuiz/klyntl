@@ -43,12 +43,22 @@ export class TransactionRepository implements ITransactionRepository {
         description: transactionData.description || undefined,
         date: transactionData.date,
         type: transactionData.type,
+        paymentMethod: transactionData.paymentMethod || "cash",
+        paidAmount: transactionData.paidAmount || transactionData.amount,
+        remainingAmount: transactionData.remainingAmount || 0,
+        status: transactionData.type === "payment" ? "completed" : "completed",
+        linkedTransactionId: transactionData.linkedTransactionId,
+        dueDate: transactionData.dueDate,
+        currency: transactionData.currency || "NGN",
+        exchangeRate: transactionData.exchangeRate || 1,
+        metadata: transactionData.metadata,
+        isDeleted: false,
       };
 
       await this.db.withTransactionAsync(async () => {
         await this.db.runAsync(
-          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, dueDate, currency, exchangeRate, metadata, isDeleted) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             transaction.id,
             transaction.customerId,
@@ -57,10 +67,21 @@ export class TransactionRepository implements ITransactionRepository {
             transaction.description || null,
             transaction.date,
             transaction.type,
+            transaction.paymentMethod || "cash",
+            transaction.paidAmount || transaction.amount,
+            transaction.remainingAmount || 0,
+            transaction.status || "completed",
+            transaction.linkedTransactionId || null,
+            transaction.dueDate || null,
+            transaction.currency || "NGN",
+            transaction.exchangeRate || 1,
+            transaction.metadata || null,
+            transaction.isDeleted ? 1 : 0,
           ]
         );
 
-        await this.customerRepo.updateTotals([transaction.customerId]);
+        // Handle debt management based on transaction type
+        await this.handleDebtManagement(transaction);
 
         await this.auditService.logEntry({
           tableName: "transactions",
@@ -616,11 +637,20 @@ export class TransactionRepository implements ITransactionRepository {
             description: transactionData.description || undefined,
             date: transactionData.date,
             type: transactionData.type,
+            paymentMethod: transactionData.paymentMethod || "cash",
+            paidAmount: transactionData.paidAmount || transactionData.amount,
+            remainingAmount: transactionData.remainingAmount || 0,
+            linkedTransactionId: transactionData.linkedTransactionId,
+            dueDate: transactionData.dueDate,
+            currency: transactionData.currency || "NGN",
+            exchangeRate: transactionData.exchangeRate || 1,
+            metadata: transactionData.metadata,
+            isDeleted: false,
           };
 
           await this.db.runAsync(
-            `INSERT INTO transactions (id, customerId, productId, amount, description, date, type) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, dueDate, currency, exchangeRate, metadata, isDeleted) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               transaction.id,
               transaction.customerId,
@@ -629,6 +659,16 @@ export class TransactionRepository implements ITransactionRepository {
               transaction.description || null,
               transaction.date,
               transaction.type,
+              transaction.paymentMethod || "cash",
+              transaction.paidAmount || transaction.amount,
+              transaction.remainingAmount || 0,
+              transaction.status || "completed",
+              transaction.linkedTransactionId || null,
+              transaction.dueDate || null,
+              transaction.currency || "NGN",
+              transaction.exchangeRate || 1,
+              transaction.metadata || null,
+              transaction.isDeleted ? 1 : 0,
             ]
           );
 
@@ -820,6 +860,255 @@ export class TransactionRepository implements ITransactionRepository {
       );
     } catch (error) {
       throw new DatabaseError("findTransactionsByDescription", error as Error);
+    }
+  }
+
+  // ===== DEBT MANAGEMENT METHODS =====
+
+  /**
+   * Handle debt management logic based on transaction type
+   */
+  private async handleDebtManagement(transaction: Transaction): Promise<void> {
+    switch (transaction.type) {
+      case "sale":
+        if (transaction.paymentMethod === "credit") {
+          // Credit sale: increase customer's outstanding balance
+          await this.customerRepo.increaseOutstandingBalance(
+            transaction.customerId,
+            transaction.remainingAmount || 0
+          );
+        }
+        break;
+
+      case "payment":
+        // Payment received: decrease customer's outstanding balance
+        await this.customerRepo.decreaseOutstandingBalance(
+          transaction.customerId,
+          transaction.amount
+        );
+        break;
+
+      case "credit":
+        // Credit/loan issued: increase customer's outstanding balance
+        await this.customerRepo.increaseOutstandingBalance(
+          transaction.customerId,
+          transaction.amount
+        );
+        break;
+
+      case "refund":
+        // Refund: decrease customer's outstanding balance
+        await this.customerRepo.decreaseOutstandingBalance(
+          transaction.customerId,
+          transaction.amount
+        );
+        break;
+    }
+  }
+
+  /**
+   * Apply payment to outstanding debts (allocates to oldest debts first)
+   */
+  async applyPaymentToDebt(
+    paymentTx: CreateTransactionInput,
+    applyToOldest: boolean = true
+  ): Promise<void> {
+    ValidationService.validateTransactionInput(paymentTx);
+
+    if (paymentTx.type !== "payment") {
+      throw new ValidationError("Transaction must be of type 'payment'");
+    }
+
+    try {
+      await this.db.withTransactionAsync(async () => {
+        // Create the payment transaction
+        const createdPayment = await this.create({
+          ...paymentTx,
+          paidAmount: paymentTx.amount,
+          remainingAmount: 0,
+        });
+
+        // Get outstanding debts ordered by date
+        const outstandingDebts = await this.db.getAllAsync<{
+          id: string;
+          remainingAmount: number;
+          date: string;
+        }>(
+          `SELECT id, remainingAmount, date FROM transactions 
+           WHERE customerId = ? AND type IN ('sale', 'credit') 
+           AND remainingAmount > 0 AND isDeleted = 0 
+           ORDER BY date ${applyToOldest ? "ASC" : "DESC"}`,
+          [paymentTx.customerId]
+        );
+
+        let remainingToAllocate = paymentTx.amount;
+
+        for (const debt of outstandingDebts) {
+          if (remainingToAllocate <= 0) break;
+
+          const allocateAmount = Math.min(
+            remainingToAllocate,
+            debt.remainingAmount
+          );
+
+          // Update the debt transaction
+          await this.db.runAsync(
+            `UPDATE transactions 
+             SET remainingAmount = remainingAmount - ?, 
+                 status = CASE WHEN remainingAmount - ? = 0 THEN 'completed' ELSE 'partial' END 
+             WHERE id = ?`,
+            [allocateAmount, allocateAmount, debt.id]
+          );
+
+          // Log the allocation
+          await this.auditService.logEntry({
+            tableName: "transactions",
+            operation: "UPDATE",
+            recordId: debt.id,
+            newValues: {
+              allocatedPayment: allocateAmount,
+              paymentId: createdPayment.id,
+            },
+          });
+
+          remainingToAllocate -= allocateAmount;
+        }
+
+        // Update customer's outstanding balance
+        const allocatedAmount = paymentTx.amount - remainingToAllocate;
+        await this.customerRepo.decreaseOutstandingBalance(
+          paymentTx.customerId,
+          allocatedAmount
+        );
+      });
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError("applyPaymentToDebt", error as Error);
+    }
+  }
+
+  /**
+   * Allocate mixed payment (partial immediate payment + remaining debt)
+   */
+  async allocateMixedPayment(
+    saleTxId: string,
+    paidNow: number,
+    remainingAsDebt: number
+  ): Promise<void> {
+    if (!saleTxId?.trim()) {
+      throw new ValidationError("Sale transaction ID is required");
+    }
+    if (paidNow < 0 || remainingAsDebt < 0) {
+      throw new ValidationError("Payment amounts cannot be negative");
+    }
+
+    try {
+      const saleTx = await this.findById(saleTxId);
+      if (!saleTx) {
+        throw new NotFoundError("Transaction", saleTxId);
+      }
+
+      if (saleTx.type !== "sale") {
+        throw new ValidationError("Transaction must be of type 'sale'");
+      }
+
+      await this.db.withTransactionAsync(async () => {
+        // Update the sale transaction with mixed payment details
+        await this.update(saleTxId, {
+          paymentMethod: "mixed",
+          paidAmount: paidNow,
+          remainingAmount: remainingAsDebt,
+          status: remainingAsDebt > 0 ? "partial" : "completed",
+        });
+
+        // Update customer's outstanding balance
+        if (remainingAsDebt > 0) {
+          await this.customerRepo.increaseOutstandingBalance(
+            saleTx.customerId,
+            remainingAsDebt
+          );
+        }
+      });
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError("allocateMixedPayment", error as Error);
+    }
+  }
+
+  /**
+   * Get customer's outstanding balance
+   */
+  async getOutstandingBalance(customerId: string): Promise<number> {
+    return this.customerRepo.getOutstandingBalance(customerId);
+  }
+
+  /**
+   * Get customer statement with transaction history and balance
+   */
+  async getCustomerStatement(
+    customerId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    transactions: Transaction[];
+    openingBalance: number;
+    closingBalance: number;
+  }> {
+    if (!customerId?.trim()) {
+      throw new ValidationError("Customer ID is required");
+    }
+
+    try {
+      let query =
+        "SELECT * FROM transactions WHERE customerId = ? AND isDeleted = 0";
+      const params: any[] = [customerId];
+
+      if (startDate) {
+        query += " AND date >= ?";
+        params.push(startDate);
+      }
+
+      if (endDate) {
+        query += " AND date <= ?";
+        params.push(endDate);
+      }
+
+      query += " ORDER BY date ASC";
+
+      const transactions = await this.db.getAllAsync<Transaction>(
+        query,
+        params
+      );
+      const outstandingBalance = await this.getOutstandingBalance(customerId);
+
+      // Calculate opening balance (outstanding balance minus transactions in period)
+      let periodBalanceChange = 0;
+      for (const tx of transactions) {
+        switch (tx.type) {
+          case "sale":
+          case "credit":
+            periodBalanceChange += tx.remainingAmount || tx.amount;
+            break;
+          case "payment":
+          case "refund":
+            periodBalanceChange -= tx.amount;
+            break;
+        }
+      }
+
+      const openingBalance = outstandingBalance - periodBalanceChange;
+
+      return {
+        transactions,
+        openingBalance,
+        closingBalance: outstandingBalance,
+      };
+    } catch (error) {
+      throw new DatabaseError("getCustomerStatement", error as Error);
     }
   }
 }

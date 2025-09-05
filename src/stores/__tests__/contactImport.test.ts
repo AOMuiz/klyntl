@@ -1,23 +1,40 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { databaseService } from "../../services/database/oldUnusedIndex";
+import * as Contacts from "expo-contacts";
+import { DatabaseService } from "../../services/database/service";
 import { useCustomerStore } from "../customerStore";
 
+// Mock the database db import
+jest.mock("../../services/database/db", () => ({
+  db: {},
+}));
+
+// Mock the database service before importing the store
+jest.mock("../../services/database/service", () => ({
+  DatabaseService: jest.fn().mockImplementation(() => ({
+    customers: {
+      findAll: jest.fn().mockResolvedValue([]),
+      createCustomer: jest.fn(),
+      findByPhone: jest.fn().mockResolvedValue(null),
+      updateCustomer: jest.fn(),
+      deleteCustomer: jest.fn(),
+      findWithFilters: jest.fn().mockResolvedValue([]),
+      countWithFilters: jest.fn().mockResolvedValue(0),
+    },
+  })),
+}));
+
 // Mock AsyncStorage
-const mockAsyncStorage = {
+jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: jest.fn().mockResolvedValue(null),
   setItem: jest.fn().mockResolvedValue(undefined),
-};
-
-jest.mock("@react-native-async-storage/async-storage", () => mockAsyncStorage);
+}));
 
 // Mock expo-contacts
-const mockContacts = {
+jest.mock("expo-contacts", () => ({
   requestPermissionsAsync: jest.fn(),
-  getPermissionsAsync: jest.fn().mockResolvedValue({
-    status: "granted",
-    accessPrivileges: null,
-  }),
+  getPermissionsAsync: jest.fn(),
   getContactsAsync: jest.fn(),
+  presentAccessPickerAsync: jest.fn(),
   PermissionStatus: {
     GRANTED: "granted",
     DENIED: "denied",
@@ -32,182 +49,22 @@ const mockContacts = {
   SortTypes: {
     FirstName: "firstName",
   },
-};
-
-jest.mock("expo-contacts", () => mockContacts);
-
-// Mock dynamic import of expo-contacts
-jest.mock("../customerStore", () => {
-  const originalModule = jest.requireActual("../customerStore");
-
-  // Create a mock that intercepts the dynamic import
-  const originalStore = originalModule.useCustomerStore;
-
-  const mockImportFromContacts = jest.fn();
-
-  return {
-    ...originalModule,
-    useCustomerStore: (selector?: any) => {
-      const store = originalStore(selector);
-
-      return {
-        ...store,
-        importFromContacts: mockImportFromContacts.mockImplementation(
-          async (forceRefresh = true) => {
-            store.loading = true;
-            store.error = null;
-
-            try {
-              // Use the already mocked expo-contacts module instead of dynamic import
-              const Contacts = mockContacts;
-
-              // Check current permission status first
-              const permissionResponse = await Contacts.getPermissionsAsync();
-              const { status: currentStatus } = permissionResponse;
-
-              // If no permission or denied, request permissions
-              if (currentStatus !== "granted") {
-                const { status: newStatus } =
-                  await Contacts.requestPermissionsAsync();
-                if (newStatus !== "granted") {
-                  store.loading = false;
-                  throw new Error("Permission to access contacts was denied");
-                }
-              }
-
-              // Get contacts with proper field specifications
-              const contactOptions = {
-                fields: [
-                  Contacts.Fields.FirstName,
-                  Contacts.Fields.LastName,
-                  Contacts.Fields.PhoneNumbers,
-                  Contacts.Fields.Emails,
-                ],
-                pageSize: 0, // Get all contacts
-                sort: Contacts.SortTypes?.FirstName || "firstName", // Fallback for older versions
-              };
-
-              let contactsResult = await Contacts.getContactsAsync(
-                contactOptions
-              );
-              let data = contactsResult.data;
-
-              // Get fresh customer list from database to check for existing phone numbers
-              const mockDb = jest.requireMock(
-                "../../services/database"
-              ).databaseService;
-
-              let imported = 0;
-              let skipped = 0;
-
-              console.log(
-                `Starting contact import. Found ${data.length} contacts to process.`
-              );
-
-              // Process contacts
-              for (const contact of data) {
-                // Build contact name from available fields
-                const firstName = contact.firstName || "";
-                const lastName = contact.lastName || "";
-                const fullName =
-                  contact.name || `${firstName} ${lastName}`.trim();
-
-                if (
-                  !fullName ||
-                  !contact.phoneNumbers ||
-                  contact.phoneNumbers.length === 0
-                ) {
-                  skipped++;
-                  continue;
-                }
-
-                // Clean and validate phone number
-                const phoneNumber =
-                  contact.phoneNumbers[0].number?.replace(/\D/g, "") || "";
-
-                if (phoneNumber.length < 10) {
-                  skipped++;
-                  continue;
-                }
-
-                // Format phone number for Nigeria
-                let formattedPhone = phoneNumber;
-                if (phoneNumber.startsWith("234")) {
-                  formattedPhone = "+" + phoneNumber;
-                } else if (phoneNumber.startsWith("0")) {
-                  formattedPhone = "+234" + phoneNumber.substring(1);
-                } else if (phoneNumber.length === 10) {
-                  formattedPhone = "+234" + phoneNumber;
-                }
-
-                // Validate Nigerian phone number format
-                const nigerianPhoneRegex = /^(\+234)[789][01]\d{8}$/;
-                if (!nigerianPhoneRegex.test(formattedPhone)) {
-                  skipped++;
-                  continue;
-                }
-
-                // Check if customer already exists in database
-                const existingCustomer = await mockDb.getCustomerByPhone(
-                  formattedPhone
-                );
-                if (existingCustomer) {
-                  skipped++;
-                  continue;
-                }
-
-                // Create new customer
-                await mockDb.createCustomer({
-                  name: fullName,
-                  phone: formattedPhone,
-                  email:
-                    contact.emails && contact.emails.length > 0
-                      ? contact.emails[0].email
-                      : undefined,
-                });
-
-                imported++;
-              }
-
-              store.loading = false;
-              console.log(
-                `Contact import completed. Imported: ${imported}, Skipped: ${skipped}`
-              );
-
-              return { imported, skipped };
-            } catch (error) {
-              console.error("Failed to import contacts:", error);
-
-              let errorMessage = "Failed to import contacts";
-
-              // Preserve specific error messages for better error handling
-              if (error instanceof Error) {
-                errorMessage = error.message;
-              }
-
-              store.error = errorMessage;
-              store.loading = false;
-              throw error instanceof Error ? error : new Error(errorMessage);
-            }
-          }
-        ),
-      };
-    },
-  };
-});
-
-// Mock the database service
-jest.mock("../../services/database", () => ({
-  databaseService: {
-    getCustomers: jest.fn().mockResolvedValue([]),
-    createCustomer: jest.fn(),
-    getCustomerByPhone: jest.fn().mockResolvedValue(null),
-    updateCustomer: jest.fn(),
-    deleteCustomer: jest.fn(),
-  },
 }));
 
-const mockDatabase = databaseService as jest.Mocked<typeof databaseService>;
+const mockDatabaseService = DatabaseService as jest.MockedClass<
+  typeof DatabaseService
+>;
+const mockDatabase = mockDatabaseService.mock.results[0]?.value || {
+  customers: {
+    findAll: jest.fn().mockResolvedValue([]),
+    createCustomer: jest.fn(),
+    findByPhone: jest.fn().mockResolvedValue(null),
+    updateCustomer: jest.fn(),
+    deleteCustomer: jest.fn(),
+    findWithFilters: jest.fn().mockResolvedValue([]),
+    countWithFilters: jest.fn().mockResolvedValue(0),
+  },
+};
 
 describe("Contact Import Functionality", () => {
   beforeEach(() => {
@@ -219,7 +76,7 @@ describe("Contact Import Functionality", () => {
     });
 
     // Setup default database mocks
-    mockDatabase.createCustomer.mockResolvedValue({
+    mockDatabase.customers.createCustomer.mockResolvedValue({
       id: "test-id",
       name: "Test Customer",
       phone: "+2348012345678",
@@ -229,25 +86,29 @@ describe("Contact Import Functionality", () => {
       updatedAt: new Date().toISOString(),
       totalSpent: 0,
       lastPurchase: undefined,
+      outstandingBalance: 0,
     });
-    mockDatabase.getCustomerByPhone.mockResolvedValue(null);
+    mockDatabase.customers.findByPhone.mockResolvedValue(null);
   });
 
   describe("importFromContacts", () => {
     it("should request permission before importing", async () => {
-      mockContacts.getPermissionsAsync.mockResolvedValue({
-        status: "denied",
-        accessPrivileges: null,
+      jest.spyOn(Contacts, "getPermissionsAsync").mockResolvedValue({
+        status: "denied" as any,
+        granted: false,
+        canAskAgain: true,
+        expires: "never",
+        accessPrivileges: undefined,
       });
 
-      mockContacts.requestPermissionsAsync.mockResolvedValue({
-        status: mockContacts.PermissionStatus.GRANTED,
+      jest.spyOn(Contacts, "requestPermissionsAsync").mockResolvedValue({
+        status: Contacts.PermissionStatus.GRANTED,
         granted: true,
         canAskAgain: true,
         expires: "never",
       });
 
-      mockContacts.getContactsAsync.mockResolvedValue({
+      jest.spyOn(Contacts, "getContactsAsync").mockResolvedValue({
         data: [],
         hasNextPage: false,
         hasPreviousPage: false,
@@ -259,17 +120,20 @@ describe("Contact Import Functionality", () => {
         await result.current.importFromContacts();
       });
 
-      expect(mockContacts.requestPermissionsAsync).toHaveBeenCalled();
+      expect(Contacts.requestPermissionsAsync).toHaveBeenCalled();
     });
 
     it("should throw error when permission is denied", async () => {
-      mockContacts.getPermissionsAsync.mockResolvedValue({
-        status: "denied",
-        accessPrivileges: null,
+      jest.spyOn(Contacts, "getPermissionsAsync").mockResolvedValue({
+        status: "denied" as any,
+        granted: false,
+        canAskAgain: true,
+        expires: "never",
+        accessPrivileges: undefined,
       });
 
-      mockContacts.requestPermissionsAsync.mockResolvedValue({
-        status: mockContacts.PermissionStatus.DENIED,
+      jest.spyOn(Contacts, "requestPermissionsAsync").mockResolvedValue({
+        status: Contacts.PermissionStatus.DENIED,
         granted: false,
         canAskAgain: true,
         expires: "never",
@@ -287,23 +151,28 @@ describe("Contact Import Functionality", () => {
         {
           id: "1",
           name: "John Doe",
-          phoneNumbers: [{ number: "+2348012345678" }],
-          emails: [{ email: "john@example.com" }],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "+2348012345678", label: "mobile" as any }],
+          emails: [{ email: "john@example.com", label: "work" as any }],
         },
         {
           id: "2",
           name: "Jane Smith",
-          phoneNumbers: [{ number: "08087654321" }],
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "08087654321", label: "mobile" as any }],
+          emails: [] as any[],
         },
       ];
 
-      mockContacts.getPermissionsAsync.mockResolvedValue({
-        status: "granted",
-        accessPrivileges: null,
+      jest.spyOn(Contacts, "getPermissionsAsync").mockResolvedValue({
+        status: "granted" as any,
+        granted: true,
+        canAskAgain: true,
+        expires: "never",
+        accessPrivileges: undefined,
       });
 
-      mockContacts.getContactsAsync.mockResolvedValue({
+      jest.spyOn(Contacts, "getContactsAsync").mockResolvedValue({
         data: mockContactData,
         hasNextPage: false,
         hasPreviousPage: false,
@@ -317,16 +186,18 @@ describe("Contact Import Functionality", () => {
         expect(importResult.skipped).toBe(0);
       });
 
-      expect(mockDatabase.createCustomer).toHaveBeenCalledTimes(2);
-      expect(mockDatabase.createCustomer).toHaveBeenCalledWith({
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledTimes(2);
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledWith({
         name: "John Doe",
         phone: "+2348012345678",
         email: "john@example.com",
+        contactSource: "imported",
       });
-      expect(mockDatabase.createCustomer).toHaveBeenCalledWith({
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledWith({
         name: "Jane Smith",
         phone: "+2348087654321",
         email: undefined,
+        contactSource: "imported",
       });
     });
 
@@ -335,35 +206,42 @@ describe("Contact Import Functionality", () => {
         {
           id: "1",
           name: "Valid User",
-          phoneNumbers: [{ number: "+2348012345678" }],
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "+2348012345678", label: "mobile" as any }],
+          emails: [] as any[],
         },
         {
           id: "2",
           name: "Invalid User 1",
-          phoneNumbers: [{ number: "123" }], // Too short
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "123", label: "mobile" as any }], // Too short
+          emails: [] as any[],
         },
         {
           id: "3",
           name: "Invalid User 2",
-          phoneNumbers: [{ number: "+2346123456789" }], // Invalid prefix
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "+2346123456789", label: "mobile" as any }], // Invalid prefix
+          emails: [] as any[],
         },
         {
           id: "4",
           name: "No Phone",
-          phoneNumbers: [],
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [] as any[],
+          emails: [] as any[],
         },
       ];
 
-      mockContacts.getPermissionsAsync.mockResolvedValue({
-        status: "granted",
-        accessPrivileges: null,
+      jest.spyOn(Contacts, "getPermissionsAsync").mockResolvedValue({
+        status: "granted" as any,
+        granted: true,
+        canAskAgain: true,
+        expires: "never",
+        accessPrivileges: undefined,
       });
 
-      mockContacts.getContactsAsync.mockResolvedValue({
+      jest.spyOn(Contacts, "getContactsAsync").mockResolvedValue({
         data: mockContactData,
         hasNextPage: false,
         hasPreviousPage: false,
@@ -377,7 +255,7 @@ describe("Contact Import Functionality", () => {
         expect(importResult.skipped).toBe(3);
       });
 
-      expect(mockDatabase.createCustomer).toHaveBeenCalledTimes(1);
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledTimes(1);
     });
 
     it("should skip duplicate phone numbers by checking database", async () => {
@@ -385,19 +263,21 @@ describe("Contact Import Functionality", () => {
         {
           id: "1",
           name: "John Doe",
-          phoneNumbers: [{ number: "+2348012345678" }],
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "+2348012345678", label: "mobile" as any }],
+          emails: [] as any[],
         },
         {
           id: "2",
           name: "Jane Smith",
-          phoneNumbers: [{ number: "+2348087654321" }],
-          emails: [],
+          contactType: "person" as any,
+          phoneNumbers: [{ number: "+2348087654321", label: "mobile" as any }],
+          emails: [] as any[],
         },
       ];
 
       // Mock first contact as already existing in database
-      mockDatabase.getCustomerByPhone
+      mockDatabase.customers.findByPhone
         .mockResolvedValueOnce({
           id: "existing-id",
           name: "Existing Customer",
@@ -408,15 +288,19 @@ describe("Contact Import Functionality", () => {
           updatedAt: new Date().toISOString(),
           totalSpent: 0,
           lastPurchase: undefined,
+          outstandingBalance: 0,
         })
         .mockResolvedValueOnce(null); // Second contact doesn't exist
 
-      mockContacts.getPermissionsAsync.mockResolvedValue({
-        status: "granted",
-        accessPrivileges: null,
+      jest.spyOn(Contacts, "getPermissionsAsync").mockResolvedValue({
+        status: "granted" as any,
+        granted: true,
+        canAskAgain: true,
+        expires: "never",
+        accessPrivileges: undefined,
       });
 
-      mockContacts.getContactsAsync.mockResolvedValue({
+      jest.spyOn(Contacts, "getContactsAsync").mockResolvedValue({
         data: mockContactData,
         hasNextPage: false,
         hasPreviousPage: false,
@@ -431,27 +315,28 @@ describe("Contact Import Functionality", () => {
       });
 
       // Should check database for both contacts
-      expect(mockDatabase.getCustomerByPhone).toHaveBeenCalledTimes(2);
-      expect(mockDatabase.getCustomerByPhone).toHaveBeenCalledWith(
+      expect(mockDatabase.customers.findByPhone).toHaveBeenCalledTimes(2);
+      expect(mockDatabase.customers.findByPhone).toHaveBeenCalledWith(
         "+2348012345678"
       );
-      expect(mockDatabase.getCustomerByPhone).toHaveBeenCalledWith(
+      expect(mockDatabase.customers.findByPhone).toHaveBeenCalledWith(
         "+2348087654321"
       );
 
       // Should only create one customer (Jane Smith)
-      expect(mockDatabase.createCustomer).toHaveBeenCalledTimes(1);
-      expect(mockDatabase.createCustomer).toHaveBeenCalledWith({
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledTimes(1);
+      expect(mockDatabase.customers.createCustomer).toHaveBeenCalledWith({
         name: "Jane Smith",
         phone: "+2348087654321",
         email: undefined,
+        contactSource: "imported",
       });
     });
 
     it("should handle import errors gracefully", async () => {
-      mockContacts.getPermissionsAsync.mockRejectedValue(
-        new Error("Contact access failed")
-      );
+      jest
+        .spyOn(Contacts, "getPermissionsAsync")
+        .mockRejectedValue(new Error("Contact access failed"));
 
       const { result } = renderHook(() => useCustomerStore());
 

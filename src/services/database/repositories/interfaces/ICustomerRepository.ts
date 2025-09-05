@@ -55,6 +55,11 @@ export interface ICustomerRepository
     averageSpending: number;
   }>;
 
+  // Debt management methods
+  increaseOutstandingBalance(customerId: string, amount: number): Promise<void>;
+  decreaseOutstandingBalance(customerId: string, amount: number): Promise<void>;
+  getOutstandingBalance(customerId: string): Promise<number>;
+
   // Search and filtering
   findWithFilters(
     filters?: CustomerFilters,

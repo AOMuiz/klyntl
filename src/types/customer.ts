@@ -16,6 +16,7 @@ export interface Customer {
   preferredContactMethod?: "phone" | "email" | "sms";
   // Business fields
   totalSpent: number;
+  outstandingBalance: number; // Amount customer owes (in kobo)
   lastPurchase?: string;
   createdAt: string;
   updatedAt: string;

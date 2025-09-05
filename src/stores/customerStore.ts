@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
 import { create } from "zustand";
-import { databaseService } from "../services/database/oldUnusedIndex";
+import { db } from "../services/database/db";
+import { DatabaseService } from "../services/database/service";
 import {
   CreateCustomerInput,
   Customer,
@@ -14,6 +15,9 @@ import {
   SortOptions,
   getFilterDescription,
 } from "../types/filters";
+
+// Create database service instance
+const databaseService = new DatabaseService(db);
 
 // Helper function to invalidate analytics cache
 const invalidateAnalyticsCache = () => {
@@ -133,16 +137,16 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       });
 
       const [customers, totalCount] = await Promise.all([
-        databaseService.getCustomersWithFilters(
+        databaseService.customers.findWithFilters(
+          activeFilters,
           searchQuery || undefined,
-          Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-          sortOptions,
-          1, // First page
-          pageSize
+          0, // page (0-based)
+          pageSize,
+          sortOptions
         ),
-        databaseService.getCustomersCountWithFilters(
-          searchQuery || undefined,
-          Object.keys(activeFilters).length > 0 ? activeFilters : undefined
+        databaseService.customers.countWithFilters(
+          activeFilters,
+          searchQuery || undefined
         ),
       ]);
 
@@ -182,16 +186,16 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
     try {
       const { activeFilters, sortOptions, pageSize } = get();
       const [customers, totalCount] = await Promise.all([
-        databaseService.getCustomersWithFilters(
+        databaseService.customers.findWithFilters(
+          activeFilters,
           query || undefined,
-          Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-          sortOptions,
-          1, // First page
-          pageSize
+          0, // page (0-based)
+          pageSize,
+          sortOptions
         ),
-        databaseService.getCustomersCountWithFilters(
-          query || undefined,
-          Object.keys(activeFilters).length > 0 ? activeFilters : undefined
+        databaseService.customers.countWithFilters(
+          activeFilters,
+          query || undefined
         ),
       ]);
 
@@ -216,7 +220,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   getCustomerById: async (id: string) => {
     set({ error: null });
     try {
-      const customer = await databaseService.getCustomerById(id);
+      const customer = await databaseService.customers.findById(id);
       return customer;
     } catch (error) {
       console.error("Failed to get customer:", error);
@@ -230,7 +234,9 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   addCustomer: async (customerData: CreateCustomerInput) => {
     set({ error: null });
     try {
-      const newCustomer = await databaseService.createCustomer(customerData);
+      const newCustomer = await databaseService.customers.createCustomer(
+        customerData
+      );
       const { customers } = get();
       set({ customers: [newCustomer, ...customers] });
 
@@ -259,7 +265,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   updateCustomer: async (id: string, updates: UpdateCustomerInput) => {
     set({ error: null });
     try {
-      await databaseService.updateCustomer(id, updates);
+      await databaseService.customers.updateCustomer(id, updates);
       const { customers } = get();
       const updatedCustomers = customers.map((customer) =>
         customer.id === id
@@ -291,7 +297,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   deleteCustomer: async (id: string) => {
     set({ error: null });
     try {
-      await databaseService.deleteCustomer(id);
+      await databaseService.customers.deleteCustomer(id);
       const { customers } = get();
       const filteredCustomers = customers.filter(
         (customer) => customer.id !== id
@@ -322,8 +328,6 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
   importFromContacts: async (forceRefresh: boolean = true) => {
     set({ error: null, loading: true });
     try {
-      const Contacts = await import("expo-contacts");
-
       // Check current permission status first
       const permissionResponse = await Contacts.getPermissionsAsync();
       const { status: currentStatus, accessPrivileges } = permissionResponse;
@@ -472,7 +476,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       }
 
       // Get fresh customer list from database to check for existing phone numbers
-      const latestCustomers = await databaseService.getCustomers();
+      const latestCustomers = await databaseService.customers.findAll();
       const existingPhones = new Set(
         latestCustomers.map((c) => c.phone.replace(/\D/g, ""))
       );
@@ -528,7 +532,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
 
         try {
           // Check if customer already exists in database
-          const existingCustomer = await databaseService.getCustomerByPhone(
+          const existingCustomer = await databaseService.customers.findByPhone(
             formattedPhone
           );
           if (existingCustomer) {
@@ -848,12 +852,12 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
     set({ loadingMore: true, error: null });
     try {
       const nextPage = currentPage + 1;
-      const newCustomers = await databaseService.getCustomersWithFilters(
+      const newCustomers = await databaseService.customers.findWithFilters(
+        activeFilters,
         searchQuery || undefined,
-        Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-        sortOptions,
-        nextPage,
-        pageSize
+        nextPage - 1, // Convert to 0-based
+        pageSize,
+        sortOptions
       );
 
       console.log("Loaded more customers:", {
