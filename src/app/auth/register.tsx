@@ -23,6 +23,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
@@ -38,7 +39,7 @@ export default function RegisterScreen() {
     if (error) {
       clearError();
     }
-  }, [email, password, phone, name, error, clearError]);
+  }, [email, password, phone, name, businessName, error, clearError]);
 
   const handleRegister = async () => {
     if (!email.trim() || !password.trim()) {
@@ -54,7 +55,13 @@ export default function RegisterScreen() {
     }
 
     try {
-      await register(email, password, phone || undefined, name || undefined);
+      await register(
+        email,
+        password,
+        phone || undefined,
+        name || undefined,
+        businessName || undefined
+      );
       setHasSeenOnboarding(true);
       router.replace("/(tabs)");
     } catch (error) {
@@ -137,6 +144,18 @@ export default function RegisterScreen() {
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
             keyboardType="phone-pad"
+          />
+
+          <ThemedText style={styles.label}>Business Name (Optional)</ThemedText>
+          <TextInput
+            mode="outlined"
+            placeholder="Your business name"
+            value={businessName}
+            onChangeText={setBusinessName}
+            left={<TextInput.Icon icon="business" />}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
+            activeOutlineColor={colors.primary[700]}
           />
 
           {error && (

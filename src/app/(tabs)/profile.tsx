@@ -61,11 +61,13 @@ export default function ProfileScreen() {
         <Card.Content style={styles.cardContent}>
           <Avatar.Text
             size={80}
-            label={user?.name.charAt(0).toUpperCase()}
+            label={(user?.name || user?.businessName || user?.email || "U")
+              .charAt(0)
+              .toUpperCase()}
             style={styles.avatar}
           />
           <Text variant="titleLarge" style={styles.title}>
-            {user?.name}
+            {user?.name || user?.businessName || "User"}
           </Text>
           <Text variant="bodyMedium" style={styles.subtitle}>
             {user?.email}
@@ -73,6 +75,11 @@ export default function ProfileScreen() {
           {user?.phone && (
             <Text variant="bodySmall" style={styles.phone}>
               {user.phone}
+            </Text>
+          )}
+          {user?.businessName && (
+            <Text variant="bodySmall" style={styles.business}>
+              {user.businessName}
             </Text>
           )}
         </Card.Content>
@@ -132,6 +139,13 @@ const styles = StyleSheet.create({
     color: "#888",
     textAlign: "center",
     marginTop: 2,
+  },
+  business: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 2,
+    fontWeight: "600",
   },
   buttonContainer: {
     gap: 12,

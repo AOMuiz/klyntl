@@ -7,6 +7,7 @@ export interface User {
   email: string;
   phone?: string;
   name?: string;
+  businessName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +25,8 @@ export interface AuthActions {
     email: string,
     password: string,
     phone?: string,
-    name?: string
+    name?: string,
+    businessName?: string
   ) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -99,7 +101,8 @@ export const useAuthStore = create<AuthStore>()(
         email: string,
         password: string,
         phone?: string,
-        name?: string
+        name?: string,
+        businessName?: string
       ) => {
         set({ isLoading: true, error: null });
 
@@ -120,6 +123,7 @@ export const useAuthStore = create<AuthStore>()(
             email,
             phone,
             name,
+            businessName,
             password: hashPassword(password),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

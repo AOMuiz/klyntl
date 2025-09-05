@@ -47,7 +47,8 @@ describe("useAuth", () => {
         "john@example.com",
         "password123",
         "+1234567890",
-        "John Doe"
+        "John Doe",
+        "John's Business"
       );
     });
 
@@ -56,6 +57,7 @@ describe("useAuth", () => {
       name: "John Doe",
       email: "john@example.com",
       phone: "+1234567890",
+      businessName: "John's Business",
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -72,7 +74,8 @@ describe("useAuth", () => {
         "john@example.com",
         "password123",
         "+1234567890",
-        "John Doe"
+        "John Doe",
+        "John's Business"
       );
     });
 
@@ -91,6 +94,7 @@ describe("useAuth", () => {
       name: "John Doe",
       email: "john@example.com",
       phone: "+1234567890",
+      businessName: "John's Business",
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -118,7 +122,8 @@ describe("useAuth", () => {
         "john@example.com",
         "password123",
         "+1234567890",
-        "John Doe"
+        "John Doe",
+        "John's Business"
       );
     });
 
@@ -151,7 +156,8 @@ describe("useAuth", () => {
         "john@example.com",
         "password123",
         "+1234567890",
-        "John Doe"
+        "John Doe",
+        "John's Business"
       );
     });
 

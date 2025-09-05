@@ -1,22 +1,23 @@
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ExtendedKlyntlTheme } from "@/constants/KlyntlTheme";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Appbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 
 export default function TermsOfService() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
 
   return (
-    <ScreenContainer scrollable={false} withPadding={false} edges={["top"]}>
-      <Appbar.Header style={{ backgroundColor: theme.colors.background }}>
-        <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Terms of Service" />
-      </Appbar.Header>
-
+    <ScreenContainer
+      scrollable={false}
+      withPadding={false}
+      edges={["bottom", ...edgesHorizontal]}
+    >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
