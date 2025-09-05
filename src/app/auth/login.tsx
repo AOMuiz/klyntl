@@ -1,11 +1,14 @@
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import { validateEmail } from "@/utils/validations";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 
@@ -19,8 +22,19 @@ export default function LoginScreen() {
 
   const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
 
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    setError,
+    setValue,
+  } = useForm({
+    defaultValues: {
+      identifier: "",
+      password: "",
+    },
+  });
+
   const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
@@ -31,21 +45,30 @@ export default function LoginScreen() {
     }
   }, [isAuthenticated, setHasSeenOnboarding, router]);
 
-  // Clear error when inputs change
+  // Clear error when form changes
   useEffect(() => {
     if (error) {
       clearError();
     }
-  }, [identifier, password, error, clearError]);
+  }, [error, clearError]);
 
-  const handleLogin = async () => {
-    if (!identifier.trim() || !password.trim()) {
+  const onSubmit = async (data: { identifier: string; password: string }) => {
+    if (!data.identifier.trim() || !data.password.trim()) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
+    // Validate email format
+    if (!validateEmail(data.identifier)) {
+      setError("identifier", {
+        type: "manual",
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
     try {
-      await login(identifier, password);
+      await login(data.identifier, data.password);
       setHasSeenOnboarding(true);
       router.replace("/(tabs)");
     } catch (error) {
@@ -59,11 +82,14 @@ export default function LoginScreen() {
 
   return (
     <ScreenContainer
-      scrollable={false}
+      scrollable={true}
       withPadding={true}
       contentStyle={{ flex: 1 }}
+      keyboardShouldAvoidView
     >
-      <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <ThemedView
+        style={[styles.page, { backgroundColor: theme.colors.background }]}
+      >
         <ThemedText type="title" style={styles.title}>
           Sign In
         </ThemedText>
@@ -75,17 +101,39 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <ThemedText style={styles.label}>Email Address</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="e.g. yourname@example.com"
-            value={identifier}
-            onChangeText={setIdentifier}
-            left={<TextInput.Icon icon="email" />}
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
-            error={!!error}
+          <Controller
+            control={control}
+            rules={{
+              required: "Email is required",
+              validate: (value) =>
+                validateEmail(value) || "Please enter a valid email address",
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="you@example.com"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="email-outline" />}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.identifier}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            )}
+            name="identifier"
           />
+          {errors.identifier && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.identifier.message}
+            </ThemedText>
+          )}
 
           <View style={styles.passwordRow}>
             <ThemedText style={styles.label}>Password</ThemedText>
@@ -100,24 +148,46 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            mode="outlined"
-            placeholder="Enter your password"
-            secureTextEntry={!showPassword}
-            value={password}
-            onChangeText={setPassword}
-            left={<TextInput.Icon icon="lock" />}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? "eye" : "eye-off"}
-                onPress={() => setShowPassword((s) => !s)}
+          <Controller
+            control={control}
+            rules={{
+              required: "Password is required",
+              minLength: {
+                value: 8,
+                message: "Password must be at least 8 characters",
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="Enter your password"
+                secureTextEntry={!showPassword}
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="lock-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? "eye" : "eye-off"}
+                    onPress={() => setShowPassword((s) => !s)}
+                  />
+                }
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.password}
               />
-            }
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
-            error={!!error}
+            )}
+            name="password"
           />
+          {errors.password && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.password.message}
+            </ThemedText>
+          )}
 
           {error && (
             <ThemedText style={[styles.error, { color: theme.colors.error }]}>
@@ -127,7 +197,7 @@ export default function LoginScreen() {
 
           <Button
             mode="contained"
-            onPress={handleLogin}
+            onPress={handleSubmit(onSubmit)}
             loading={isLoading}
             disabled={isLoading}
             contentStyle={styles.primaryContent}
@@ -173,8 +243,32 @@ export default function LoginScreen() {
             </ThemedText>
             .
           </ThemedText>
+
+          {__DEV__ && (
+            <>
+              <TouchableOpacity
+                style={styles.devButton}
+                onPress={() => {
+                  setValue("identifier", "test@example.com");
+                  setValue("password", "TestPass123");
+                }}
+              >
+                <ThemedText style={styles.devButtonText}>
+                  Fill Test Credentials
+                </ThemedText>
+              </TouchableOpacity>
+              {/* <TouchableOpacity
+                style={[styles.devButton, styles.devButtonSecondary]}
+                onPress={() => router.push("/auth/register")}
+              >
+                <ThemedText style={styles.devButtonText}>
+                  Go to Sign Up
+                </ThemedText>
+              </TouchableOpacity> */}
+            </>
+          )}
         </View>
-      </View>
+      </ThemedView>
     </ScreenContainer>
   );
 }
@@ -231,4 +325,29 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   link: { fontSize: fontSize(12), fontWeight: "700" },
+  devButton: {
+    position: "absolute",
+    bottom: hp(20),
+    right: wp(20),
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: wp(12),
+    paddingVertical: hp(8),
+    borderRadius: wp(8),
+    zIndex: 9999,
+  },
+  devButtonText: {
+    color: "#fff",
+    fontSize: fontSize(12),
+    fontWeight: "700",
+  },
+  devButtonSecondary: {
+    position: "absolute",
+    bottom: hp(8),
+    right: wp(20),
+    backgroundColor: "rgba(0, 150, 255, 0.8)",
+    paddingHorizontal: wp(12),
+    paddingVertical: hp(8),
+    borderRadius: wp(8),
+    zIndex: 9999,
+  },
 });

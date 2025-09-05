@@ -4,8 +4,15 @@ import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import {
+  validateBusinessName,
+  validateEmail,
+  validateFullName,
+  validateNigerianPhone,
+} from "@/utils/validations";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 
@@ -17,13 +24,30 @@ export default function RegisterScreen() {
     (s) => s.setHasSeenOnboarding
   );
 
-  const { register, isLoading, error, clearError, isAuthenticated } = useAuth();
+  const {
+    register: registerUser,
+    isLoading,
+    error,
+    clearError,
+    isAuthenticated,
+  } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [name, setName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    setError,
+    setValue,
+  } = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+      phone: "",
+      name: "",
+      businessName: "",
+    },
+  });
+
   const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
@@ -34,33 +58,68 @@ export default function RegisterScreen() {
     }
   }, [isAuthenticated, setHasSeenOnboarding, router]);
 
-  // Clear error when inputs change
+  // Clear error when form changes
   useEffect(() => {
     if (error) {
       clearError();
     }
-  }, [email, password, phone, name, businessName, error, clearError]);
+  }, [error, clearError]);
 
-  const handleRegister = async () => {
-    if (!email.trim() || !password.trim()) {
+  const onSubmit = async (data: {
+    email: string;
+    password: string;
+    phone: string;
+    name: string;
+    businessName: string;
+  }) => {
+    if (!data.email.trim() || !data.password.trim()) {
       Alert.alert("Error", "Please fill in email and password");
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address");
+    // Validate email format
+    if (!validateEmail(data.email)) {
+      setError("email", {
+        type: "manual",
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    // Validate phone if provided
+    if (data.phone && !validateNigerianPhone(data.phone)) {
+      setError("phone", {
+        type: "manual",
+        message: "Please enter a valid Nigerian phone number",
+      });
+      return;
+    }
+
+    // Validate business name if provided
+    if (data.businessName && !validateBusinessName(data.businessName)) {
+      setError("businessName", {
+        type: "manual",
+        message: "Business name must be at least 2 characters",
+      });
+      return;
+    }
+
+    // Validate full name if provided
+    if (data.name && !validateFullName(data.name)) {
+      setError("name", {
+        type: "manual",
+        message: "Please enter both first and last name",
+      });
       return;
     }
 
     try {
-      await register(
-        email,
-        password,
-        phone || undefined,
-        name || undefined,
-        businessName || undefined
+      await registerUser(
+        data.email,
+        data.password,
+        data.phone || undefined,
+        data.name || undefined,
+        data.businessName || undefined
       );
       setHasSeenOnboarding(true);
       router.replace("/(tabs)");
@@ -74,7 +133,11 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScreenContainer scrollable={false} withPadding={true}>
+    <ScreenContainer
+      scrollable={true}
+      withPadding={true}
+      keyboardShouldAvoidView
+    >
       <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
         <ThemedText type="title" style={styles.title}>
           Create Account
@@ -87,76 +150,184 @@ export default function RegisterScreen() {
 
         <View style={styles.form}>
           <ThemedText style={styles.label}>Full Name (Optional)</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="Your full name"
-            value={name}
-            onChangeText={setName}
-            left={<TextInput.Icon icon="account" />}
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
+          <Controller
+            control={control}
+            rules={{
+              validate: (value) =>
+                !value ||
+                validateFullName(value) ||
+                "Please enter both first and last name",
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="Your full name"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="account" />}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.name}
+              />
+            )}
+            name="name"
           />
+          {errors.name && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.name.message}
+            </ThemedText>
+          )}
 
           <ThemedText style={styles.label}>Email Address</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            left={<TextInput.Icon icon="email-outline" />}
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
-            error={!!error}
-            keyboardType="email-address"
-            autoCapitalize="none"
+          <Controller
+            control={control}
+            rules={{
+              required: "Email is required",
+              validate: (value) =>
+                validateEmail(value) || "Please enter a valid email address",
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="you@example.com"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="email-outline" />}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            )}
+            name="email"
           />
+          {errors.email && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.email.message}
+            </ThemedText>
+          )}
 
           <ThemedText style={styles.label}>Password</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="Enter your password"
-            secureTextEntry={!showPassword}
-            value={password}
-            onChangeText={setPassword}
-            left={<TextInput.Icon icon="lock-outline" />}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? "eye" : "eye-off"}
-                onPress={() => setShowPassword((s) => !s)}
+          <Controller
+            control={control}
+            rules={{
+              required: "Password is required",
+              minLength: {
+                value: 8,
+                message: "Password must be at least 8 characters",
+              },
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="Enter your password"
+                secureTextEntry={!showPassword}
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="lock-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? "eye" : "eye-off"}
+                    onPress={() => setShowPassword((s) => !s)}
+                  />
+                }
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.password}
               />
-            }
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
-            error={!!error}
+            )}
+            name="password"
           />
+          {errors.password && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.password.message}
+            </ThemedText>
+          )}
 
           <ThemedText style={styles.label}>Phone Number (Optional)</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="+234 801 234 5678"
-            value={phone}
-            onChangeText={setPhone}
-            left={<TextInput.Icon icon="phone" />}
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
-            keyboardType="phone-pad"
+          <Controller
+            control={control}
+            rules={{
+              validate: (value) =>
+                !value ||
+                validateNigerianPhone(value) ||
+                "Please enter a valid Nigerian phone number",
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="+234 801 234 5678"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="phone" />}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.phone}
+                keyboardType="phone-pad"
+              />
+            )}
+            name="phone"
           />
+          {errors.phone && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.phone.message}
+            </ThemedText>
+          )}
 
           <ThemedText style={styles.label}>Business Name (Optional)</ThemedText>
-          <TextInput
-            mode="outlined"
-            placeholder="Your business name"
-            value={businessName}
-            onChangeText={setBusinessName}
-            left={<TextInput.Icon icon="business" />}
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineColor={theme.colors.outline}
-            activeOutlineColor={colors.primary[700]}
+          <Controller
+            control={control}
+            rules={{
+              validate: (value) =>
+                !value ||
+                validateBusinessName(value) ||
+                "Business name must be at least 2 characters",
+            }}
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextInput
+                mode="outlined"
+                placeholder="Your business name"
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                left={<TextInput.Icon icon="business" />}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                outlineColor={theme.colors.outline}
+                activeOutlineColor={colors.primary[700]}
+                error={!!errors.businessName}
+              />
+            )}
+            name="businessName"
           />
+          {errors.businessName && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {errors.businessName.message}
+            </ThemedText>
+          )}
 
           {error && (
             <ThemedText style={[styles.error, { color: theme.colors.error }]}>
@@ -166,7 +337,7 @@ export default function RegisterScreen() {
 
           <Button
             mode="contained"
-            onPress={handleRegister}
+            onPress={handleSubmit(onSubmit)}
             loading={isLoading}
             disabled={isLoading}
             contentStyle={styles.primaryContent}
@@ -212,6 +383,33 @@ export default function RegisterScreen() {
             </ThemedText>
             .
           </ThemedText>
+
+          {__DEV__ && (
+            <View>
+              <TouchableOpacity
+                style={styles.devButton}
+                onPress={() => {
+                  setValue("name", "John Doe");
+                  setValue("email", "test@example.com");
+                  setValue("phone", "+2348012345678");
+                  setValue("businessName", "Test Business");
+                  setValue("password", "TestPass123");
+                }}
+              >
+                <ThemedText style={styles.devButtonText}>
+                  Fill Test Data
+                </ThemedText>
+              </TouchableOpacity>
+              {/* <TouchableOpacity
+                style={[styles.devButton, styles.devButtonSecondary]}
+                onPress={() => router.push("/auth/login")}
+              >
+                <ThemedText style={styles.devButtonText}>
+                  Go to Sign In
+                </ThemedText>
+              </TouchableOpacity> */}
+            </View>
+          )}
         </View>
       </View>
     </ScreenContainer>
@@ -264,4 +462,24 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   link: { fontSize: fontSize(12), fontWeight: "700" },
+  devButton: {
+    position: "absolute",
+    bottom: hp(20),
+    right: wp(20),
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: wp(12),
+    paddingVertical: hp(8),
+    borderRadius: wp(8),
+    zIndex: 9999,
+  },
+  devButtonText: {
+    color: "#fff",
+    fontSize: fontSize(12),
+    fontWeight: "700",
+  },
+  devButtonSecondary: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderColor: "#fff",
+    borderWidth: 1,
+  },
 });
