@@ -2,6 +2,7 @@ import { KlyntlThemeProvider } from "@/components/ThemeProvider";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { DatabaseProvider } from "@/services/database/context";
 import { queryClient } from "@/services/query-client";
+import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
 import {
   Inter_400Regular,
@@ -39,7 +40,8 @@ export default function RootLayout() {
 }
 
 function AppLayout() {
-  const { hasSeenOnboarding, setHasSeenOnboarding } = useOnboardingStore();
+  const { hasSeenOnboarding, resetOnboarding } = useOnboardingStore();
+  const { isAuthenticated, logout } = useAuth();
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     // Inter font family for modern, professional look
@@ -51,48 +53,62 @@ function AppLayout() {
     SpaceMono: require("assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  // Wait for fonts AND onboarding flag to be known before rendering navigation stack.
+  // Wait for fonts to be known before rendering navigation stack.
   if (!loaded) return null;
 
   const clearOnboardingFlag = async () => {
-    setHasSeenOnboarding(false);
+    await resetOnboarding();
     Alert.alert(
       "Dev: onboarding cleared",
       "You can now revisit the onboarding."
     );
   };
 
+  const clearAuthData = async () => {
+    await logout();
+    Alert.alert("Dev: auth cleared", "You can now log in again.");
+  };
+
+  // Guards for different route types - onboarding first, then auth, then protected
+  const canAccessOnboardingRoutes = !hasSeenOnboarding;
+  const canAccessAuthRoutes = hasSeenOnboarding && !isAuthenticated;
+  const canAccessProtectedRoutes = hasSeenOnboarding && isAuthenticated;
+
   return (
     <KlyntlThemeProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-          {/* Public routes - always available */}
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
+          {/* Onboarding routes - always first for new users */}
+          <Stack.Protected guard={canAccessOnboardingRoutes}>
+            <Stack.Screen
+              name="onboarding"
+              options={{
+                headerShown: false,
+                gestureEnabled: false,
+              }}
+            />
+          </Stack.Protected>
 
-          <Stack.Screen
-            name="welcome"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
+          {/* Auth routes - only after onboarding is complete */}
+          <Stack.Protected guard={canAccessAuthRoutes}>
+            <Stack.Screen
+              name="welcome"
+              options={{
+                headerShown: false,
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="auth"
+              options={{
+                headerShown: false,
+                gestureEnabled: false,
+              }}
+            />
+          </Stack.Protected>
 
-          <Stack.Screen
-            name="auth"
-            options={{
-              headerShown: false,
-              gestureEnabled: false,
-            }}
-          />
-
-          {/* Protected routes - require onboarding completion */}
-          <Stack.Protected guard={hasSeenOnboarding}>
+          {/* Protected routes - require both onboarding completion and authentication */}
+          <Stack.Protected guard={canAccessProtectedRoutes}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
             {/* Modal presentations */}
@@ -114,6 +130,14 @@ function AppLayout() {
             />
           </Stack.Protected>
 
+          {/* Legal pages - always accessible */}
+          <Stack.Screen
+            name="legal"
+            options={{
+              headerShown: false,
+            }}
+          />
+
           {/* 404 page */}
           <Stack.Screen
             name="+not-found"
@@ -125,13 +149,22 @@ function AppLayout() {
         </Stack>
 
         {__DEV__ && (
-          <TouchableOpacity
-            onPress={clearOnboardingFlag}
-            style={styles.devButton}
-            accessibilityLabel="Clear onboarding flag"
-          >
-            <Text style={styles.devButtonText}>Clear Onboarding</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              onPress={clearOnboardingFlag}
+              style={styles.devButton}
+              accessibilityLabel="Clear onboarding flag"
+            >
+              <Text style={styles.devButtonText}>Clear Onboarding</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={clearAuthData}
+              style={[styles.devButton, styles.devButtonSecondary]}
+              accessibilityLabel="Clear auth data"
+            >
+              <Text style={styles.devButtonText}>Clear Auth</Text>
+            </TouchableOpacity>
+          </>
         )}
       </ThemeProvider>
     </KlyntlThemeProvider>
@@ -148,6 +181,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     zIndex: 9999,
+  },
+  devButtonSecondary: {
+    bottom: 80,
   },
   devButtonText: {
     color: "#fff",

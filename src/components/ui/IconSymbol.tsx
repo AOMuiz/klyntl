@@ -48,7 +48,10 @@ const MAPPING = {
   "cart.fill": "shopping-cart", // Sale
   return: "undo", // Refund
   "dollarsign.circle.fill": "attach-money", // Default
-  calendar: "calendar-today", // Date field                  // Description field
+
+  // Additional icons found in usage
+  xmark: "close", // Close/cancel actions
+  person: "person", // Generic person icon
 } as IconMapping;
 
 /**

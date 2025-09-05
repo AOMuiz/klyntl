@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import ScreenContainer, { edgesAll } from "@/components/screen-container";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import useOnboardingStore from "@/stores/onboardingStore";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, View } from "react-native";
@@ -10,6 +11,18 @@ export default function Welcome() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
+
+  const { setHasSeenOnboarding } = useOnboardingStore();
+
+  const handleRegister = () => {
+    setHasSeenOnboarding(true);
+    router.push("/auth/register");
+  };
+
+  const handleLogin = () => {
+    setHasSeenOnboarding(true);
+    router.push("/auth/login");
+  };
 
   return (
     <ScreenContainer scrollable={false} withPadding={false} edges={edgesAll}>
@@ -48,7 +61,7 @@ export default function Welcome() {
           <View style={styles.actions}>
             <Button
               mode="contained"
-              onPress={() => router.push("/auth/register")}
+              onPress={handleRegister}
               contentStyle={styles.primaryContent}
               labelStyle={styles.primaryLabel}
               style={[
@@ -62,7 +75,7 @@ export default function Welcome() {
             <Button
               mode="outlined"
               elevation={2}
-              onPress={() => router.push("/auth/login")}
+              onPress={handleLogin}
               contentStyle={styles.secondaryContent}
               labelStyle={[
                 styles.secondaryLabel,

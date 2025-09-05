@@ -1,11 +1,12 @@
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 
 export default function LoginScreen() {
@@ -16,9 +17,45 @@ export default function LoginScreen() {
     (s) => s.setHasSeenOnboarding
   );
 
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      setHasSeenOnboarding(true);
+      router.replace("/(tabs)");
+    }
+  }, [isAuthenticated, setHasSeenOnboarding, router]);
+
+  // Clear error when inputs change
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, [identifier, password, error, clearError]);
+
+  const handleLogin = async () => {
+    if (!identifier.trim() || !password.trim()) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    try {
+      await login(identifier, password);
+      setHasSeenOnboarding(true);
+      router.replace("/(tabs)");
+    } catch (error) {
+      // Error is already handled in the store
+      Alert.alert(
+        "Login Failed",
+        error instanceof Error ? error.message : "An error occurred"
+      );
+    }
+  };
 
   return (
     <ScreenContainer
@@ -37,16 +74,17 @@ export default function LoginScreen() {
         </ThemedText>
 
         <View style={styles.form}>
-          <ThemedText style={styles.label}>Email or Phone Number</ThemedText>
+          <ThemedText style={styles.label}>Email Address</ThemedText>
           <TextInput
             mode="outlined"
             placeholder="e.g. yourname@example.com"
             value={identifier}
             onChangeText={setIdentifier}
-            left={<TextInput.Icon icon="account" />}
+            left={<TextInput.Icon icon="email" />}
             style={[styles.input, { backgroundColor: theme.colors.surface }]}
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
+            error={!!error}
           />
 
           <View style={styles.passwordRow}>
@@ -78,19 +116,20 @@ export default function LoginScreen() {
             style={[styles.input, { backgroundColor: theme.colors.surface }]}
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
+            error={!!error}
           />
+
+          {error && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {error}
+            </ThemedText>
+          )}
 
           <Button
             mode="contained"
-            onPress={() => {
-              // Temporary client-side validation and navigation.
-              // Replace this with your real authentication call and handle errors.
-              //   if (!identifier || !password) return; // simple guard
-              //   // Mark onboarding as complete so protected stack becomes available
-              setHasSeenOnboarding(true);
-              // Navigate to the tabs home index explicitly
-              router.replace("/(tabs)");
-            }}
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading}
             contentStyle={styles.primaryContent}
             labelStyle={styles.primaryLabel}
             style={[
@@ -98,7 +137,7 @@ export default function LoginScreen() {
               { backgroundColor: colors.primary[700] },
             ]}
           >
-            Log In
+            {isLoading ? "Signing In..." : "Log In"}
           </Button>
 
           <TouchableOpacity
@@ -114,6 +153,26 @@ export default function LoginScreen() {
               Sign Up
             </ThemedText>
           </TouchableOpacity>
+
+          <ThemedText
+            style={[styles.terms, { color: theme.colors.onSurfaceVariant }]}
+          >
+            By continuing, you agree to our{" "}
+            <ThemedText
+              style={[styles.link, { color: colors.primary[700] }]}
+              onPress={() => router.push("/legal/terms")}
+            >
+              Terms of Service
+            </ThemedText>{" "}
+            and{" "}
+            <ThemedText
+              style={[styles.link, { color: colors.primary[700] }]}
+              onPress={() => router.push("/legal/privacy")}
+            >
+              Privacy Policy
+            </ThemedText>
+            .
+          </ThemedText>
         </View>
       </View>
     </ScreenContainer>
@@ -143,6 +202,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   forgot: { fontSize: fontSize(14), fontWeight: "700" },
+  error: {
+    fontSize: fontSize(14),
+    textAlign: "center",
+    marginTop: hp(4),
+  },
   primaryButton: {
     borderRadius: wp(14),
     marginTop: hp(16),
@@ -160,4 +224,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
+  terms: {
+    fontSize: fontSize(12),
+    textAlign: "center",
+    marginTop: hp(16),
+    opacity: 0.9,
+  },
+  link: { fontSize: fontSize(12), fontWeight: "700" },
 });

@@ -1,11 +1,12 @@
 import ScreenContainer from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 
 export default function RegisterScreen() {
@@ -16,10 +17,54 @@ export default function RegisterScreen() {
     (s) => s.setHasSeenOnboarding
   );
 
+  const { register, isLoading, error, clearError, isAuthenticated } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      setHasSeenOnboarding(true);
+      router.replace("/(tabs)");
+    }
+  }, [isAuthenticated, setHasSeenOnboarding, router]);
+
+  // Clear error when inputs change
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, [email, password, phone, name, error, clearError]);
+
+  const handleRegister = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Please fill in email and password");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    try {
+      await register(email, password, phone || undefined, name || undefined);
+      setHasSeenOnboarding(true);
+      router.replace("/(tabs)");
+    } catch (error) {
+      // Error is already handled in the store
+      Alert.alert(
+        "Registration Failed",
+        error instanceof Error ? error.message : "An error occurred"
+      );
+    }
+  };
 
   return (
     <ScreenContainer scrollable={false} withPadding={true}>
@@ -34,6 +79,18 @@ export default function RegisterScreen() {
         </ThemedText>
 
         <View style={styles.form}>
+          <ThemedText style={styles.label}>Full Name (Optional)</ThemedText>
+          <TextInput
+            mode="outlined"
+            placeholder="Your full name"
+            value={name}
+            onChangeText={setName}
+            left={<TextInput.Icon icon="account" />}
+            style={[styles.input, { backgroundColor: theme.colors.surface }]}
+            outlineColor={theme.colors.outline}
+            activeOutlineColor={colors.primary[700]}
+          />
+
           <ThemedText style={styles.label}>Email Address</ThemedText>
           <TextInput
             mode="outlined"
@@ -44,6 +101,9 @@ export default function RegisterScreen() {
             style={[styles.input, { backgroundColor: theme.colors.surface }]}
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
+            error={!!error}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
 
           <ThemedText style={styles.label}>Password</ThemedText>
@@ -63,30 +123,33 @@ export default function RegisterScreen() {
             style={[styles.input, { backgroundColor: theme.colors.surface }]}
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
+            error={!!error}
           />
 
-          <ThemedText style={styles.label}>Phone Number</ThemedText>
+          <ThemedText style={styles.label}>Phone Number (Optional)</ThemedText>
           <TextInput
             mode="outlined"
             placeholder="+234 801 234 5678"
             value={phone}
             onChangeText={setPhone}
+            left={<TextInput.Icon icon="phone" />}
             style={[styles.input, { backgroundColor: theme.colors.surface }]}
             outlineColor={theme.colors.outline}
             activeOutlineColor={colors.primary[700]}
+            keyboardType="phone-pad"
           />
+
+          {error && (
+            <ThemedText style={[styles.error, { color: theme.colors.error }]}>
+              {error}
+            </ThemedText>
+          )}
 
           <Button
             mode="contained"
-            onPress={() => {
-              // Temporary client-side validation and navigation.
-              // Replace this with your real registration call and handle errors.
-              if (!email || !password) return; // simple guard
-              // Mark onboarding as complete so protected stack becomes available
-              setHasSeenOnboarding(true);
-              // Navigate to the tabs home index explicitly
-              router.replace("/(tabs)/index");
-            }}
+            onPress={handleRegister}
+            loading={isLoading}
+            disabled={isLoading}
             contentStyle={styles.primaryContent}
             labelStyle={styles.primaryLabel}
             style={[
@@ -94,7 +157,7 @@ export default function RegisterScreen() {
               { backgroundColor: colors.primary[700] },
             ]}
           >
-            Sign Up
+            {isLoading ? "Creating Account..." : "Sign Up"}
           </Button>
 
           <TouchableOpacity
@@ -110,6 +173,26 @@ export default function RegisterScreen() {
               Log In
             </ThemedText>
           </TouchableOpacity>
+
+          <ThemedText
+            style={[styles.terms, { color: theme.colors.onSurfaceVariant }]}
+          >
+            By continuing, you agree to our{" "}
+            <ThemedText
+              style={[styles.link, { color: colors.primary[700] }]}
+              onPress={() => router.push("/legal/terms")}
+            >
+              Terms of Service
+            </ThemedText>{" "}
+            and{" "}
+            <ThemedText
+              style={[styles.link, { color: colors.primary[700] }]}
+              onPress={() => router.push("/legal/privacy")}
+            >
+              Privacy Policy
+            </ThemedText>
+            .
+          </ThemedText>
         </View>
       </View>
     </ScreenContainer>
@@ -133,6 +216,11 @@ const styles = StyleSheet.create({
   form: { marginTop: hp(18), gap: 12 },
   label: { fontSize: fontSize(14), marginBottom: hp(6), fontWeight: "600" },
   input: { borderRadius: wp(12), backgroundColor: "transparent" },
+  error: {
+    fontSize: fontSize(14),
+    textAlign: "center",
+    marginTop: hp(4),
+  },
   primaryButton: {
     borderRadius: wp(14),
     marginTop: hp(16),
@@ -150,4 +238,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
+  terms: {
+    fontSize: fontSize(12),
+    textAlign: "center",
+    marginTop: hp(16),
+    opacity: 0.9,
+  },
+  link: { fontSize: fontSize(12), fontWeight: "700" },
 });
