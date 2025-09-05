@@ -1,7 +1,10 @@
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { ds, fontSize, spacing } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -12,11 +15,8 @@ export default function SettingsIndex() {
   const router = useRouter();
 
   return (
-    <ScreenContainer>
-      <ThemedText type="title" style={styles.title}>
-        Settings
-      </ThemedText>
-
+    <ScreenContainer scrollable edges={edgesHorizontal}>
+      <ThemedText style={styles.sectionHeader}>Account</ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
           style={styles.item}
@@ -67,6 +67,7 @@ export default function SettingsIndex() {
         </TouchableOpacity>
       </View>
 
+      <ThemedText style={styles.sectionHeader}>Preferences</ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
           style={styles.item}
@@ -113,6 +114,7 @@ export default function SettingsIndex() {
         </TouchableOpacity>
       </View>
 
+      <ThemedText style={styles.sectionHeader}>Support</ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
           style={styles.item}
@@ -215,35 +217,41 @@ export default function SettingsIndex() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 24, marginBottom: 12 },
-  section: { marginVertical: 8 },
+  title: { fontSize: fontSize(24), marginBottom: spacing(12) },
+  section: { marginVertical: spacing(8) },
+  sectionHeader: {
+    fontSize: fontSize(18),
+    fontWeight: "700",
+    marginTop: spacing(18),
+    marginBottom: spacing(6),
+  },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: spacing(16),
     backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 8,
+    borderRadius: spacing(12),
+    marginBottom: spacing(8),
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ds(44, "width"),
+    height: ds(44, "width"),
+    borderRadius: ds(22, "width"),
     backgroundColor: "#f3f4f6",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: spacing(12),
   },
   itemText: { flex: 1 },
-  itemTitle: { fontSize: 16, fontWeight: "700" },
-  itemSubtitle: { fontSize: 14, color: "#9CA3AF" },
+  itemTitle: { fontSize: fontSize(16), fontWeight: "700" },
+  itemSubtitle: { fontSize: fontSize(14), color: "#9CA3AF" },
   logoutButton: {
-    marginTop: 24,
-    padding: 14,
-    borderRadius: 14,
+    marginTop: spacing(24),
+    padding: spacing(14),
+    borderRadius: spacing(14),
     borderWidth: 2,
     borderColor: "#FFCDD2",
     alignItems: "center",
   },
-  logoutText: { color: "#FF3B30", fontSize: 16, fontWeight: "700" },
+  logoutText: { color: "#FF3B30", fontSize: fontSize(16), fontWeight: "700" },
 });
