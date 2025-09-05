@@ -14,15 +14,35 @@ export default function SettingsIndex() {
   const colors = useKlyntlColors(theme);
   const router = useRouter();
 
+  // Theme-aware color tokens for ThemedText (pass as light/dark overrides)
+  // Use Paper semantic colors from colors.paper which already adapt to theme
+  const lightText = colors.paper.onBackground;
+  const darkText = colors.paper.onBackground;
+  const lightSubtitle = colors.paper.onSurfaceVariant;
+  const darkSubtitle = colors.paper.onSurfaceVariant;
+  const lightError = colors.paper.error;
+  const darkError = colors.paper.error;
+
   return (
-    <ScreenContainer scrollable edges={edgesHorizontal}>
-      <ThemedText style={styles.sectionHeader}>Account</ThemedText>
+    <ScreenContainer scrollable={true} edges={edgesHorizontal}>
+      <ThemedText
+        style={styles.sectionHeader}
+        lightColor={lightText}
+        darkColor={darkText}
+      >
+        Account
+      </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/profile")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="person.crop.circle"
@@ -30,8 +50,18 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Profile</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Profile
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
               Manage your profile
             </ThemedText>
           </View>
@@ -43,10 +73,15 @@ export default function SettingsIndex() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/business")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="briefcase"
@@ -54,8 +89,18 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Business</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Business
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
               Manage your business
             </ThemedText>
           </View>
@@ -67,13 +112,24 @@ export default function SettingsIndex() {
         </TouchableOpacity>
       </View>
 
-      <ThemedText style={styles.sectionHeader}>Preferences</ThemedText>
+      <ThemedText
+        style={styles.sectionHeader}
+        lightColor={lightText}
+        darkColor={darkText}
+      >
+        Preferences
+      </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/language")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="globe"
@@ -81,8 +137,20 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Language</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>English</ThemedText>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Language
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
+              English
+            </ThemedText>
           </View>
           <IconSymbol
             size={18}
@@ -92,10 +160,15 @@ export default function SettingsIndex() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/timezone")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="clock"
@@ -103,8 +176,20 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Timezone</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>GMT +1</ThemedText>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Timezone
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
+              GMT +1
+            </ThemedText>
           </View>
           <IconSymbol
             size={18}
@@ -114,13 +199,24 @@ export default function SettingsIndex() {
         </TouchableOpacity>
       </View>
 
-      <ThemedText style={styles.sectionHeader}>Support</ThemedText>
+      <ThemedText
+        style={styles.sectionHeader}
+        lightColor={lightText}
+        darkColor={darkText}
+      >
+        Support
+      </ThemedText>
       <View style={styles.section}>
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/help")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="questionmark.circle"
@@ -128,8 +224,18 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Help Center</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Help Center
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
               Get help and support
             </ThemedText>
           </View>
@@ -141,10 +247,15 @@ export default function SettingsIndex() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/contact")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="phone"
@@ -152,8 +263,20 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Contact Us</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>Contact support</ThemedText>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Contact Us
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
+              Contact support
+            </ThemedText>
           </View>
           <IconSymbol
             size={18}
@@ -163,10 +286,15 @@ export default function SettingsIndex() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/terms")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="document"
@@ -174,8 +302,20 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Terms of Service</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>View terms</ThemedText>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Terms of Service
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
+              View terms
+            </ThemedText>
           </View>
           <IconSymbol
             size={18}
@@ -185,10 +325,15 @@ export default function SettingsIndex() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.item}
+          style={[styles.item, { backgroundColor: colors.paper.surface }]}
           onPress={() => router.push("/(tabs)/settings/privacy")}
         >
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colors.paper.surfaceVariant },
+            ]}
+          >
             <IconSymbol
               size={18}
               name="shield.checkerboard"
@@ -196,8 +341,18 @@ export default function SettingsIndex() {
             />
           </View>
           <View style={styles.itemText}>
-            <ThemedText style={styles.itemTitle}>Privacy Policy</ThemedText>
-            <ThemedText style={styles.itemSubtitle}>
+            <ThemedText
+              lightColor={lightText}
+              darkColor={darkText}
+              style={styles.itemTitle}
+            >
+              Privacy Policy
+            </ThemedText>
+            <ThemedText
+              lightColor={lightSubtitle}
+              darkColor={darkSubtitle}
+              style={styles.itemSubtitle}
+            >
               View privacy policy
             </ThemedText>
           </View>
@@ -209,8 +364,19 @@ export default function SettingsIndex() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton}>
-        <ThemedText style={styles.logoutText}>Log Out</ThemedText>
+      <TouchableOpacity
+        style={[
+          styles.logoutButton,
+          { borderColor: colors.paper.errorContainer },
+        ]}
+      >
+        <ThemedText
+          style={styles.logoutText}
+          lightColor={lightError}
+          darkColor={darkError}
+        >
+          Log Out
+        </ThemedText>
       </TouchableOpacity>
     </ScreenContainer>
   );
@@ -229,7 +395,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: spacing(16),
-    backgroundColor: "#fff",
     borderRadius: spacing(12),
     marginBottom: spacing(8),
   },
@@ -237,21 +402,19 @@ const styles = StyleSheet.create({
     width: ds(44, "width"),
     height: ds(44, "width"),
     borderRadius: ds(22, "width"),
-    backgroundColor: "#f3f4f6",
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing(12),
   },
   itemText: { flex: 1 },
   itemTitle: { fontSize: fontSize(16), fontWeight: "700" },
-  itemSubtitle: { fontSize: fontSize(14), color: "#9CA3AF" },
+  itemSubtitle: { fontSize: fontSize(14) },
   logoutButton: {
     marginTop: spacing(24),
     padding: spacing(14),
     borderRadius: spacing(14),
     borderWidth: 2,
-    borderColor: "#FFCDD2",
     alignItems: "center",
   },
-  logoutText: { color: "#FF3B30", fontSize: fontSize(16), fontWeight: "700" },
+  logoutText: { fontSize: fontSize(16), fontWeight: "700" },
 });
