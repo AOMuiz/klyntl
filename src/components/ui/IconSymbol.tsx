@@ -10,11 +10,15 @@ type IconMapping = Record<
 >;
 export type IconSymbolName = keyof typeof MAPPING;
 
+// makes the mapping less strict
+// type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
+// export type IconSymbolName = string;
+
 /**
  * SF Symbols → Material Icons mapping
  * Only map SF Symbol names you actually use.
  */
-const MAPPING = {
+const MAPPING: IconMapping = {
   // Core navigation
   "house.fill": "home",
   "paperplane.fill": "send",
@@ -52,7 +56,29 @@ const MAPPING = {
   // Additional icons found in usage
   xmark: "close", // Close/cancel actions
   person: "person", // Generic person icon
+
+  // Added mappings for SF symbols used elsewhere in the app
+  "person.crop.circle": "account-circle",
+  briefcase: "work",
+  globe: "public",
+  clock: "access-time",
+  "questionmark.circle": "help-outline",
+  phone: "phone",
+  document: "description",
+  "shield.checkerboard": "security",
+  "gearshape.fill": "settings",
+  bell: "notifications",
+  magnifyingglass: "search",
+  "chevron.down": "expand-more",
+  checkmark: "check",
+  "person.2": "people",
+  "arrow.up.arrow.down": "swap-vert",
+  "chart.line.uptrend.xyaxis": "trending-up",
 } as IconMapping;
+
+// Fallback icon in case mapping is missing
+const FALLBACK_ICON: ComponentProps<typeof MaterialIcons>["name"] =
+  "help-outline";
 
 /**
  * Cross-platform Icon
@@ -76,7 +102,10 @@ export function IconSymbol({
     <MaterialIcons
       color={color}
       size={size}
-      name={MAPPING[name]}
+      name={
+        (MAPPING[name] as ComponentProps<typeof MaterialIcons>["name"]) ??
+        FALLBACK_ICON
+      }
       style={style}
     />
   );
