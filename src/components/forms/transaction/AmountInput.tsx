@@ -63,13 +63,15 @@ export const AmountInput: React.FC<AmountInputProps> = ({
   const getPreviewLabel = (type: TransactionType) => {
     switch (type) {
       case "refund":
-        return "Refund Amount";
+        return "Amount to Refund";
       case "payment":
-        return "Payment Received";
+        return "Payment Amount";
       case "credit":
         return "Credit Amount";
-      default:
+      case "sale":
         return "Sale Amount";
+      default:
+        return "Transaction Amount";
     }
   };
 
@@ -132,7 +134,7 @@ export const AmountInput: React.FC<AmountInputProps> = ({
             opacity: 0.8,
           }}
         >
-          Quick amounts:
+          Suggested Quick Amounts:
         </ThemedText>
         <ScrollView
           horizontal

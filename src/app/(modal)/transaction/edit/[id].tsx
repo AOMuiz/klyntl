@@ -8,5 +8,5 @@ export default function EditTransactionRoute() {
     return null; // or some error component
   }
 
-  return <EditTransactionScreen transactionId={id} />;
+  return <EditTransactionScreen />;
 }

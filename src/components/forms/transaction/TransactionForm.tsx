@@ -15,6 +15,7 @@ import ScreenContainer, {
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import DebtConfirmation from "@/components/ui/DebtConfirmation";
+import { FormField } from "@/components/ui/FormField";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useTransactionBusinessLogic } from "@/hooks/business/useTransactionBusinessLogic";
@@ -40,17 +41,20 @@ import {
 import { AmountInput } from "./AmountInput";
 import { CustomerSelector } from "./CustomerSelector";
 import { DatePickerWithPresets } from "./DatePickerWithPresets";
-import { FormField } from "./FormField";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { TransactionTypeSelector } from "./TransactionTypeSelector";
 
-export default function TransactionForm({ customerId }: TransactionFormProps) {
+export default function TransactionForm({
+  customerId,
+  initialData,
+  transactionId,
+}: TransactionFormProps) {
   const router = useRouter();
   const theme = useTheme();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const { createTransaction } = useTransactions();
+  const { createTransaction, updateTransaction } = useTransactions();
   const { customers } = useCustomers();
 
   const [loading, setLoading] = useState(false);
@@ -74,6 +78,7 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
     customers: customers || [],
     searchQuery,
     setSearchQuery,
+    initialData,
   });
 
   const {
@@ -123,6 +128,44 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
     }
   };
 
+  const getSuccessMessage = (
+    data: TransactionFormData,
+    customerName: string | undefined,
+    isEdit: boolean
+  ): string => {
+    const amount = formatCurrency(parseFloat(data.amount));
+    const action = isEdit ? "updated" : "recorded";
+    const customer = customerName || "the customer";
+
+    switch (data.type) {
+      case "sale":
+        if (data.paymentMethod === "credit") {
+          return `Sale of ${amount} on credit has been ${action} for ${customer}`;
+        } else if (data.paymentMethod === "mixed") {
+          const paidAmount = formatCurrency(parseFloat(data.paidAmount || "0"));
+          return `Sale of ${amount} with ${paidAmount} paid now has been ${action} for ${customer}`;
+        } else {
+          return `Sale of ${amount} has been ${action} for ${customer}`;
+        }
+
+      case "payment":
+        if (data.appliedToDebt) {
+          return `Payment of ${amount} received from ${customer} and applied to outstanding debt`;
+        } else {
+          return `Payment of ${amount} received from ${customer} as deposit for future service`;
+        }
+
+      case "credit":
+        return `Credit of ${amount} has been issued to ${customer}`;
+
+      case "refund":
+        return `Refund of ${amount} has been processed for ${customer}`;
+
+      default:
+        return `Transaction has been ${action} successfully`;
+    }
+  };
+
   const onSubmit = async (data: TransactionFormData) => {
     try {
       setLoading(true);
@@ -138,24 +181,41 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
       }
 
       const transactionData = formatTransactionData(data);
-      await createTransaction(transactionData);
 
-      Alert.alert("Success", `Transaction has been added successfully!`, [
-        {
-          text: "Add Another",
-          onPress: () => resetForm(data.customerId),
-        },
-        {
-          text: "View Customer",
-          onPress: () => {
-            router.dismiss();
-            router.push(`/customer/${data.customerId}`);
-          },
-        },
-      ]);
+      if (transactionId) {
+        // Editing mode
+        await updateTransaction({
+          id: transactionId,
+          updates: transactionData,
+        });
+        Alert.alert(
+          "Success",
+          getSuccessMessage(data, selectedCustomer?.name, true)
+        );
+      } else {
+        // Creating mode
+        await createTransaction(transactionData);
+        Alert.alert(
+          "Success",
+          getSuccessMessage(data, selectedCustomer?.name, false),
+          [
+            {
+              text: "Add Another",
+              onPress: () => resetForm(data.customerId),
+            },
+            {
+              text: "View Customer",
+              onPress: () => {
+                router.dismiss();
+                router.push(`/customer/${data.customerId}`);
+              },
+            },
+          ]
+        );
+      }
     } catch (error) {
-      console.error("Failed to create transaction:", error);
-      Alert.alert("Error", "Failed to add transaction. Please try again.");
+      console.error("Failed to save transaction:", error);
+      Alert.alert("Error", "Failed to save transaction. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -164,6 +224,44 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
   const selectedCustomer = customers?.find(
     (c) => c.id === watchedValues.customerId
   );
+
+  const getSubmitButtonText = (
+    type: TransactionType,
+    loading: boolean
+  ): string => {
+    if (loading) return "Processing...";
+
+    switch (type) {
+      case "sale":
+        return "Record Sale";
+      case "payment":
+        return "Record Payment";
+      case "credit":
+        return "Issue Credit";
+      case "refund":
+        return "Process Refund";
+      default:
+        return "Add Transaction";
+    }
+  };
+
+  const getTransactionHeaderText = (
+    type: TransactionType,
+    customerName: string
+  ): string => {
+    switch (type) {
+      case "sale":
+        return `Record Sale for ${customerName}`;
+      case "payment":
+        return `Record Payment from ${customerName}`;
+      case "credit":
+        return `Issue Credit to ${customerName}`;
+      case "refund":
+        return `Process Refund for ${customerName}`;
+      default:
+        return `Record Transaction for ${customerName}`;
+    }
+  };
 
   return (
     <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
@@ -185,7 +283,10 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
               style={{ marginTop: hp(12), opacity: 0.7, textAlign: "center" }}
             >
               {selectedCustomer
-                ? `Record Transaction for ${selectedCustomer.name}`
+                ? getTransactionHeaderText(
+                    watchedValues.type,
+                    selectedCustomer.name
+                  )
                 : "Record a new transaction"}
             </ThemedText>
             {selectedCustomer && currentCustomerDebt > 0 && (
@@ -619,11 +720,8 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
                 }}
               >
                 {loading
-                  ? "Adding..."
-                  : `Add ${
-                      watchedValues.type.charAt(0).toUpperCase() +
-                      watchedValues.type.slice(1)
-                    }`}
+                  ? "Processing..."
+                  : getSubmitButtonText(watchedValues.type, loading)}
               </ThemedText>
             </TouchableOpacity>
           </View>

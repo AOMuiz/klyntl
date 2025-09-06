@@ -15,4 +15,6 @@ export interface TransactionFormData {
 
 export interface TransactionFormProps {
   customerId?: string;
+  initialData?: Partial<TransactionFormData>;
+  transactionId?: string;
 }

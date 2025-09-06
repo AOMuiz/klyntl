@@ -25,6 +25,7 @@ interface UseTransactionFormProps {
   customers: Customer[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  initialData?: Partial<TransactionFormData>;
 }
 
 export const useTransactionForm = ({
@@ -32,9 +33,23 @@ export const useTransactionForm = ({
   customers,
   searchQuery,
   setSearchQuery,
+  initialData,
 }: UseTransactionFormProps) => {
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [showMorePaymentMethods, setShowMorePaymentMethods] = useState(false);
+
+  const defaultValues = {
+    customerId: customerId || "",
+    amount: "",
+    description: "",
+    date: new Date(),
+    type: "sale" as TransactionType,
+    paymentMethod: "cash" as PaymentMethod,
+    paidAmount: "",
+    remainingAmount: "",
+    dueDate: null,
+    appliedToDebt: true,
+  };
 
   const {
     control,
@@ -44,18 +59,7 @@ export const useTransactionForm = ({
     watch,
     setValue,
   } = useForm<TransactionFormData>({
-    defaultValues: {
-      customerId: customerId || "",
-      amount: "",
-      description: "",
-      date: new Date(),
-      type: "sale",
-      paymentMethod: "cash",
-      paidAmount: "",
-      remainingAmount: "",
-      dueDate: null,
-      appliedToDebt: true,
-    },
+    defaultValues: { ...defaultValues, ...initialData },
   });
 
   const watchedType = watch("type");
@@ -113,16 +117,9 @@ export const useTransactionForm = ({
 
   const resetForm = (customerId?: string) => {
     reset({
+      ...defaultValues,
       customerId: customerId || "",
-      amount: "",
-      description: "",
-      date: new Date(),
-      type: "sale",
-      paymentMethod: "cash",
-      paidAmount: "",
-      remainingAmount: "",
-      dueDate: null,
-      appliedToDebt: true,
+      ...initialData,
     });
   };
 

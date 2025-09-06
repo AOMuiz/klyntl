@@ -95,9 +95,11 @@ export const TransactionTypeSelector: React.FC<
       </View>
       {/* Show meaning below selection */}
       <ThemedText
+        type="body2"
         style={{
           marginTop: hp(8),
           color: theme.colors.onSurfaceVariant,
+          //   fontFamily: theme.fonts.bodyMedium.fontFamily,
         }}
       >
         {descriptions[value]}

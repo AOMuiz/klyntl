@@ -1,6 +1,6 @@
 import { ThemedText } from "@/components/ThemedText";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
-import { View } from "react-native";
+import { View, ViewStyle } from "react-native";
 import { HelperText, useTheme } from "react-native-paper";
 
 interface FormFieldProps {
@@ -8,7 +8,7 @@ interface FormFieldProps {
   error?: string;
   required?: boolean;
   children: React.ReactNode;
-  style?: any;
+  style?: ViewStyle;
 }
 
 export const FormField: React.FC<FormFieldProps> = ({
