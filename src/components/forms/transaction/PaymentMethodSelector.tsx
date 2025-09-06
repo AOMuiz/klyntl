@@ -66,9 +66,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   if (transactionType !== "payment" && transactionType !== "refund") {
     commonMethods.push("credit");
     additionalMethods.push("mixed");
-  } else if (transactionType === "payment") {
-    additionalMethods.push("mixed");
   }
+  // Note: For payment transactions, only cash, bank_transfer, pos_card are allowed
+  // Mixed payments don't make sense for payments received from customers
 
   return (
     <View>

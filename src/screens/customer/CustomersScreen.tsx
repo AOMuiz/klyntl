@@ -18,7 +18,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Platform, StyleSheet, View } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import {
   Button,
   Divider,
@@ -30,26 +30,56 @@ import {
   useTheme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { styles } from "./CustomersScreen.styles";
 
 type SortOption = "name" | "totalSpent" | "lastPurchase" | "createdAt";
 
-export default function CustomersScreen() {
-  const router = useRouter();
-  const theme = useTheme<ExtendedKlyntlTheme>();
-  const colors = useKlyntlColors(theme);
-  const { importSelectedContacts, isImporting } = useContactImport();
-  const contactPicker = useContactPicker();
-  const { db } = useDatabase();
-  const databaseService = db ? createDatabaseService(db) : undefined;
-  const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
+// Utility functions
+const getSortLabel = (sortOptions: SortOptions) => {
+  const labels = {
+    name: "Name",
+    totalSpent: "Total Spent",
+    lastPurchase: "Last Purchase",
+    createdAt: "Date Added",
+  };
+  return `Sort by ${labels[sortOptions.field as keyof typeof labels]} ${
+    sortOptions.direction === "desc" ? "↓" : "↑"
+  }`;
+};
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterVisible, setFilterVisible] = useState(false);
-  const [sortMenuVisible, setSortMenuVisible] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
+const handleImportComplete = (
+  result: {
+    imported: number;
+    skipped: number;
+    totalProcessed: number;
+    errors: string[];
+  },
+  refetch: () => void
+) => {
+  let message = `Import completed!\n\n`;
+  message += `• Imported: ${result.imported} customers\n`;
+  message += `• Skipped: ${result.skipped} contacts\n`;
+  message += `• Total processed: ${result.totalProcessed} contacts`;
 
-  // Enhanced filter state using the original filter types
+  if (result.errors.length > 0) {
+    message += `\n\nSome errors occurred:\n${result.errors
+      .slice(0, 3)
+      .join("\n")}`;
+    if (result.errors.length > 3) {
+      message += `\n... and ${result.errors.length - 3} more errors`;
+    }
+  }
+
+  Alert.alert("Import Results", message, [
+    {
+      text: "OK",
+      onPress: () => refetch(),
+    },
+  ]);
+};
+
+// Custom hooks for better separation of concerns
+const useCustomerFilters = () => {
   const [filters, setFilters] = useState<FilterOptions>({
     customerType: "all",
   });
@@ -58,6 +88,298 @@ export default function CustomersScreen() {
     field: "name",
     direction: "asc",
   });
+
+  const handleFiltersChange = (
+    newFilters: FilterOptions,
+    newSort: SortOptions
+  ) => {
+    setFilters(newFilters);
+    setSortOptions(newSort);
+  };
+
+  const handleSort = (
+    option: SortOption,
+    setSortMenuVisible: (visible: boolean) => void
+  ) => {
+    const newSort: SortOptions = {
+      field: option,
+      direction:
+        sortOptions.field === option && sortOptions.direction === "asc"
+          ? "desc"
+          : "asc",
+    };
+    setSortOptions(newSort);
+    setSortMenuVisible(false);
+  };
+
+  return {
+    filters,
+    sortOptions,
+    handleFiltersChange,
+    handleSort,
+  };
+};
+
+const useContactImportHandler = (
+  refetch: () => void,
+  existingPhones: string[]
+) => {
+  const { importSelectedContacts } = useContactImport();
+  const contactPicker = useContactPicker();
+
+  const handleContactsSelected = async (selectedContacts: any[]) => {
+    try {
+      if (selectedContacts.length === 0) {
+        Alert.alert("No Selection", "No contacts were selected for import.");
+        return;
+      }
+
+      const result = await importSelectedContacts(selectedContacts);
+      handleImportComplete(result, refetch);
+    } catch (error) {
+      Alert.alert(
+        "Import Failed",
+        error instanceof Error
+          ? error.message
+          : "Failed to import selected contacts"
+      );
+    }
+  };
+
+  const handleImportContacts = async (setFabOpen: (open: boolean) => void) => {
+    contactPicker.showContactPicker({
+      existingPhones,
+      maxSelection: 100,
+      onContactsSelected: handleContactsSelected,
+    });
+    setFabOpen(false);
+  };
+
+  return {
+    handleImportContacts,
+    ContactPickerComponent: contactPicker.ContactPickerComponent,
+  };
+};
+
+// Reusable UI Components
+const CustomerHeader = ({
+  colors,
+  handleClearDatabase,
+}: {
+  colors: any;
+  handleClearDatabase: () => void;
+}) => (
+  <View style={styles.header}>
+    <View style={styles.titleContainer}>
+      <Text
+        variant="headlineLarge"
+        style={[styles.title, { color: colors.paper.onBackground }]}
+      >
+        Customers
+      </Text>
+      {__DEV__ && (
+        <Button
+          mode="text"
+          compact
+          onPress={handleClearDatabase}
+          labelStyle={[styles.clearButtonText, { color: colors.error[600] }]}
+        >
+          Clear DB
+        </Button>
+      )}
+    </View>
+  </View>
+);
+
+const CustomerSearchBar = ({
+  searchQuery,
+  setSearchQuery,
+  hasActiveFilters,
+  colors,
+  setFilterVisible,
+}: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  hasActiveFilters: boolean;
+  colors: any;
+  setFilterVisible: (visible: boolean) => void;
+}) => (
+  <View style={styles.searchContainer}>
+    <Searchbar
+      placeholder="Search customers..."
+      onChangeText={setSearchQuery}
+      value={searchQuery}
+      style={[
+        styles.searchbar,
+        { backgroundColor: colors.paper.surfaceVariant },
+      ]}
+      inputStyle={{ color: colors.paper.onSurfaceVariant }}
+      placeholderTextColor={colors.paper.onSurfaceVariant}
+      iconColor={colors.paper.onSurfaceVariant}
+    />
+    <IconButton
+      icon="tune"
+      size={wp(28)}
+      onPress={() => setFilterVisible(true)}
+      style={[
+        styles.filterButton,
+        {
+          backgroundColor: hasActiveFilters
+            ? colors.primary[100]
+            : colors.paper.surfaceVariant,
+        },
+      ]}
+      iconColor={
+        hasActiveFilters ? colors.primary[700] : colors.paper.onSurfaceVariant
+      }
+    />
+  </View>
+);
+
+const CustomerFilterStatus = ({
+  hasActiveFilters,
+  filters,
+  colors,
+  handleFiltersChange,
+}: {
+  hasActiveFilters: boolean;
+  filters: FilterOptions;
+  colors: any;
+  handleFiltersChange: (filters: FilterOptions, sort: SortOptions) => void;
+}) => {
+  if (!hasActiveFilters) return null;
+
+  return (
+    <View style={styles.filterStatusBar}>
+      <Text
+        variant="bodySmall"
+        style={[styles.filterDescriptionText, { color: colors.primary[600] }]}
+      >
+        {getFilterDescription(filters)}
+      </Text>
+      <Button
+        mode="text"
+        compact
+        onPress={() =>
+          handleFiltersChange(
+            {
+              customerType: "all",
+              hasTransactions: undefined,
+              isActive: undefined,
+              contactSource: "all",
+              spendingRange: undefined,
+              dateRange: undefined,
+              preferredContactMethod: undefined,
+            },
+            { field: "name", direction: "asc" }
+          )
+        }
+        labelStyle={[{ color: colors.primary[600], fontSize: fontSize(12) }]}
+        contentStyle={styles.clearFiltersButtonContent}
+      >
+        Clear Filters
+      </Button>
+    </View>
+  );
+};
+
+const CustomerResultsInfo = ({
+  filteredCustomers,
+  totalCount,
+  colors,
+}: {
+  filteredCustomers: any[];
+  totalCount: number | undefined;
+  colors: any;
+}) => (
+  <View style={styles.resultsInfo}>
+    <Text variant="bodyMedium" style={{ color: colors.paper.onSurfaceVariant }}>
+      Showing {filteredCustomers.length} of {totalCount || 0} customers
+      {filteredCustomers.length < (totalCount || 0) && " (scroll for more)"}
+    </Text>
+  </View>
+);
+
+const CustomerListHeader = ({
+  sortMenuVisible,
+  setSortMenuVisible,
+  sortOptions,
+  colors,
+  handleSort,
+}: {
+  sortMenuVisible: boolean;
+  setSortMenuVisible: (visible: boolean) => void;
+  sortOptions: SortOptions;
+  colors: any;
+  handleSort: (
+    option: SortOption,
+    setVisible: (visible: boolean) => void
+  ) => void;
+}) => (
+  <View style={styles.listHeader}>
+    <Text variant="titleMedium" style={{ color: colors.paper.onBackground }}>
+      All customers
+    </Text>
+    <Menu
+      visible={sortMenuVisible}
+      onDismiss={() => setSortMenuVisible(false)}
+      anchor={
+        <Button
+          mode="text"
+          onPress={() => setSortMenuVisible(true)}
+          contentStyle={styles.sortButtonContent}
+          labelStyle={{
+            color: colors.primary[600],
+            fontSize: fontSize(14),
+          }}
+        >
+          {getSortLabel(sortOptions)}
+        </Button>
+      }
+      contentStyle={{ backgroundColor: colors.paper.surface }}
+    >
+      <Menu.Item
+        onPress={() => handleSort("name", setSortMenuVisible)}
+        title="Name"
+        titleStyle={{ color: colors.paper.onSurface }}
+      />
+      <Menu.Item
+        onPress={() => handleSort("totalSpent", setSortMenuVisible)}
+        title="Total Spent"
+        titleStyle={{ color: colors.paper.onSurface }}
+      />
+      <Menu.Item
+        onPress={() => handleSort("lastPurchase", setSortMenuVisible)}
+        title="Last Purchase"
+        titleStyle={{ color: colors.paper.onSurface }}
+      />
+      <Menu.Item
+        onPress={() => handleSort("createdAt", setSortMenuVisible)}
+        title="Date Added"
+        titleStyle={{ color: colors.paper.onSurface }}
+      />
+    </Menu>
+  </View>
+);
+
+export default function CustomersScreen() {
+  const router = useRouter();
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
+  const { db } = useDatabase();
+  const databaseService = db ? createDatabaseService(db) : undefined;
+  const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+
+  // State management
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [sortMenuVisible, setSortMenuVisible] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+
+  // Custom hooks
+  const { filters, sortOptions, handleFiltersChange, handleSort } =
+    useCustomerFilters();
 
   // Use the enhanced useCustomers hook with all filter parameters
   const {
@@ -89,6 +411,17 @@ export default function CustomersScreen() {
     20 // pageSize
   );
 
+  // Memoized existing phone numbers for duplicate checking
+  const existingPhones = useMemo(() => {
+    return (customers || [])
+      .filter((c) => c.phone)
+      .map((c) => c.phone.replace(/\D/g, ""));
+  }, [customers]);
+
+  // Contact import handler
+  const { handleImportContacts, ContactPickerComponent } =
+    useContactImportHandler(refetch, existingPhones);
+
   // Apply additional client-side filtering for complex logic
   const filteredCustomers = useMemo(() => {
     let filtered = customers || [];
@@ -105,108 +438,18 @@ export default function CustomersScreen() {
     return filtered;
   }, [customers, searchQuery]);
 
-  // Memoized existing phone numbers for duplicate checking
-  const existingPhones = useMemo(() => {
-    return (customers || [])
-      .filter((c) => c.phone)
-      .map((c) => c.phone.replace(/\D/g, ""));
-  }, [customers]);
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return !areFiltersEmpty(filters);
+  }, [filters]);
 
+  // Event handlers
   const handleCustomerPress = (customerId: string) => {
     router.push(`/customer/${customerId}`);
   };
 
   const handleAddCustomer = () => {
     router.push("/customer/add");
-  };
-
-  // Handle contact selection from picker
-  const handleContactsSelected = async (selectedContacts: any[]) => {
-    try {
-      if (selectedContacts.length === 0) {
-        Alert.alert("No Selection", "No contacts were selected for import.");
-        return;
-      }
-
-      const result = await importSelectedContacts(selectedContacts);
-      handleImportComplete(result);
-    } catch (error) {
-      Alert.alert(
-        "Import Failed",
-        error instanceof Error
-          ? error.message
-          : "Failed to import selected contacts"
-      );
-    }
-  };
-
-  const handleImportComplete = async (result: {
-    imported: number;
-    skipped: number;
-    totalProcessed: number;
-    errors: string[];
-  }) => {
-    // Show detailed import results
-    let message = `Import completed!\n\n`;
-    message += `• Imported: ${result.imported} customers\n`;
-    message += `• Skipped: ${result.skipped} contacts\n`;
-    message += `• Total processed: ${result.totalProcessed} contacts`;
-
-    if (result.errors.length > 0) {
-      message += `\n\nSome errors occurred:\n${result.errors
-        .slice(0, 3)
-        .join("\n")}`;
-      if (result.errors.length > 3) {
-        message += `\n... and ${result.errors.length - 3} more errors`;
-      }
-    }
-
-    Alert.alert("Import Results", message, [
-      {
-        text: "OK",
-        onPress: () => {
-          refetch(); // Reload the customer list
-        },
-      },
-    ]);
-  };
-
-  const handleImportContacts = async () => {
-    if (isImporting) {
-      Alert.alert(
-        "Import in Progress",
-        "Please wait for the current import to complete."
-      );
-      return;
-    }
-
-    // Use the contact picker for selective import
-    contactPicker.showContactPicker({
-      existingPhones,
-      maxSelection: 100,
-      onContactsSelected: handleContactsSelected,
-    });
-    setFabOpen(false);
-  };
-  const handleFiltersChange = (
-    newFilters: FilterOptions,
-    newSort: SortOptions
-  ) => {
-    setFilters(newFilters);
-    setSortOptions(newSort);
-    // The useCustomers hook will automatically refetch with new parameters
-  };
-
-  const handleSort = (option: SortOption) => {
-    const newSort: SortOptions = {
-      field: option,
-      direction:
-        sortOptions.field === option && sortOptions.direction === "asc"
-          ? "desc"
-          : "asc",
-    };
-    setSortOptions(newSort);
-    setSortMenuVisible(false);
   };
 
   const handleClearDatabase = async () => {
@@ -240,23 +483,6 @@ export default function CustomersScreen() {
     );
   };
 
-  const getSortLabel = () => {
-    const labels = {
-      name: "Name",
-      totalSpent: "Total Spent",
-      lastPurchase: "Last Purchase",
-      createdAt: "Date Added",
-    };
-    return `Sort by ${labels[sortOptions.field as keyof typeof labels]} ${
-      sortOptions.direction === "desc" ? "↓" : "↑"
-    }`;
-  };
-
-  // Check if any filters are active
-  const hasActiveFilters = useMemo(() => {
-    return !areFiltersEmpty(filters);
-  }, [filters]);
-
   return (
     <ScreenContainer
       withPadding={false}
@@ -265,163 +491,39 @@ export default function CustomersScreen() {
         { backgroundColor: colors.paper.background },
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text
-            variant="headlineLarge"
-            style={[styles.title, { color: colors.paper.onBackground }]}
-          >
-            Customers
-          </Text>
-          {__DEV__ && (
-            <Button
-              mode="text"
-              compact
-              onPress={handleClearDatabase}
-              labelStyle={[
-                styles.clearButtonText,
-                { color: colors.error[600] },
-              ]}
-            >
-              Clear DB
-            </Button>
-          )}
-        </View>
-      </View>
+      <CustomerHeader
+        colors={colors}
+        handleClearDatabase={handleClearDatabase}
+      />
 
-      {/* Search and Filter */}
-      <View style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Search customers..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={[
-            styles.searchbar,
-            { backgroundColor: colors.paper.surfaceVariant },
-          ]}
-          inputStyle={{ color: colors.paper.onSurfaceVariant }}
-          placeholderTextColor={colors.paper.onSurfaceVariant}
-          iconColor={colors.paper.onSurfaceVariant}
-        />
-        <IconButton
-          icon="tune"
-          size={wp(28)}
-          onPress={() => setFilterVisible(true)}
-          style={[
-            styles.filterButton,
-            {
-              backgroundColor: hasActiveFilters
-                ? colors.primary[100]
-                : colors.paper.surfaceVariant,
-            },
-          ]}
-          iconColor={
-            hasActiveFilters
-              ? colors.primary[700]
-              : colors.paper.onSurfaceVariant
-          }
-        />
-      </View>
+      <CustomerSearchBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        hasActiveFilters={hasActiveFilters}
+        colors={colors}
+        setFilterVisible={setFilterVisible}
+      />
 
-      {/* Filter Status Bar */}
-      {hasActiveFilters && (
-        <View style={styles.filterStatusBar}>
-          <Text
-            variant="bodySmall"
-            style={[
-              styles.filterDescriptionText,
-              { color: colors.primary[600] },
-            ]}
-          >
-            {getFilterDescription(filters)}
-          </Text>
-          <Button
-            mode="text"
-            compact
-            onPress={() =>
-              handleFiltersChange(
-                {
-                  customerType: "all",
-                  hasTransactions: undefined,
-                  isActive: undefined,
-                  contactSource: "all",
-                  spendingRange: undefined,
-                  dateRange: undefined,
-                  preferredContactMethod: undefined,
-                },
-                { field: "name", direction: "asc" }
-              )
-            }
-            labelStyle={[
-              { color: colors.primary[600], fontSize: fontSize(12) },
-            ]}
-            contentStyle={styles.clearFiltersButtonContent}
-          >
-            Clear Filters
-          </Button>
-        </View>
-      )}
+      <CustomerFilterStatus
+        hasActiveFilters={hasActiveFilters}
+        filters={filters}
+        colors={colors}
+        handleFiltersChange={handleFiltersChange}
+      />
 
-      {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text
-          variant="bodyMedium"
-          style={{ color: colors.paper.onSurfaceVariant }}
-        >
-          Showing {filteredCustomers.length} of {totalCount || 0} customers
-          {filteredCustomers.length < (totalCount || 0) && " (scroll for more)"}
-        </Text>
-      </View>
+      <CustomerResultsInfo
+        filteredCustomers={filteredCustomers}
+        totalCount={totalCount}
+        colors={colors}
+      />
 
-      {/* Sort and List Header */}
-      <View style={styles.listHeader}>
-        <Text
-          variant="titleMedium"
-          style={{ color: colors.paper.onBackground }}
-        >
-          All customers
-        </Text>
-        <Menu
-          visible={sortMenuVisible}
-          onDismiss={() => setSortMenuVisible(false)}
-          anchor={
-            <Button
-              mode="text"
-              onPress={() => setSortMenuVisible(true)}
-              contentStyle={styles.sortButtonContent}
-              labelStyle={{
-                color: colors.primary[600],
-                fontSize: fontSize(14),
-              }}
-            >
-              {getSortLabel()}
-            </Button>
-          }
-          contentStyle={{ backgroundColor: colors.paper.surface }}
-        >
-          <Menu.Item
-            onPress={() => handleSort("name")}
-            title="Name"
-            titleStyle={{ color: colors.paper.onSurface }}
-          />
-          <Menu.Item
-            onPress={() => handleSort("totalSpent")}
-            title="Total Spent"
-            titleStyle={{ color: colors.paper.onSurface }}
-          />
-          <Menu.Item
-            onPress={() => handleSort("lastPurchase")}
-            title="Last Purchase"
-            titleStyle={{ color: colors.paper.onSurface }}
-          />
-          <Menu.Item
-            onPress={() => handleSort("createdAt")}
-            title="Date Added"
-            titleStyle={{ color: colors.paper.onSurface }}
-          />
-        </Menu>
-      </View>
+      <CustomerListHeader
+        sortMenuVisible={sortMenuVisible}
+        setSortMenuVisible={setSortMenuVisible}
+        sortOptions={sortOptions}
+        colors={colors}
+        handleSort={handleSort}
+      />
 
       <Divider />
 
@@ -537,7 +639,7 @@ export default function CustomersScreen() {
           {
             icon: "account-multiple-plus",
             label: "Import Contacts",
-            onPress: handleImportContacts,
+            onPress: () => handleImportContacts(setFabOpen),
             color: colors.primary[600],
           },
         ]}
@@ -551,108 +653,7 @@ export default function CustomersScreen() {
       />
 
       {/* Contact Picker Component */}
-      {contactPicker.ContactPickerComponent()}
+      {ContactPickerComponent()}
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: wp(16),
-  },
-  header: {
-    paddingVertical: hp(16),
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  titleContainer: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontWeight: "600",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  searchbar: {
-    flex: 1,
-    elevation: 0,
-  },
-  filterButton: {
-    margin: 0,
-  },
-  filterStatusBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: hp(6),
-    paddingHorizontal: wp(12),
-    marginBottom: hp(8),
-    backgroundColor: "rgba(52, 168, 83, 0.05)",
-    borderRadius: wp(8),
-  },
-  clearFiltersButtonContent: {
-    paddingHorizontal: wp(8),
-    paddingVertical: hp(4),
-  },
-  filterDescriptionText: {
-    flex: 1,
-    flexWrap: "wrap",
-    marginRight: wp(8),
-  },
-  resultsInfo: {
-    paddingVertical: hp(8),
-    paddingHorizontal: wp(4),
-  },
-  listHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: hp(16),
-  },
-  sortButtonContent: {
-    flexDirection: "row-reverse",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: hp(16),
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: wp(32),
-  },
-  addButton: {
-    marginTop: 16,
-  },
-  errorContainer: {
-    padding: wp(16),
-    alignItems: "center",
-  },
-  retryButton: {
-    marginTop: 8,
-  },
-  loadingMore: {
-    padding: wp(16),
-    alignItems: "center",
-  },
-  fabGroup: {
-    position: "absolute",
-    // right: wp(16),
-    bottom: hp(16),
-  },
-  clearButtonText: {
-    fontSize: fontSize(12),
-  },
-});

@@ -4,7 +4,7 @@ import React, {
   useEffect,
   useRef,
   useState,
-} from 'react';
+} from "react";
 import {
   AccessibilityProps,
   ActivityIndicator,
@@ -25,19 +25,19 @@ import {
   useColorScheme,
   View,
   ViewStyle,
-} from 'react-native';
-import {Header} from 'react-native/Libraries/NewAppScreen';
+} from "react-native";
+import { Header } from "react-native/Libraries/NewAppScreen";
 
-import NetInfo, {NetInfoState} from '@react-native-community/netinfo';
+import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import {
   Edge,
   SafeAreaView,
   useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+} from "react-native-safe-area-context";
 
-import {COLORS} from '@/utils/constants';
+import { COLORS } from "@/utils/constants";
+import { hp } from "@/utils/responsive_dimensions_system";
 // import analytics from '@src/services/analytics'; // Your analytics service
-import {hp} from '@/utils/dimension';
 
 // Types
 interface NetworkBannerProps {
@@ -59,7 +59,7 @@ export interface ScreenContainerProps extends AccessibilityProps {
   paddingHorizontal?: number;
   paddingVertical?: number;
   edges?: Edge[];
-  statusBarStyle?: 'light-content' | 'dark-content';
+  statusBarStyle?: "light-content" | "dark-content";
   hideStatusBar?: boolean;
   backgroundColor?: string;
   // Loading states
@@ -96,23 +96,26 @@ export interface ScreenContainerProps extends AccessibilityProps {
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
-  {children: ReactNode; onError?: (error: Error) => void},
+  { children: ReactNode; onError?: (error: Error) => void },
   ErrorBoundaryState
 > {
-  constructor(props: {children: ReactNode; onError?: (error: Error) => void}) {
+  constructor(props: {
+    children: ReactNode;
+    onError?: (error: Error) => void;
+  }) {
     super(props);
-    this.state = {hasError: false, error: null};
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error) {
-    return {hasError: true, error};
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     if (this.props.onError) {
       this.props.onError(error);
     }
-    console.log('screen_error', {error, errorInfo});
+    console.log("screen_error", { error, errorInfo });
 
     // analytics.logError('screen_error', { error, errorInfo });
   }
@@ -124,7 +127,7 @@ class ErrorBoundary extends React.Component<
           <Text>Something went wrong.</Text>
           <Button
             title="Try Again"
-            onPress={() => this.setState({hasError: false, error: null})}
+            onPress={() => this.setState({ hasError: false, error: null })}
           />
         </View>
       );
@@ -135,7 +138,10 @@ class ErrorBoundary extends React.Component<
 }
 
 // Network Banner Component
-const NetworkBanner: React.FC<NetworkBannerProps> = ({visible, onDismiss}) => {
+const NetworkBanner: React.FC<NetworkBannerProps> = ({
+  visible,
+  onDismiss,
+}) => {
   const translateY = new Animated.Value(visible ? 0 : -50);
 
   useEffect(() => {
@@ -146,7 +152,9 @@ const NetworkBanner: React.FC<NetworkBannerProps> = ({visible, onDismiss}) => {
   }, [visible]);
 
   return (
-    <Animated.View style={[styles.networkBanner, {transform: [{translateY}]}]}>
+    <Animated.View
+      style={[styles.networkBanner, { transform: [{ translateY }] }]}
+    >
       <Text style={styles.networkBannerText}>No Internet Connection</Text>
       <TouchableOpacity onPress={onDismiss}>
         <Text style={styles.networkBannerDismiss}>Dismiss</Text>
@@ -162,7 +170,7 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   withPadding = true,
   paddingHorizontal = 16,
   paddingVertical = 16,
-  edges = ['top', 'left', 'right', 'bottom'],
+  edges = ["top", "left", "right", "bottom"],
   statusBarStyle: providedStatusBarStyle,
   hideStatusBar = false,
   backgroundColor,
@@ -188,14 +196,14 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   bottomSheetHeight,
   ...accessibilityProps
 }) => {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [showNetworkBanner, setShowNetworkBanner] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(
-    new Animated.Value(isBottomSheet ? bottomSheetHeight || 300 : 0),
+    new Animated.Value(isBottomSheet ? bottomSheetHeight || 300 : 0)
   ).current;
 
   // Network monitoring
@@ -214,13 +222,13 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   // Analytics tracking
   useEffect(() => {
     if (screenName) {
-      console.log('analytics', {screenName});
+      console.log("analytics", { screenName });
 
       //   analytics.logScreenView(screenName);
     }
     return () => {
       if (screenName) {
-        console.log('analytics', {screenName});
+        console.log("analytics", { screenName });
 
         // analytics.logScreenExit(screenName);
       }
@@ -257,7 +265,7 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
           }).start();
         }
       },
-    }),
+    })
   ).current;
 
   // Refresh handler
@@ -281,35 +289,36 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
 
   // Status bar configuration
   const statusBarStyle =
-    providedStatusBarStyle ?? (isDarkMode ? 'light-content' : 'dark-content');
+    providedStatusBarStyle ?? (isDarkMode ? "light-content" : "dark-content");
   const bgColor = backgroundColor ?? (isDarkMode ? COLORS.dark : COLORS.white);
 
   // Component selection based on props
   const ContentWrapper = scrollable ? ScrollView : View;
   const KeyboardWrapper =
-    keyboardShouldAvoidView && Platform.OS === 'ios'
+    keyboardShouldAvoidView && Platform.OS === "ios"
       ? KeyboardAvoidingView
       : View;
   const LoaderComponent = LoadingComponent || ActivityIndicator;
   const ErrorHandler = ErrorComponent || ErrorBoundary;
 
   const containerAnimatedStyle = animated
-    ? {opacity: fadeAnim}
+    ? { opacity: fadeAnim }
     : isBottomSheet
-      ? {transform: [{translateY}]}
-      : {};
+    ? { transform: [{ translateY }] }
+    : {};
 
   return (
     <ErrorHandler onError={onError}>
       <Animated.View
         style={[
           styles.container,
-          {backgroundColor: bgColor},
+          { backgroundColor: bgColor },
           containerAnimatedStyle,
           containerStyle,
         ]}
         {...panResponder.panHandlers}
-        {...accessibilityProps}>
+        {...accessibilityProps}
+      >
         <SafeAreaView edges={edges} style={styles.safeArea}>
           <StatusBar
             barStyle={statusBarStyle}
@@ -328,7 +337,8 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
 
           <KeyboardWrapper
             style={styles.keyboardWrapper}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
             <ContentWrapper
               style={[
                 styles.content,
@@ -350,7 +360,8 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
                   />
                 ) : undefined
               }
-              {...(scrollable && scrollViewProps)}>
+              {...(scrollable && scrollViewProps)}
+            >
               {children}
             </ContentWrapper>
             theme
@@ -382,29 +393,29 @@ const styles = StyleSheet.create({
   },
   loaderContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   errorContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
   },
   networkBanner: {
     backgroundColor: COLORS.danger,
     padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   networkBannerText: {
     color: COLORS.white,
   },
   networkBannerDismiss: {
     color: COLORS.white,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
 });
 
