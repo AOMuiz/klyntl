@@ -18,7 +18,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, Platform, StyleSheet, View } from "react-native";
 import {
   Button,
   Divider,
@@ -542,7 +542,10 @@ export default function CustomersScreen() {
           },
         ]}
         onStateChange={(state: { open: boolean }) => setFabOpen(state.open)}
-        style={[styles.fabGroup, { bottom: insets.bottom + hp(16) }]}
+        style={[
+          styles.fabGroup,
+          { bottom: Platform.OS === "ios" ? insets.bottom + hp(10) : hp(5) },
+        ]}
         color={`${colors.paper.onPrimary}`}
         fabStyle={{ backgroundColor: colors.primary[600] }}
       />

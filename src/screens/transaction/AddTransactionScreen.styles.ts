@@ -55,15 +55,15 @@ export const createStyles = (theme: MD3Theme) =>
       paddingVertical: 8,
     },
     subtitle: {
-      marginTop: 12,
+      marginTop: spacing(12),
       opacity: 0.7,
       textAlign: "center",
     },
     fieldContainer: {
-      marginBottom: hp(20),
+      marginBottom: hp(10),
     },
     fieldLabel: {
-      fontSize: 16,
+      fontSize: wp(16),
       fontWeight: "600",
       marginBottom: 8,
       color: theme.colors.onSurface,
