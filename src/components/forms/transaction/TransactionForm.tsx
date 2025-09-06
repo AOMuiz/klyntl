@@ -367,171 +367,172 @@ export default function TransactionForm({
               )}
           </FormField>
 
-          {/* Payment Method Field - Only show for non-credit transactions */}
-          {watchedValues.type !== "credit" && (
-            <FormField
-              label="Payment Method"
-              required
-              error={errors.paymentMethod?.message}
-            >
-              <View>
-                {/* Show outstanding debt for payment received */}
-                {watchedValues.type === "payment" &&
-                  currentCustomerDebt > 0 && (
-                    <View style={{ marginBottom: hp(8) }}>
-                      <ThemedText
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                      >
-                        Customer&apos;s Outstanding Debt:{" "}
-                        {formatCurrency(currentCustomerDebt)}
-                      </ThemedText>
-                      {/* Show new debt preview or future-service note per app flow spec */}
-                      {shouldShowDebtPreview() && (
+          {/* Payment Method Field - Only show for non-credit and non-refund transactions */}
+          {watchedValues.type !== "credit" &&
+            watchedValues.type !== "refund" && (
+              <FormField
+                label="Payment Method"
+                required
+                error={errors.paymentMethod?.message}
+              >
+                <View>
+                  {/* Show outstanding debt for payment received */}
+                  {watchedValues.type === "payment" &&
+                    currentCustomerDebt > 0 && (
+                      <View style={{ marginBottom: hp(8) }}>
                         <ThemedText
-                          style={{
-                            marginTop: hp(6),
-                            color: theme.colors.onSurfaceVariant,
-                            fontWeight: "600",
-                          }}
+                          style={{ color: theme.colors.onSurfaceVariant }}
                         >
-                          New Debt: {formatCurrency(calculateNewDebt())}
+                          Customer&apos;s Outstanding Debt:{" "}
+                          {formatCurrency(currentCustomerDebt)}
                         </ThemedText>
-                      )}
+                        {/* Show new debt preview or future-service note per app flow spec */}
+                        {shouldShowDebtPreview() && (
+                          <ThemedText
+                            style={{
+                              marginTop: hp(6),
+                              color: theme.colors.onSurfaceVariant,
+                              fontWeight: "600",
+                            }}
+                          >
+                            New Debt: {formatCurrency(calculateNewDebt())}
+                          </ThemedText>
+                        )}
 
-                      {shouldShowFutureServiceNote() && (
-                        <ThemedText
-                          style={{
-                            marginTop: hp(6),
-                            color: theme.colors.onSurfaceVariant,
+                        {shouldShowFutureServiceNote() && (
+                          <ThemedText
+                            style={{
+                              marginTop: hp(6),
+                              color: theme.colors.onSurfaceVariant,
+                            }}
+                          >
+                            This payment will be recorded as a deposit / future
+                            service and will not reduce outstanding debt.
+                          </ThemedText>
+                        )}
+                      </View>
+                    )}
+
+                  <PaymentMethodSelector
+                    value={watchedValues.paymentMethod}
+                    onChange={(method) => setValue("paymentMethod", method)}
+                    transactionType={watchedValues.type}
+                    showMore={showMorePaymentMethods}
+                    onToggleMore={() =>
+                      setShowMorePaymentMethods(!showMorePaymentMethods)
+                    }
+                    descriptions={paymentMethodDescriptions}
+                  />
+
+                  {/* Mixed Payment Amount Input */}
+                  {watchedValues.paymentMethod === "mixed" && (
+                    <View style={{ marginTop: hp(12) }}>
+                      <FormField
+                        label="Amount Paid Now"
+                        required
+                        error={errors.paidAmount?.message}
+                      >
+                        <Controller
+                          control={control}
+                          name="paidAmount"
+                          rules={{
+                            required:
+                              "Amount paid is required for mixed payments",
+                            validate: (val) =>
+                              validateMixedPayment(
+                                "mixed",
+                                val || "",
+                                watchedValues.amount
+                              ),
                           }}
-                        >
-                          This payment will be recorded as a deposit / future
-                          service and will not reduce outstanding debt.
-                        </ThemedText>
-                      )}
+                          render={({ field: { onChange, onBlur, value } }) => (
+                            <TextInput
+                              label="Amount Paid Now *"
+                              mode="outlined"
+                              value={value}
+                              onChangeText={(text) =>
+                                onChange(text.replace(/[^0-9.]/g, ""))
+                              }
+                              onBlur={onBlur}
+                              error={!!errors.paidAmount}
+                              style={{
+                                backgroundColor: theme.colors.elevation.level1,
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0.00"
+                              left={<TextInput.Icon icon="currency-ngn" />}
+                            />
+                          )}
+                        />
+                      </FormField>
+
+                      {/* Remaining Amount Display */}
+                      {watch("remainingAmount") &&
+                        parseFloat(watch("remainingAmount") || "0") > 0 && (
+                          <View style={{ marginTop: hp(8) }}>
+                            <ThemedText
+                              style={{
+                                fontSize: wp(16),
+                                fontWeight: "600",
+                                marginBottom: 8,
+                                color: theme.colors.onSurface,
+                              }}
+                            >
+                              Remaining Amount
+                            </ThemedText>
+                            <TextInput
+                              label="Remaining Amount"
+                              mode="outlined"
+                              value={watch("remainingAmount")}
+                              editable={false}
+                              style={{
+                                backgroundColor: theme.colors.elevation.level1,
+                              }}
+                              left={<TextInput.Icon icon="currency-ngn" />}
+                            />
+                            <ThemedText
+                              style={{
+                                marginTop: hp(4),
+                                color: theme.colors.onSurfaceVariant,
+                                fontSize: 12,
+                              }}
+                            >
+                              This amount will be added to the customer&apos;s
+                              outstanding debt.
+                            </ThemedText>
+                          </View>
+                        )}
                     </View>
                   )}
 
-                <PaymentMethodSelector
-                  value={watchedValues.paymentMethod}
-                  onChange={(method) => setValue("paymentMethod", method)}
-                  transactionType={watchedValues.type}
-                  showMore={showMorePaymentMethods}
-                  onToggleMore={() =>
-                    setShowMorePaymentMethods(!showMorePaymentMethods)
-                  }
-                  descriptions={paymentMethodDescriptions}
-                />
-
-                {/* Mixed Payment Amount Input */}
-                {watchedValues.paymentMethod === "mixed" && (
-                  <View style={{ marginTop: hp(12) }}>
-                    <FormField
-                      label="Amount Paid Now"
-                      required
-                      error={errors.paidAmount?.message}
-                    >
-                      <Controller
-                        control={control}
-                        name="paidAmount"
-                        rules={{
-                          required:
-                            "Amount paid is required for mixed payments",
-                          validate: (val) =>
-                            validateMixedPayment(
-                              "mixed",
-                              val || "",
-                              watchedValues.amount
-                            ),
-                        }}
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <TextInput
-                            label="Amount Paid Now *"
-                            mode="outlined"
-                            value={value}
-                            onChangeText={(text) =>
-                              onChange(text.replace(/[^0-9.]/g, ""))
-                            }
-                            onBlur={onBlur}
-                            error={!!errors.paidAmount}
-                            style={{
-                              backgroundColor: theme.colors.elevation.level1,
-                            }}
-                            keyboardType="numeric"
-                            placeholder="0.00"
-                            left={<TextInput.Icon icon="currency-ngn" />}
-                          />
-                        )}
+                  {/* Visual Confirmations for Debt Changes - Sale with Credit */}
+                  {watchedValues.amount &&
+                    !errors.amount &&
+                    watchedValues.type === "sale" &&
+                    watchedValues.paymentMethod === "credit" && (
+                      <DebtConfirmation
+                        amount={parseFloat(watchedValues.amount)}
+                        customerName={selectedCustomer?.name}
+                        color={Colors[isDark ? "dark" : "light"].warning}
+                        variant="add"
                       />
-                    </FormField>
+                    )}
 
-                    {/* Remaining Amount Display */}
-                    {watch("remainingAmount") &&
-                      parseFloat(watch("remainingAmount") || "0") > 0 && (
-                        <View style={{ marginTop: hp(8) }}>
-                          <ThemedText
-                            style={{
-                              fontSize: wp(16),
-                              fontWeight: "600",
-                              marginBottom: 8,
-                              color: theme.colors.onSurface,
-                            }}
-                          >
-                            Remaining Amount
-                          </ThemedText>
-                          <TextInput
-                            label="Remaining Amount"
-                            mode="outlined"
-                            value={watch("remainingAmount")}
-                            editable={false}
-                            style={{
-                              backgroundColor: theme.colors.elevation.level1,
-                            }}
-                            left={<TextInput.Icon icon="currency-ngn" />}
-                          />
-                          <ThemedText
-                            style={{
-                              marginTop: hp(4),
-                              color: theme.colors.onSurfaceVariant,
-                              fontSize: 12,
-                            }}
-                          >
-                            This amount will be added to the customer&apos;s
-                            outstanding debt.
-                          </ThemedText>
-                        </View>
-                      )}
-                  </View>
-                )}
-
-                {/* Visual Confirmations for Debt Changes - Sale with Credit */}
-                {watchedValues.amount &&
-                  !errors.amount &&
-                  watchedValues.type === "sale" &&
-                  watchedValues.paymentMethod === "credit" && (
-                    <DebtConfirmation
-                      amount={parseFloat(watchedValues.amount)}
-                      customerName={selectedCustomer?.name}
-                      color={Colors[isDark ? "dark" : "light"].warning}
-                      variant="add"
-                    />
-                  )}
-
-                {/* Visual Confirmation for Mixed Payment Remaining Debt */}
-                {watchedValues.type === "sale" &&
-                  watchedValues.paymentMethod === "mixed" &&
-                  watchedValues.amount &&
-                  parseFloat(watch("remainingAmount") || "0") > 0 && (
-                    <DebtConfirmation
-                      amount={parseFloat(watch("remainingAmount") || "0")}
-                      customerName={selectedCustomer?.name}
-                      color={Colors[isDark ? "dark" : "light"].warning}
-                      variant="remaining"
-                    />
-                  )}
-              </View>
-            </FormField>
-          )}
+                  {/* Visual Confirmation for Mixed Payment Remaining Debt */}
+                  {watchedValues.type === "sale" &&
+                    watchedValues.paymentMethod === "mixed" &&
+                    watchedValues.amount &&
+                    parseFloat(watch("remainingAmount") || "0") > 0 && (
+                      <DebtConfirmation
+                        amount={parseFloat(watch("remainingAmount") || "0")}
+                        customerName={selectedCustomer?.name}
+                        color={Colors[isDark ? "dark" : "light"].warning}
+                        variant="remaining"
+                      />
+                    )}
+                </View>
+              </FormField>
+            )}
 
           {/* Apply to Debt Field - only show for payment transactions */}
           {watchedValues.type === "payment" && (

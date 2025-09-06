@@ -63,8 +63,10 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const commonMethods: PaymentMethod[] = ["cash", "bank_transfer"];
   const additionalMethods: PaymentMethod[] = ["pos_card"];
 
-  if (transactionType !== "payment") {
+  if (transactionType !== "payment" && transactionType !== "refund") {
     commonMethods.push("credit");
+    additionalMethods.push("mixed");
+  } else if (transactionType === "payment") {
     additionalMethods.push("mixed");
   }
 

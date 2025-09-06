@@ -23,11 +23,7 @@ import {
 } from "@/types/transaction";
 import { validateNigerianPhone } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
-import {
-  BusinessRuleError,
-  DuplicateError,
-  ValidationError,
-} from "./utilService";
+import { ValidationError } from "./utilService";
 
 // ===== VALIDATION SERVICE =====
 export class ValidationService {
@@ -129,6 +125,12 @@ export class ValidationService {
       const remaining = data.remainingAmount || 0;
       const total = data.amount || 0;
       const paymentMethod = data.paymentMethod || "cash";
+      const transactionType = data.type || "sale";
+
+      // Skip payment validation for refunds - they don't follow the same rules
+      if (transactionType === "refund") {
+        return;
+      }
 
       if (paymentMethod === "mixed") {
         // For mixed payments, paid + remaining must equal total
@@ -205,149 +207,78 @@ export class ValidationService {
 
     if ("costPrice" in data && typeof data.costPrice === "number") {
       if (data.costPrice < 0) {
+        throw new ValidationError("Cost price cannot be negative", "costPrice");
+      }
+      if (data.costPrice > 1000000) {
         throw new ValidationError(
-          "Cost price must be non-negative",
+          "Cost price seems unusually high",
           "costPrice"
         );
       }
     }
 
-    if ("stockQuantity" in data) {
-      if (typeof data.stockQuantity !== "number" || data.stockQuantity < 0) {
+    if ("sku" in data) {
+      if (!data.sku?.trim()) {
+        throw new ValidationError("SKU is required", "sku");
+      }
+      if (data.sku.length > 100) {
+        throw new ValidationError("SKU cannot exceed 100 characters", "sku");
+      }
+    }
+
+    if ("stock" in data) {
+      if (typeof data.stock !== "number" || isNaN(data.stock)) {
+        throw new ValidationError("Stock must be a valid number", "stock");
+      }
+
+      if (data.stock < 0) {
+        throw new ValidationError("Stock cannot be negative", "stock");
+      }
+    }
+  }
+
+  // ===== STORE CONFIG VALIDATION =====
+  static validateStoreConfigInput(data: any): void {
+    if ("name" in data) {
+      if (!data.name?.trim()) {
+        throw new ValidationError("Store name is required", "name");
+      }
+      if (data.name.length > 100) {
         throw new ValidationError(
-          "Stock quantity must be a non-negative number",
-          "stockQuantity"
+          "Store name cannot exceed 100 characters",
+          "name"
         );
       }
     }
 
-    if ("sku" in data && data.sku?.trim()) {
-      if (data.sku.length > 50) {
-        throw new ValidationError("SKU cannot exceed 50 characters", "sku");
+    if ("currency" in data) {
+      if (!data.currency?.trim()) {
+        throw new ValidationError("Currency is required", "currency");
       }
-    }
-
-    // Business rules
-    if (
-      "price" in data &&
-      "costPrice" in data &&
-      typeof data.price === "number" &&
-      typeof data.costPrice === "number"
-    ) {
-      if (data.price < data.costPrice) {
-        throw new BusinessRuleError(
-          "Selling price should not be less than cost price",
-          "price_below_cost",
-          { price: data.price, costPrice: data.costPrice }
-        );
-      }
-    }
-  }
-
-  // ===== ASYNC VALIDATION METHODS (with database checks) =====
-
-  async validateCustomer(
-    data: CreateCustomerInput | UpdateCustomerInput
-  ): Promise<void> {
-    // Run static validations first
-    ValidationService.validateCustomerInput(data);
-
-    // Additional async validations can be added here
-    // (e.g., duplicate phone check for updates)
-  }
-
-  async validateProduct(
-    data: CreateProductInput | UpdateProductInput
-  ): Promise<void> {
-    // Run static validations first
-    ValidationService.validateProductInput(data);
-
-    // SKU duplicate check (only for creates or when SKU is changing)
-    if ("sku" in data && data.sku?.trim()) {
-      if ("name" in data) {
-        // This is a create operation
-        const existing = await this.db.getFirstAsync(
-          "SELECT id FROM products WHERE sku = ? LIMIT 1",
-          [data.sku]
-        );
-        if (existing) {
-          throw new DuplicateError("sku", data.sku);
-        }
-      }
-    }
-  }
-
-  async validateTransaction(
-    data: CreateTransactionInput | UpdateTransactionInput
-  ): Promise<void> {
-    // Run static validations first
-    ValidationService.validateTransactionInput(data);
-
-    // Customer existence validation
-    if ("customerId" in data && data.customerId) {
-      const customer = await this.db.getFirstAsync(
-        "SELECT id FROM customers WHERE id = ? LIMIT 1",
-        [data.customerId]
-      );
-      if (!customer) {
+      if (data.currency.length !== 3) {
         throw new ValidationError(
-          `Customer with ID ${data.customerId} does not exist`,
-          "customerId"
+          "Currency code must be 3 characters",
+          "currency"
         );
       }
     }
 
-    // Business rules for refunds
-    if (data.type === "refund" && "customerId" in data && data.customerId) {
-      const customerTotal = await this.db.getFirstAsync<{ total: number }>(
-        "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE customerId = ? AND type = 'sale'",
-        [data.customerId]
-      );
-
-      if (data.amount && (customerTotal?.total || 0) < data.amount) {
-        throw new BusinessRuleError(
-          "Refund amount cannot exceed customer's total purchases",
-          "refund_exceeds_purchases",
-          {
-            refundAmount: data.amount,
-            customerTotal: customerTotal?.total || 0,
-          }
+    if ("primaryColor" in data) {
+      if (!/^#[0-9A-F]{6}$/i.test(data.primaryColor)) {
+        throw new ValidationError(
+          "Primary color must be a valid hex color",
+          "primaryColor"
         );
       }
     }
-  }
 
-  async validateStoreConfig(data: any): Promise<void> {
-    if (
-      "storeName" in data &&
-      (!data.storeName?.trim() || data.storeName.length > 100)
-    ) {
-      throw new ValidationError(
-        "Store name is required and cannot exceed 100 characters",
-        "storeName"
-      );
-    }
-
-    if (
-      "currency" in data &&
-      data.currency &&
-      !/^[A-Z]{3}$/.test(data.currency)
-    ) {
-      throw new ValidationError(
-        "Currency must be a 3-letter code (e.g., USD, EUR)",
-        "currency"
-      );
-    }
-
-    if (
-      "primaryColor" in data &&
-      data.primaryColor &&
-      !/^#[0-9A-Fa-f]{6}$/.test(data.primaryColor)
-    ) {
-      throw new ValidationError(
-        "Primary color must be a valid hex color",
-        "primaryColor"
-      );
+    if ("secondaryColor" in data) {
+      if (!/^#[0-9A-F]{6}$/i.test(data.secondaryColor)) {
+        throw new ValidationError(
+          "Secondary color must be a valid hex color",
+          "secondaryColor"
+        );
+      }
     }
   }
 }
