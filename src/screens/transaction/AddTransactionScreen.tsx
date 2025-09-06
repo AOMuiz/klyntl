@@ -1,8 +1,8 @@
 import ScreenContainer, {
   edgesHorizontal,
-  edgesVertical,
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
+import DebtConfirmation from "@/components/ui/DebtConfirmation";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -29,7 +29,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { HelperText, TextInput, useTheme } from "react-native-paper";
+import { HelperText, List, TextInput, useTheme } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
 import { createStyles } from "./AddTransactionScreen.styles";
 
@@ -68,6 +68,7 @@ export default function AddTransactionScreen({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [showMorePaymentMethods, setShowMorePaymentMethods] = useState(false);
 
   const {
     control,
@@ -110,7 +111,8 @@ export default function AddTransactionScreen({
   const transactionTypeDescriptions: Record<string, string> = {
     sale: "Sale: The customer is making a purchase.",
     payment: "Payment: The customer is paying for a previous purchase or debt.",
-    credit: "Credit: The customer is buying on credit and will pay later.",
+    credit:
+      "Credit: Issuing a loan or credit to the customer (no payment method required).",
     refund: "Refund: Money is being returned to the customer.",
   };
 
@@ -121,6 +123,35 @@ export default function AddTransactionScreen({
     credit:
       "Credit: Payment is deferred, customer owes an outstanding balance.",
     mixed: "Mixed: Partial payment received, with some amount left as credit.",
+  };
+
+  // Payment method configuration with proper labels and icons
+  const paymentMethodConfig = {
+    cash: {
+      label: "Cash",
+      icon: "dollarsign.circle.fill" as const,
+      color: Colors[isDark ? "dark" : "light"].success,
+    },
+    bank_transfer: {
+      label: "Bank Transfer",
+      icon: "building.2" as const,
+      color: Colors[isDark ? "dark" : "light"].secondary,
+    },
+    credit: {
+      label: "On Credit",
+      icon: "creditcard.fill" as const,
+      color: Colors[isDark ? "dark" : "light"].warning,
+    },
+    pos_card: {
+      label: "Card",
+      icon: "creditcard.fill" as const,
+      color: Colors[isDark ? "dark" : "light"].primary,
+    },
+    mixed: {
+      label: "Mixed",
+      icon: "dollarsign.circle.fill" as const,
+      color: Colors[isDark ? "dark" : "light"].accent,
+    },
   };
 
   // Filter customers based on search query
@@ -297,7 +328,7 @@ export default function AddTransactionScreen({
       setValue("paidAmount", watchedAmount);
       setValue("remainingAmount", "0");
       setValue("appliedToDebt", false); // Don't apply to debt by default
-      setValue("paymentMethod", ""); // Clear payment method for credit transactions
+      setValue("paymentMethod", "credit"); // Set to credit for credit transactions
     } else if (watchedType === "refund") {
       // For refunds, set amount as negative and clear paidAmount
       setValue("paidAmount", "0");
@@ -312,10 +343,7 @@ export default function AddTransactionScreen({
   }, [watchedType, watchedAmount, setValue]);
 
   return (
-    <ScreenContainer
-      withPadding={false}
-      edges={[...edgesHorizontal, ...edgesVertical]}
-    >
+    <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
       <ScrollView
         style={dynamicStyles.form}
         showsVerticalScrollIndicator={false}
@@ -466,40 +494,6 @@ export default function AddTransactionScreen({
           <View style={dynamicStyles.fieldContainer}>
             <ThemedText style={dynamicStyles.fieldLabel}>Amount *</ThemedText>
 
-            {/* Quick Amount Presets */}
-            <View style={dynamicStyles.quickAmountsContainer}>
-              <ThemedText style={dynamicStyles.quickAmountsLabel}>
-                Quick amounts:
-              </ThemedText>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={dynamicStyles.quickAmountsScroll}
-              >
-                {quickAmountPresets.map((preset) => (
-                  <TouchableOpacity
-                    key={preset}
-                    style={[
-                      dynamicStyles.quickAmountButton,
-                      watchedAmount === preset.toString() &&
-                        dynamicStyles.quickAmountButtonSelected,
-                    ]}
-                    onPress={() => handleQuickAmount(preset)}
-                  >
-                    <ThemedText
-                      style={[
-                        dynamicStyles.quickAmountText,
-                        watchedAmount === preset.toString() &&
-                          dynamicStyles.quickAmountTextSelected,
-                      ]}
-                    >
-                      ₦{preset.toLocaleString()}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
             <Controller
               control={control}
               name="amount"
@@ -548,231 +542,68 @@ export default function AddTransactionScreen({
             <HelperText type="error" visible={!!errors.amount}>
               {errors.amount?.message}
             </HelperText>
-          </View>
 
-          {/* Date Field */}
-          <View style={dynamicStyles.fieldContainer}>
-            <ThemedText style={dynamicStyles.fieldLabel}>Date *</ThemedText>
-            <Controller
-              control={control}
-              name="date"
-              rules={{ required: "Date is required" }}
-              render={({ field: { onChange, value } }) => (
-                <>
+            {/* Quick Amount Presets */}
+            <View style={dynamicStyles.quickAmountsContainer}>
+              <ThemedText style={dynamicStyles.quickAmountsLabel}>
+                Quick amounts:
+              </ThemedText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={dynamicStyles.quickAmountsScroll}
+              >
+                {quickAmountPresets.map((preset) => (
                   <TouchableOpacity
-                    onPress={() => setDatePickerVisible(true)}
+                    key={preset}
                     style={[
-                      dynamicStyles.dateButton,
-                      // { paddingVertical: 12, paddingHorizontal: 10 },
+                      dynamicStyles.quickAmountButton,
+                      watchedAmount === preset.toString() &&
+                        dynamicStyles.quickAmountButtonSelected,
                     ]}
-                    activeOpacity={0.7} // improves touch feedback
+                    onPress={() => handleQuickAmount(preset)}
                   >
-                    <View pointerEvents="none">
-                      <TextInput
-                        label="Transaction Date *"
-                        mode="outlined"
-                        value={format(value, "MMM dd, yyyy")}
-                        editable={false}
-                        style={dynamicStyles.input}
-                        left={<TextInput.Icon icon="calendar" />}
-                      />
-                    </View>
+                    <ThemedText
+                      style={[
+                        dynamicStyles.quickAmountText,
+                        watchedAmount === preset.toString() &&
+                          dynamicStyles.quickAmountTextSelected,
+                      ]}
+                    >
+                      ₦{preset.toLocaleString()}
+                    </ThemedText>
                   </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-                  <View style={dynamicStyles.datePresetContainer}>
-                    <TouchableOpacity
-                      style={[
-                        dynamicStyles.datePresetButton,
-                        {
-                          backgroundColor: theme.colors.primaryContainer,
-                        },
-                      ]}
-                      onPress={() => {
-                        onChange(new Date());
-                      }}
-                    >
-                      <ThemedText
-                        style={[
-                          dynamicStyles.datePresetText,
-                          {
-                            color: theme.colors.onPrimaryContainer,
-                          },
-                        ]}
-                      >
-                        Today
-                      </ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        dynamicStyles.datePresetButton,
-                        {
-                          backgroundColor: theme.colors.secondaryContainer,
-                        },
-                      ]}
-                      onPress={() => {
-                        const yesterday = new Date();
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        onChange(yesterday);
-                      }}
-                    >
-                      <ThemedText
-                        style={[
-                          dynamicStyles.datePresetText,
-                          {
-                            color: theme.colors.onSecondaryContainer,
-                          },
-                        ]}
-                      >
-                        Yesterday
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
+            {/* Visual Confirmations for Credit Transactions */}
+            {watchedAmount && !errors.amount && watchedType === "credit" && (
+              <DebtConfirmation
+                amount={parseFloat(watchedAmount)}
+                customerName={
+                  (customers ?? []).find((c) => c.id === watchedCustomerId)
+                    ?.name
+                }
+                color={Colors[isDark ? "dark" : "light"].warning}
+                variant="add"
+              />
+            )}
 
-                  <DatePickerModal
-                    visible={isDatePickerVisible}
-                    mode="single"
-                    onDismiss={() => setDatePickerVisible(false)}
-                    date={value}
-                    onConfirm={({ date }) => {
-                      if (date) {
-                        onChange(date);
-                      }
-                      setDatePickerVisible(false);
-                    }}
-                    presentationStyle="pageSheet"
-                    locale="en"
-                  />
-                </>
-              )}
-            />
-            <HelperText type="error" visible={!!errors.date}>
-              {errors.date?.message}
-            </HelperText>
-          </View>
-
-          {/* Description Field */}
-          <View style={dynamicStyles.fieldContainer}>
-            <ThemedText style={dynamicStyles.fieldLabel}>
-              Description (Optional)
-            </ThemedText>
-            <Controller
-              control={control}
-              name="description"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <View>
-                  <TextInput
-                    label="Transaction Notes"
-                    mode="outlined"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    style={dynamicStyles.input}
-                    multiline
-                    numberOfLines={3}
-                    placeholder="Add details about this transaction..."
-                    left={<TextInput.Icon icon="note-text" />}
-                  />
-                  <View style={dynamicStyles.descriptionPresets}>
-                    {watchedType === "sale" && (
-                      <>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Product sale")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Product sale
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Service provided")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Service provided
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    {watchedType === "payment" && (
-                      <>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Outstanding payment")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Outstanding payment
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Partial payment")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Partial payment
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    {watchedType === "credit" && (
-                      <>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Credit purchase")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Credit purchase
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Installment plan")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Installment plan
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    {watchedType === "refund" && (
-                      <>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Product return")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Product return
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={dynamicStyles.descriptionPresetButton}
-                          onPress={() => onChange("Service cancellation")}
-                        >
-                          <ThemedText
-                            style={dynamicStyles.descriptionPresetText}
-                          >
-                            Service cancellation
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </View>
-                </View>
-              )}
-            />
+            {/* Visual Confirmations for Refunds */}
+            {watchedAmount && !errors.amount && watchedType === "refund" && (
+              <View style={dynamicStyles.amountPreviewContainer}>
+                <DebtConfirmation
+                  amount={parseFloat(watchedAmount)}
+                  customerName={
+                    (customers ?? []).find((c) => c.id === watchedCustomerId)
+                      ?.name
+                  }
+                  color={Colors[isDark ? "dark" : "light"].error}
+                  variant="remove"
+                />
+              </View>
+            )}
           </View>
 
           {/* Payment Method Field - Only show for non-credit transactions */}
@@ -787,76 +618,304 @@ export default function AddTransactionScreen({
                 rules={{
                   required: false,
                 }}
-                render={({ field: { onChange, value } }) => {
-                  // Dynamic payment method options based on transaction type
-                  const getPaymentMethodOptions = () => {
-                    switch (watchedType) {
-                      case "payment":
-                        // Payment received - no credit/debt option
-                        return ["cash", "bank_transfer", "pos_card"];
-                      case "refund":
-                        // Refunds - only cash and bank transfer
-                        return ["cash", "bank_transfer"];
-                      default:
-                        // Sale - all options
-                        return [
-                          "cash",
-                          "bank_transfer",
-                          "pos_card",
-                          "credit",
-                          "mixed",
-                        ];
-                    }
-                  };
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    {/* Show outstanding debt for payment received */}
+                    {watchedType === "payment" && currentCustomerDebt > 0 && (
+                      <View style={{ marginBottom: hp(8) }}>
+                        <ThemedText
+                          style={{ color: theme.colors.onSurfaceVariant }}
+                        >
+                          Customer&apos;s Outstanding Debt:{" "}
+                          {formatCurrency(currentCustomerDebt)}
+                        </ThemedText>
+                      </View>
+                    )}
 
-                  const paymentOptions = getPaymentMethodOptions();
+                    {/* Segmented Control for Common Payment Methods */}
+                    <View style={dynamicStyles.paymentMethodSelector}>
+                      {/* Cash */}
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.paymentMethodCard,
+                          value === "cash" &&
+                            dynamicStyles.paymentMethodCardSelected,
+                          { borderColor: paymentMethodConfig.cash.color },
+                          value === "cash" && {
+                            backgroundColor:
+                              paymentMethodConfig.cash.color + "20",
+                          },
+                        ]}
+                        onPress={() => onChange("cash")}
+                      >
+                        <IconSymbol
+                          name={paymentMethodConfig.cash.icon}
+                          size={20}
+                          color={
+                            value === "cash"
+                              ? paymentMethodConfig.cash.color
+                              : "#8E8E93"
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            dynamicStyles.paymentMethodCardText,
+                            value === "cash" && {
+                              color: paymentMethodConfig.cash.color,
+                              fontWeight: "600",
+                            },
+                          ]}
+                        >
+                          {paymentMethodConfig.cash.label}
+                        </ThemedText>
+                      </TouchableOpacity>
 
-                  return (
-                    <View>
-                      <View style={dynamicStyles.paymentMethodSelector}>
-                        {paymentOptions.map((method) => (
-                          <TouchableOpacity
-                            key={method}
+                      {/* Bank Transfer */}
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.paymentMethodCard,
+                          value === "bank_transfer" &&
+                            dynamicStyles.paymentMethodCardSelected,
+                          {
+                            borderColor:
+                              paymentMethodConfig.bank_transfer.color,
+                          },
+                          value === "bank_transfer" && {
+                            backgroundColor:
+                              paymentMethodConfig.bank_transfer.color + "20",
+                          },
+                        ]}
+                        onPress={() => onChange("bank_transfer")}
+                      >
+                        <IconSymbol
+                          name={paymentMethodConfig.bank_transfer.icon}
+                          size={20}
+                          color={
+                            value === "bank_transfer"
+                              ? paymentMethodConfig.bank_transfer.color
+                              : "#8E8E93"
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            dynamicStyles.paymentMethodCardText,
+                            value === "bank_transfer" && {
+                              color: paymentMethodConfig.bank_transfer.color,
+                              fontWeight: "600",
+                            },
+                          ]}
+                        >
+                          {paymentMethodConfig.bank_transfer.label}
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      {/* On Credit */}
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.paymentMethodCard,
+                          value === "credit" &&
+                            dynamicStyles.paymentMethodCardSelected,
+                          { borderColor: paymentMethodConfig.credit.color },
+                          value === "credit" && {
+                            backgroundColor:
+                              paymentMethodConfig.credit.color + "20",
+                          },
+                        ]}
+                        onPress={() => onChange("credit")}
+                      >
+                        <IconSymbol
+                          name={paymentMethodConfig.credit.icon}
+                          size={20}
+                          color={
+                            value === "credit"
+                              ? paymentMethodConfig.credit.color
+                              : "#8E8E93"
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            dynamicStyles.paymentMethodCardText,
+                            value === "credit" && {
+                              color: paymentMethodConfig.credit.color,
+                              fontWeight: "600",
+                            },
+                          ]}
+                        >
+                          {paymentMethodConfig.credit.label}
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      {/* More Options */}
+                      <TouchableOpacity
+                        style={[
+                          dynamicStyles.paymentMethodCard,
+                          showMorePaymentMethods &&
+                            dynamicStyles.paymentMethodCardSelected,
+                          { borderColor: theme.colors.outline },
+                        ]}
+                        onPress={() =>
+                          setShowMorePaymentMethods(!showMorePaymentMethods)
+                        }
+                      >
+                        <IconSymbol
+                          name="chevron.down"
+                          size={20}
+                          color={
+                            showMorePaymentMethods
+                              ? theme.colors.primary
+                              : "#8E8E93"
+                          }
+                        />
+                        <ThemedText
+                          style={[
+                            dynamicStyles.paymentMethodCardText,
+                            showMorePaymentMethods && {
+                              color: theme.colors.primary,
+                              fontWeight: "600",
+                            },
+                          ]}
+                        >
+                          More
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Additional Payment Methods (shown when "More" is selected) */}
+                    {showMorePaymentMethods && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={dynamicStyles.morePaymentMethodsContainer}
+                        contentContainerStyle={
+                          dynamicStyles.morePaymentMethodsScroll
+                        }
+                      >
+                        {/* Card Payment */}
+                        <TouchableOpacity
+                          style={[
+                            dynamicStyles.paymentMethodCard,
+                            value === "pos_card" &&
+                              dynamicStyles.paymentMethodCardSelected,
+                            { borderColor: paymentMethodConfig.pos_card.color },
+                            value === "pos_card" && {
+                              backgroundColor:
+                                paymentMethodConfig.pos_card.color + "20",
+                            },
+                          ]}
+                          onPress={() => onChange("pos_card")}
+                        >
+                          <IconSymbol
+                            name={paymentMethodConfig.pos_card.icon}
+                            size={20}
+                            color={
+                              value === "pos_card"
+                                ? paymentMethodConfig.pos_card.color
+                                : "#8E8E93"
+                            }
+                          />
+                          <ThemedText
                             style={[
-                              dynamicStyles.paymentMethodOption,
-                              value === method &&
-                                dynamicStyles.paymentMethodOptionSelected,
-                              { borderColor: getTypeColor(method) },
-                              value === method && {
-                                backgroundColor: getTypeColor(method) + "20",
+                              dynamicStyles.paymentMethodCardText,
+                              value === "pos_card" && {
+                                color: paymentMethodConfig.pos_card.color,
+                                fontWeight: "600",
                               },
                             ]}
-                            onPress={() => onChange(method)}
                           >
-                            <ThemedText
-                              style={[
-                                dynamicStyles.paymentMethodOptionText,
-                                value === method && {
-                                  color: getTypeColor(method),
-                                },
-                              ]}
-                            >
-                              {method.charAt(0).toUpperCase() + method.slice(1)}
-                            </ThemedText>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                      {/* Show meaning below selection */}
-                      <ThemedText
-                        style={{
-                          marginTop: hp(8),
-                          color: theme.colors.onSurfaceVariant,
-                        }}
-                      >
-                        {paymentMethodDescriptions[value]}
-                      </ThemedText>
-                    </View>
-                  );
-                }}
+                            {paymentMethodConfig.pos_card.label}
+                          </ThemedText>
+                        </TouchableOpacity>
+
+                        {/* Mixed Payment */}
+                        <TouchableOpacity
+                          style={[
+                            dynamicStyles.paymentMethodCard,
+                            value === "mixed" &&
+                              dynamicStyles.paymentMethodCardSelected,
+                            { borderColor: paymentMethodConfig.mixed.color },
+                            value === "mixed" && {
+                              backgroundColor:
+                                paymentMethodConfig.mixed.color + "20",
+                            },
+                          ]}
+                          onPress={() => onChange("mixed")}
+                        >
+                          <IconSymbol
+                            name={paymentMethodConfig.mixed.icon}
+                            size={20}
+                            color={
+                              value === "mixed"
+                                ? paymentMethodConfig.mixed.color
+                                : "#8E8E93"
+                            }
+                          />
+                          <ThemedText
+                            style={[
+                              dynamicStyles.paymentMethodCardText,
+                              value === "mixed" && {
+                                color: paymentMethodConfig.mixed.color,
+                                fontWeight: "600",
+                              },
+                            ]}
+                          >
+                            {paymentMethodConfig.mixed.label}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      </ScrollView>
+                    )}
+                    {/* Show meaning below selection */}
+                    <ThemedText
+                      style={{
+                        marginTop: hp(8),
+                        color: theme.colors.onSurfaceVariant,
+                      }}
+                    >
+                      {paymentMethodDescriptions[value || "cash"]}
+                    </ThemedText>
+                  </View>
+                )}
               />
               <HelperText type="error" visible={!!errors.paymentMethod}>
                 {errors.paymentMethod?.message}
               </HelperText>
+
+              {/* Visual Confirmations for Debt Changes - Sale with Credit */}
+              {watchedAmount &&
+                !errors.amount &&
+                watchedType === "sale" &&
+                watchedPaymentMethod === "credit" && (
+                  <View style={dynamicStyles.amountPreviewContainer}>
+                    <DebtConfirmation
+                      amount={parseFloat(watchedAmount)}
+                      customerName={
+                        (customers ?? []).find(
+                          (c) => c.id === watchedCustomerId
+                        )?.name
+                      }
+                      color={Colors[isDark ? "dark" : "light"].warning}
+                      variant="add"
+                    />
+                  </View>
+                )}
+
+              {/* Visual Confirmation for Mixed Payment Remaining Debt */}
+              {watchedType === "sale" &&
+                watchedPaymentMethod === "mixed" &&
+                watchedAmount &&
+                parseFloat(watch("remainingAmount") || "0") > 0 && (
+                  <View style={dynamicStyles.amountPreviewContainer}>
+                    <DebtConfirmation
+                      amount={parseFloat(watch("remainingAmount") || "0")}
+                      customerName={
+                        (customers ?? []).find(
+                          (c) => c.id === watchedCustomerId
+                        )?.name
+                      }
+                      color={Colors[isDark ? "dark" : "light"].warning}
+                      variant="remaining"
+                    />
+                  </View>
+                )}
             </View>
           )}
 
@@ -882,19 +941,7 @@ export default function AddTransactionScreen({
                   },
                 }}
                 render={({ field: { onChange, value } }) => (
-                  <View>
-                    {/* Show current debt if exists */}
-                    {currentCustomerDebt > 0 && (
-                      <View style={{ marginBottom: hp(8) }}>
-                        <ThemedText
-                          style={{ color: theme.colors.onSurfaceVariant }}
-                        >
-                          Customer&apos;s Current Debt:{" "}
-                          {formatCurrency(currentCustomerDebt)}
-                        </ThemedText>
-                      </View>
-                    )}
-
+                  <View style={{ gap: hp(8) }}>
                     <View style={dynamicStyles.typeSelector}>
                       <TouchableOpacity
                         style={[
@@ -973,16 +1020,16 @@ export default function AddTransactionScreen({
 
                     {/* Show debt reduction preview */}
                     {value === true && watchedAmount && (
-                      <ThemedText
-                        style={{
-                          marginTop: hp(8),
-                          color: Colors[isDark ? "dark" : "light"].success,
-                          fontWeight: "600",
-                        }}
-                      >
-                        ₦{parseFloat(watchedAmount).toLocaleString()} will be
-                        removed from customer&apos;s debt
-                      </ThemedText>
+                      <DebtConfirmation
+                        amount={parseFloat(watchedAmount)}
+                        customerName={
+                          (customers ?? []).find(
+                            (c) => c.id === watchedCustomerId
+                          )?.name
+                        }
+                        color={Colors[isDark ? "dark" : "light"].success}
+                        variant="remove"
+                      />
                     )}
                   </View>
                 )}
@@ -993,81 +1040,151 @@ export default function AddTransactionScreen({
             </View>
           )}
 
-          {/* Visual Confirmations for Debt Changes */}
-          {watchedAmount &&
-            !errors.amount &&
-            watchedType === "sale" &&
-            watchedPaymentMethod === "credit" && (
-              <View style={dynamicStyles.fieldContainer}>
-                <View style={dynamicStyles.amountPreviewContainer}>
-                  <ThemedText
-                    style={{
-                      color: Colors[isDark ? "dark" : "light"].warning,
-                      fontWeight: "600",
-                    }}
+          {/* Description Field */}
+          <View style={dynamicStyles.fieldContainer}>
+            <ThemedText style={dynamicStyles.fieldLabel}>
+              Description
+            </ThemedText>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  label="Description"
+                  mode="outlined"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  style={dynamicStyles.input}
+                  placeholder="Add a note about this transaction..."
+                  multiline
+                  numberOfLines={3}
+                  left={<TextInput.Icon icon="text" />}
+                />
+              )}
+            />
+          </View>
+
+          {/* Date Field */}
+          <View style={dynamicStyles.fieldContainer}>
+            <ThemedText style={dynamicStyles.fieldLabel}>Date *</ThemedText>
+            <Controller
+              control={control}
+              name="date"
+              rules={{ required: "Date is required" }}
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setDatePickerVisible(true)}
+                    style={dynamicStyles.datePickerButton}
+                    activeOpacity={0.7}
                   >
-                    ₦{parseFloat(watchedAmount).toLocaleString()} will be added
-                    to customer&apos;s debt
-                  </ThemedText>
-                </View>
-              </View>
-            )}
+                    <View pointerEvents="none">
+                      <TextInput
+                        label="Transaction Date *"
+                        mode="outlined"
+                        value={format(value, "PPP")}
+                        editable={false}
+                        style={dynamicStyles.input}
+                        left={<TextInput.Icon icon="calendar" />}
+                      />
+                    </View>
+                  </TouchableOpacity>
 
-          {/* Visual Confirmations for Credit Transactions */}
-          {watchedAmount && !errors.amount && watchedType === "credit" && (
-            <View style={dynamicStyles.fieldContainer}>
-              <View style={dynamicStyles.amountPreviewContainer}>
-                <ThemedText
-                  style={{
-                    color: Colors[isDark ? "dark" : "light"].warning,
-                    fontWeight: "600",
-                  }}
-                >
-                  ₦{parseFloat(watchedAmount).toLocaleString()} will be added to
-                  customer&apos;s debt
-                </ThemedText>
-              </View>
-            </View>
-          )}
+                  <View style={dynamicStyles.datePresetContainer}>
+                    <TouchableOpacity
+                      style={[
+                        dynamicStyles.datePresetButton,
+                        {
+                          backgroundColor: theme.colors.primaryContainer,
+                        },
+                      ]}
+                      onPress={() => {
+                        onChange(new Date());
+                      }}
+                    >
+                      <ThemedText
+                        style={[
+                          dynamicStyles.datePresetText,
+                          {
+                            color: theme.colors.onPrimaryContainer,
+                          },
+                        ]}
+                      >
+                        Today
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        dynamicStyles.datePresetButton,
+                        {
+                          backgroundColor: theme.colors.secondaryContainer,
+                        },
+                      ]}
+                      onPress={() => {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        onChange(yesterday);
+                      }}
+                    >
+                      <ThemedText
+                        style={[
+                          dynamicStyles.datePresetText,
+                          {
+                            color: theme.colors.onSecondaryContainer,
+                          },
+                        ]}
+                      >
+                        Yesterday
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        dynamicStyles.datePresetButton,
+                        {
+                          backgroundColor: theme.colors.tertiaryContainer,
+                        },
+                      ]}
+                      onPress={() => {
+                        const lastWeek = new Date();
+                        lastWeek.setDate(lastWeek.getDate() - 7);
+                        onChange(lastWeek);
+                      }}
+                    >
+                      <ThemedText
+                        style={[
+                          dynamicStyles.datePresetText,
+                          {
+                            color: theme.colors.onTertiaryContainer,
+                          },
+                        ]}
+                      >
+                        Last Week
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </View>
 
-          {/* Visual Confirmations for Refunds */}
-          {watchedAmount && !errors.amount && watchedType === "refund" && (
-            <View style={dynamicStyles.fieldContainer}>
-              <View style={dynamicStyles.amountPreviewContainer}>
-                <ThemedText
-                  style={{
-                    color: Colors[isDark ? "dark" : "light"].error,
-                    fontWeight: "600",
-                  }}
-                >
-                  ₦{parseFloat(watchedAmount).toLocaleString()} will be removed
-                  from customer&apos;s debt
-                </ThemedText>
-              </View>
-            </View>
-          )}
-
-          {/* Visual Confirmation for Mixed Payment Remaining Debt */}
-          {watchedType === "sale" &&
-            watchedPaymentMethod === "mixed" &&
-            watchedAmount &&
-            parseFloat(watch("remainingAmount") || "0") > 0 && (
-              <View style={dynamicStyles.fieldContainer}>
-                <View style={dynamicStyles.amountPreviewContainer}>
-                  <ThemedText
-                    style={{
-                      color: Colors[isDark ? "dark" : "light"].warning,
-                      fontWeight: "600",
+                  <DatePickerModal
+                    visible={isDatePickerVisible}
+                    mode="single"
+                    onDismiss={() => setDatePickerVisible(false)}
+                    date={value}
+                    onConfirm={({ date }) => {
+                      if (date) {
+                        onChange(date);
+                      }
+                      setDatePickerVisible(false);
                     }}
-                  >
-                    Remaining Debt: ₦
-                    {parseFloat(
-                      watch("remainingAmount") || "0"
-                    ).toLocaleString()}
-                  </ThemedText>
-                </View>
-              </View>
-            )}
+                    presentationStyle="pageSheet"
+                    locale="en"
+                  />
+                </>
+              )}
+            />
+            <HelperText type="error" visible={!!errors.date}>
+              {errors.date?.message}
+            </HelperText>
+          </View>
 
           <View style={dynamicStyles.buttonContainer}>
             <TouchableOpacity
@@ -1101,62 +1218,76 @@ export default function AddTransactionScreen({
             <ThemedText style={dynamicStyles.helpLabel}>
               Transaction Types & Payment Methods:
             </ThemedText>
-            <ThemedText style={dynamicStyles.helpDescription}>
-              •{" "}
-              <ThemedText
-                style={[
-                  dynamicStyles.helpType,
-                  { color: Colors[isDark ? "dark" : "light"].success },
-                ]}
-              >
-                Sale
-              </ThemedText>
-              : Customer purchase{"\n"}•{" "}
-              <ThemedText
-                style={[
-                  dynamicStyles.helpType,
-                  { color: Colors[isDark ? "dark" : "light"].secondary },
-                ]}
-              >
-                Payment
-              </ThemedText>
-              : Customer payment received{"\n"}•{" "}
-              <ThemedText
-                style={[
-                  dynamicStyles.helpType,
-                  { color: Colors[isDark ? "dark" : "light"].warning },
-                ]}
-              >
-                Credit
-              </ThemedText>
-              : Loan/credit issued to customer (no payment method required)
-              {"\n"}•{" "}
-              <ThemedText
-                style={[
-                  dynamicStyles.helpType,
-                  { color: Colors[isDark ? "dark" : "light"].error },
-                ]}
-              >
-                Refund
-              </ThemedText>
-              : Money returned to customer{"\n\n"}
-              <ThemedText style={dynamicStyles.helpLabel}>
-                Payment Methods:
-              </ThemedText>
-              {"\n"}•{" "}
-              <ThemedText style={dynamicStyles.helpType}>Cash</ThemedText>: Full
-              payment received{"\n"}•{" "}
-              <ThemedText style={dynamicStyles.helpType}>
-                Bank Transfer
-              </ThemedText>
-              : Bank payment{"\n"}•{" "}
-              <ThemedText style={dynamicStyles.helpType}>POS Card</ThemedText>:
-              Card payment{"\n"}•{" "}
-              <ThemedText style={dynamicStyles.helpType}>Credit</ThemedText>:
-              Payment on credit (outstanding balance){"\n"}•{" "}
-              <ThemedText style={dynamicStyles.helpType}>Mixed</ThemedText>:
-              Partial payment with outstanding balance
-            </ThemedText>
+            <List.Section>
+              <List.Subheader>Transaction Types</List.Subheader>
+              <List.Item
+                title="Sale"
+                description="Customer purchase"
+                left={() => (
+                  <List.Icon
+                    icon="cart"
+                    color={Colors[isDark ? "dark" : "light"].success}
+                  />
+                )}
+              />
+              <List.Item
+                title="Payment"
+                description="Customer payment received"
+                left={() => (
+                  <List.Icon
+                    icon="credit-card"
+                    color={Colors[isDark ? "dark" : "light"].secondary}
+                  />
+                )}
+              />
+              <List.Item
+                title="Credit"
+                description="Issuing a loan or credit to the customer (no payment method required)"
+                left={() => (
+                  <List.Icon
+                    icon="clock-outline"
+                    color={Colors[isDark ? "dark" : "light"].warning}
+                  />
+                )}
+              />
+              <List.Item
+                title="Refund"
+                description="Money returned to customer"
+                left={() => (
+                  <List.Icon
+                    icon="cash-refund"
+                    color={Colors[isDark ? "dark" : "light"].error}
+                  />
+                )}
+              />
+
+              <List.Subheader>Payment Methods</List.Subheader>
+              <List.Item
+                title="Cash"
+                description="Full payment received"
+                left={() => <List.Icon icon="cash" />}
+              />
+              <List.Item
+                title="Bank Transfer"
+                description="Bank payment"
+                left={() => <List.Icon icon="bank-transfer" />}
+              />
+              <List.Item
+                title="Card"
+                description="POS/Card payment"
+                left={() => <List.Icon icon="credit-card-chip" />}
+              />
+              <List.Item
+                title="On Credit"
+                description="Payment on credit (outstanding balance)"
+                left={() => <List.Icon icon="credit-card-outline" />}
+              />
+              <List.Item
+                title="Mixed"
+                description="Partial payment with outstanding balance"
+                left={() => <List.Icon icon="cash-multiple" />}
+              />
+            </List.Section>
           </View>
         </View>
       </ScrollView>

@@ -1,4 +1,9 @@
-import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import {
+  fontSize,
+  hp,
+  spacing,
+  wp,
+} from "@/utils/responsive_dimensions_system";
 import { StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
@@ -55,7 +60,7 @@ export const createStyles = (theme: MD3Theme) =>
       textAlign: "center",
     },
     fieldContainer: {
-      marginBottom: 20,
+      marginBottom: hp(20),
     },
     fieldLabel: {
       fontSize: 16,
@@ -69,11 +74,11 @@ export const createStyles = (theme: MD3Theme) =>
     },
     typeOption: {
       flex: 1,
-      flexDirection: "row",
+      // flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 12,
-      paddingHorizontal: 8,
+      paddingVertical: spacing(12),
+      paddingHorizontal: spacing(8),
       borderRadius: 8,
       borderWidth: 2,
       borderColor: theme.colors.outline,
@@ -81,7 +86,7 @@ export const createStyles = (theme: MD3Theme) =>
     },
     typeOptionText: {
       fontWeight: "600",
-      fontSize: 14,
+      fontSize: 13,
     },
     input: {
       backgroundColor: theme.colors.elevation.level1,
@@ -132,6 +137,9 @@ export const createStyles = (theme: MD3Theme) =>
       color: theme.colors.primary,
     },
     dateButton: {
+      marginBottom: 8,
+    },
+    datePickerButton: {
       marginBottom: 8,
     },
     datePresetContainer: {
@@ -228,8 +236,8 @@ export const createStyles = (theme: MD3Theme) =>
     },
     amountPreviewContainer: {
       alignItems: "center",
-      marginTop: 12,
-      padding: 16,
+      marginTop: hp(12),
+      padding: wp(16),
       backgroundColor: theme.colors.surfaceVariant,
       borderRadius: 12,
     },
@@ -288,5 +296,38 @@ export const createStyles = (theme: MD3Theme) =>
       fontSize: fontSize(11),
       fontWeight: "600",
       color: theme.colors.onSurfaceVariant,
+    },
+    paymentMethodCard: {
+      flex: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surfaceVariant,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      minHeight: hp(8),
+    },
+    paymentMethodCardSelected: {
+      borderWidth: 2,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    paymentMethodCardText: {
+      fontSize: fontSize(12),
+      fontWeight: "500",
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+    },
+    morePaymentMethodsContainer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outlineVariant,
+    },
+    morePaymentMethodsScroll: {
+      flexDirection: "row",
+      gap: 8,
     },
   });

@@ -1,18 +1,11 @@
 // Fallback for using MaterialIcons on Android and web.
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { SymbolViewProps, SymbolWeight } from "expo-symbols";
+import { SymbolWeight } from "expo-symbols";
 import { ComponentProps } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
-type IconMapping = Record<
-  SymbolViewProps["name"],
-  ComponentProps<typeof MaterialIcons>["name"]
->;
-export type IconSymbolName = keyof typeof MAPPING;
-
-// makes the mapping less strict
-// type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
-// export type IconSymbolName = string;
+type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
+export type IconSymbolName = string;
 
 /**
  * SF Symbols → Material Icons mapping
@@ -45,6 +38,8 @@ const MAPPING: IconMapping = {
   "building.2": "business",
   trash: "delete",
   pencil: "edit",
+  "checkmark.circle.fill": "check-circle",
+  "arrow.forward.circle.fill": "arrow-forward",
   "circle.fill": "circle",
   "exclamationmark.triangle": "warning",
 
@@ -74,6 +69,19 @@ const MAPPING: IconMapping = {
   "person.2": "people",
   "arrow.up.arrow.down": "swap-vert",
   "chart.line.uptrend.xyaxis": "trending-up",
+  "clock.fill": "schedule",
+  "arrow.uturn.left": "reply",
+  "arrow.uturn.right": "reply-all",
+  paperclip: "attach-file",
+  "camera.fill": "photo-camera",
+
+  // Contact method icons
+  envelope: "email", // Email contact method
+  message: "message", // SMS contact method
+
+  // Homepage and signup icons
+  "doc.text": "description", // Record sale button
+  business: "business", // Business name input
 } as IconMapping;
 
 // Fallback icon in case mapping is missing
