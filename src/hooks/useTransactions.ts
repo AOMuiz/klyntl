@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_KEYS } from "../constants/queryKeys";
 import { createDatabaseService } from "../services/database";
 import { useDatabase } from "../services/database/hooks";
 import {
@@ -13,7 +14,7 @@ export function useTransactions(customerId?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   const transactionsQuery = useQuery({
-    queryKey: ["transactions", customerId],
+    queryKey: QUERY_KEYS.transactions.list(customerId),
     queryFn: async () => {
       if (!databaseService) throw new Error("Database not available");
       return customerId
@@ -35,18 +36,20 @@ export function useTransactions(customerId?: string) {
     onSuccess: (newTransaction) => {
       // Update transactions cache
       queryClient.setQueryData(
-        ["transactions", customerId],
+        QUERY_KEYS.transactions.list(customerId),
         (old: Transaction[]) =>
           old ? [newTransaction, ...old] : [newTransaction]
       );
 
       // Invalidate customer data since totals changed
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customers.all() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
 
       // If creating for specific customer, also invalidate all transactions
       if (!customerId) {
-        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.transactions.all(),
+        });
       }
     },
     onError: (error) => {
@@ -68,13 +71,13 @@ export function useTransactions(customerId?: string) {
     },
     onSuccess: ({ id, updates }) => {
       queryClient.setQueryData(
-        ["transactions", customerId],
+        QUERY_KEYS.transactions.list(customerId),
         (old: Transaction[]) =>
           old?.map((txn) => (txn.id === id ? { ...txn, ...updates } : txn))
       );
 
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customers.all() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
     },
     onError: (error) => {
       console.error("Failed to update transaction:", error);
@@ -89,12 +92,12 @@ export function useTransactions(customerId?: string) {
     },
     onSuccess: (deletedId) => {
       queryClient.setQueryData(
-        ["transactions", customerId],
+        QUERY_KEYS.transactions.list(customerId),
         (old: Transaction[]) => old?.filter((txn) => txn.id !== deletedId)
       );
 
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customers.all() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
     },
     onError: (error) => {
       console.error("Failed to delete transaction:", error);
@@ -143,7 +146,7 @@ export function useTransaction(id?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["transactions", "detail", id],
+    queryKey: QUERY_KEYS.transactions.detail(id),
     queryFn: async () => {
       if (!databaseService || !id)
         throw new Error("Database not available or no ID provided");

@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { QUERY_KEYS } from "../constants/queryKeys";
 import { createDatabaseService } from "../services/database";
 import { useDatabase } from "../services/database/hooks";
 import { CreateCustomerInput, UpdateCustomerInput } from "../types/customer";
@@ -21,11 +22,12 @@ export function useCustomers(
 
   // Use infinite query for pagination
   const infiniteQuery = useInfiniteQuery({
-    queryKey: [
-      "customers",
-      { searchQuery, filters, sort, pageSize },
-      db ? "main" : "default",
-    ],
+    queryKey: QUERY_KEYS.customers.list({
+      searchQuery,
+      filters,
+      sort,
+      pageSize,
+    }),
     queryFn: async ({ pageParam = 0 }) => {
       const customers = await databaseService!.customers.findWithFilters(
         filters,
@@ -47,12 +49,7 @@ export function useCustomers(
 
   // Separate query for total count
   const countQuery = useQuery({
-    queryKey: [
-      "customers",
-      "count",
-      { searchQuery, filters },
-      db ? "main" : "default",
-    ],
+    queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
     queryFn: () =>
       databaseService!.getCustomersCountWithFilters(searchQuery, filters),
     enabled: Boolean(databaseService),
@@ -70,7 +67,12 @@ export function useCustomers(
     onSuccess: (newCustomer) => {
       // Add to first page
       queryClient.setQueryData(
-        ["customers", { searchQuery, filters, sort, pageSize }],
+        QUERY_KEYS.customers.list({
+          searchQuery,
+          filters,
+          sort,
+          pageSize,
+        }),
         (old: any) => {
           if (!old)
             return {
@@ -92,8 +94,10 @@ export function useCustomers(
         }
       );
 
-      queryClient.invalidateQueries({ queryKey: ["customers", "count"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
+      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
     },
   });
 
@@ -109,7 +113,12 @@ export function useCustomers(
     onSuccess: (_, { id, updates }) => {
       // Update across all pages
       queryClient.setQueryData(
-        ["customers", { searchQuery, filters, sort, pageSize }],
+        QUERY_KEYS.customers.list({
+          searchQuery,
+          filters,
+          sort,
+          pageSize,
+        }),
         (old: any) => {
           if (!old) return old;
 
@@ -125,8 +134,10 @@ export function useCustomers(
         }
       );
 
-      queryClient.invalidateQueries({ queryKey: ["customers", "count"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
+      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
     },
   });
 
@@ -136,7 +147,12 @@ export function useCustomers(
     onSuccess: (_, deletedId) => {
       // Remove from all pages
       queryClient.setQueryData(
-        ["customers", { searchQuery, filters, sort, pageSize }],
+        QUERY_KEYS.customers.list({
+          searchQuery,
+          filters,
+          sort,
+          pageSize,
+        }),
         (old: any) => {
           if (!old) return old;
 
@@ -152,9 +168,13 @@ export function useCustomers(
         }
       );
 
-      queryClient.invalidateQueries({ queryKey: ["customers", "count"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
+      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.transactions.all(),
+      });
     },
   });
 
@@ -199,7 +219,7 @@ export function useCustomer(id?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["customer", id, db ? "main" : "default"],
+    queryKey: QUERY_KEYS.customers.detail(id),
     queryFn: async () => {
       if (!id) throw new Error("No ID provided");
       const customer = await databaseService!.customers.findById(id);
@@ -226,7 +246,7 @@ export function useCustomerByPhone(phone?: string) {
   const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
-    queryKey: ["customers", "phone", phone, db ? "main" : "default"],
+    queryKey: QUERY_KEYS.customers.byPhone(phone),
     queryFn: async () => {
       if (!phone) throw new Error("No phone provided");
       return databaseService!.customers.findByPhone(phone);

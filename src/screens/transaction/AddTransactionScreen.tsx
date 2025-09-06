@@ -9,3 +9,4 @@ export default function AddTransactionScreen({
 }: AddTransactionScreenProps) {
   return <TransactionForm customerId={customerId} />;
 }
+ 

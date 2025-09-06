@@ -1,7 +1,8 @@
+import { QUERY_KEYS } from "@/constants/queryKeys";
 import { createDatabaseService } from "@/services/database";
 import { useDatabase } from "@/services/database/hooks";
 import { PaymentMethod, TransactionType } from "@/types/transaction";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 interface UseTransactionBusinessLogicProps {
@@ -20,10 +21,11 @@ export const useTransactionBusinessLogic = ({
   appliedToDebt,
 }: UseTransactionBusinessLogicProps) => {
   const { db } = useDatabase();
+  const queryClient = useQueryClient();
 
   // Get current customer debt from backend
   const { data: currentCustomerDebt = 0 } = useQuery({
-    queryKey: ["customer-debt", customerId],
+    queryKey: QUERY_KEYS.customerDebt.detail(customerId),
     queryFn: async () => {
       if (!customerId || !db) return 0;
 
@@ -89,11 +91,46 @@ export const useTransactionBusinessLogic = ({
     };
   };
 
+  // Function to invalidate customer debt queries
+  const invalidateCustomerDebt = (customerIdToInvalidate?: string) => {
+    const targetCustomerId = customerIdToInvalidate || customerId;
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.customerDebt.detail(targetCustomerId),
+    });
+  };
+
+  // Function to invalidate all customer-related queries
+  const invalidateCustomerRelatedQueries = (
+    customerIdToInvalidate?: string
+  ) => {
+    const targetCustomerId = customerIdToInvalidate || customerId;
+
+    // Invalidate customer debt
+    invalidateCustomerDebt(targetCustomerId);
+
+    // Invalidate customer details
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.customers.detail(targetCustomerId),
+    });
+
+    // Invalidate customer lists (to update totals)
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.customers.all(),
+    });
+
+    // Invalidate analytics
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.analytics.all(),
+    });
+  };
+
   return {
     currentCustomerDebt,
     calculateNewDebt,
     shouldShowDebtPreview,
     shouldShowFutureServiceNote,
     formatTransactionData,
+    invalidateCustomerDebt,
+    invalidateCustomerRelatedQueries,
   };
 };

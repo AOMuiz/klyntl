@@ -68,6 +68,7 @@ const styles = StyleSheet.create({
     lineHeight: fontSize(24), // Scaled line height
     fontWeight: "400",
     fontFamily: "Inter",
+    //   fontFamily: theme.fonts.bodyMedium.fontFamily,
   },
 
   defaultSemiBold: {
