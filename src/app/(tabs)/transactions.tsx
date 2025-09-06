@@ -30,7 +30,7 @@ interface TransactionWithCustomer extends Transaction {
   customerName?: string;
 }
 
-type FilterType = "all" | "date" | "customer" | "status";
+type FilterType = "all" | "date" | "customer" | "status" | "debtStatus";
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -48,6 +48,7 @@ export default function TransactionsScreen() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [debtStatusFilter, setDebtStatusFilter] = useState<string>("all");
 
   // Filter modal state
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
@@ -55,7 +56,6 @@ export default function TransactionsScreen() {
   // Extract data from queries
   const transactions = transactionsQuery.transactions;
   const customers = customersQuery.customers;
-  const loading = transactionsQuery.isLoading || customersQuery.isLoading;
 
   // Create a computed value for transactions with customer names
   const transactionsWithCustomers: TransactionWithCustomer[] = transactions.map(
@@ -83,6 +83,10 @@ export default function TransactionsScreen() {
 
     // Customer filter
     if (customerFilter !== "all" && t.customerId !== customerFilter)
+      return false;
+
+    // Debt status filter
+    if (debtStatusFilter !== "all" && t.status !== debtStatusFilter)
       return false;
 
     // Date filter
@@ -128,6 +132,8 @@ export default function TransactionsScreen() {
         return "arrow.up.circle.fill";
       case "payment":
         return "arrow.down.circle.fill";
+      case "credit":
+        return "creditcard.fill";
       default:
         return "circle.fill";
     }
@@ -136,11 +142,13 @@ export default function TransactionsScreen() {
   const getTransactionIconBackground = (type: string) => {
     switch (type) {
       case "sale":
-        return colors.custom.successContainer;
+        return colors.success[100];
       case "refund":
-        return colors.custom.warningContainer;
+        return colors.warning[100];
       case "payment":
-        return colors.custom.successContainer;
+        return colors.success[100];
+      case "credit":
+        return colors.accent[100];
       default:
         return colors.paper.surfaceVariant;
     }
@@ -149,27 +157,65 @@ export default function TransactionsScreen() {
   const getTransactionIconColor = (type: string) => {
     switch (type) {
       case "sale":
-        return colors.custom.success;
+        return colors.success;
       case "refund":
-        return colors.custom.warning;
+        return colors.warning;
       case "payment":
-        return colors.custom.success;
+        return colors.success;
+      case "credit":
+        return colors.accent;
       default:
         return colors.paper.onSurface;
     }
   };
 
-  const getAmountColor = (type: string) => {
+  const getAmountColor = (type: string, status?: string) => {
     switch (type) {
       case "sale":
-        return colors.custom.success;
+        return colors.success;
       case "refund":
-        return colors.custom.warning;
+        return colors.warning;
       case "payment":
-        return colors.custom.success;
+        return colors.success;
+      case "credit":
+        if (status === "completed") return colors.success;
+        if (status === "pending") return colors.warning;
+        if (status === "partial") return colors.accent;
+        if (status === "cancelled") return colors.error;
+        return colors.accent;
       default:
         return colors.paper.onSurface;
     }
+  };
+
+  const getStatusBadge = (status?: string, dueDate?: string) => {
+    if (!status || status === "completed") {
+      // Check if overdue
+      if (dueDate && status !== "completed") {
+        const today = new Date();
+        const due = new Date(dueDate);
+        if (due < today) {
+          return {
+            color: colors.error,
+            text: "Overdue",
+          };
+        }
+      }
+      return null;
+    }
+
+    const statusColors = {
+      pending: colors.warning,
+      partial: colors.accent,
+      cancelled: colors.error,
+    };
+
+    return {
+      color:
+        statusColors[status as keyof typeof statusColors] ||
+        colors.paper.onSurface,
+      text: status.charAt(0).toUpperCase() + status.slice(1),
+    };
   };
 
   const handleAddTransaction = () => {
@@ -234,10 +280,24 @@ export default function TransactionsScreen() {
           { label: "All", value: "all" },
           { label: "Sale", value: "sale" },
           { label: "Payment", value: "payment" },
+          { label: "Credit", value: "credit" },
           { label: "Refund", value: "refund" },
         ];
         onSelect = (value) => {
           setStatusFilter(value);
+          setActiveFilter(null);
+        };
+        break;
+      case "debtStatus":
+        options = [
+          { label: "All Status", value: "all" },
+          { label: "Completed", value: "completed" },
+          { label: "Pending", value: "pending" },
+          { label: "Partial", value: "partial" },
+          { label: "Cancelled", value: "cancelled" },
+        ];
+        onSelect = (value) => {
+          setDebtStatusFilter(value);
           setActiveFilter(null);
         };
         break;
@@ -356,6 +416,11 @@ export default function TransactionsScreen() {
     }
 
     const transaction = item.item;
+    const statusBadge = getStatusBadge(transaction.status, transaction.dueDate);
+    const hasDebtInfo =
+      transaction.type === "credit" &&
+      (transaction.paidAmount || transaction.remainingAmount);
+
     return (
       <TouchableOpacity
         activeOpacity={0.7}
@@ -366,7 +431,7 @@ export default function TransactionsScreen() {
           styles.transactionCard,
           {
             backgroundColor: colors.paper.background,
-            borderColor: colors.neutral["gray200"],
+            borderColor: colors.neutral[200],
           },
         ]}
         accessibilityRole="button"
@@ -389,27 +454,88 @@ export default function TransactionsScreen() {
           </View>
 
           <View style={styles.transactionInfo}>
-            <ThemedText
-              style={[styles.customerName, { color: colors.paper.onSurface }]}
-              numberOfLines={2}
-            >
-              {transaction.customerName}
-            </ThemedText>
+            <View style={styles.customerRow}>
+              <ThemedText
+                style={[styles.customerName, { color: colors.paper.onSurface }]}
+                numberOfLines={2}
+              >
+                {transaction.customerName}
+              </ThemedText>
+              {statusBadge && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: statusBadge.color + "20" },
+                  ]}
+                >
+                  <ThemedText
+                    style={[styles.statusText, { color: statusBadge.color }]}
+                  >
+                    {statusBadge.text}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
             <ThemedText
               style={[
                 styles.description,
                 { color: colors.paper.onSurfaceVariant },
               ]}
             >
-              {transaction.description}
+              {transaction.description ||
+                `${
+                  transaction.type.charAt(0).toUpperCase() +
+                  transaction.type.slice(1)
+                } transaction`}
             </ThemedText>
+
+            {/* Debt information for credit transactions */}
+            {hasDebtInfo && (
+              <View style={styles.debtInfo}>
+                {transaction.paidAmount && transaction.paidAmount > 0 && (
+                  <ThemedText
+                    style={[styles.debtText, { color: colors.success }]}
+                  >
+                    Paid: {formatCurrency(transaction.paidAmount)}
+                  </ThemedText>
+                )}
+                {transaction.remainingAmount &&
+                  transaction.remainingAmount > 0 && (
+                    <ThemedText
+                      style={[styles.debtText, { color: colors.warning }]}
+                    >
+                      Due: {formatCurrency(transaction.remainingAmount)}
+                    </ThemedText>
+                  )}
+                {transaction.dueDate && (
+                  <ThemedText
+                    style={[
+                      styles.debtText,
+                      { color: colors.paper.onSurfaceVariant },
+                    ]}
+                  >
+                    Due: {new Date(transaction.dueDate).toLocaleDateString()}
+                  </ThemedText>
+                )}
+              </View>
+            )}
+
+            {/* Payment method for transactions that have it */}
+            {transaction.paymentMethod &&
+              transaction.paymentMethod !== "cash" && (
+                <ThemedText
+                  style={[styles.paymentMethod, { color: colors.accent }]}
+                >
+                  {transaction.paymentMethod.replace("_", " ").toUpperCase()}
+                </ThemedText>
+              )}
           </View>
 
           <View style={styles.transactionAmount}>
             <ThemedText
               style={[
                 styles.amountText,
-                { color: getAmountColor(transaction.type) },
+                { color: getAmountColor(transaction.type, transaction.status) },
               ]}
             >
               {transaction.type === "refund" ? "- " : ""}
@@ -431,7 +557,10 @@ export default function TransactionsScreen() {
 
   // Which chips are currently active (used to show a colored border)
   const isAllActive =
-    statusFilter === "all" && dateFilter === "all" && customerFilter === "all";
+    statusFilter === "all" &&
+    dateFilter === "all" &&
+    customerFilter === "all" &&
+    debtStatusFilter === "all";
   const isDateActive = dateFilter !== "all";
   const isCustomerActive = customerFilter !== "all";
   const isStatusActive = statusFilter !== "all";
@@ -511,6 +640,7 @@ export default function TransactionsScreen() {
               setStatusFilter("all");
               setCustomerFilter("all");
               setDateFilter("all");
+              setDebtStatusFilter("all");
               setActiveFilter(null);
             }}
           >
@@ -589,6 +719,32 @@ export default function TransactionsScreen() {
               color={colors.paper.onSurface}
             />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              { backgroundColor: colors.paper.surfaceVariant },
+              debtStatusFilter !== "all" && {
+                borderColor: colors.primary,
+                borderWidth: 2,
+              },
+            ]}
+            onPress={() => setActiveFilter("debtStatus")}
+          >
+            <ThemedText
+              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+            >
+              {debtStatusFilter === "all"
+                ? "Debt Status"
+                : debtStatusFilter.charAt(0).toUpperCase() +
+                  debtStatusFilter.slice(1)}
+            </ThemedText>
+            <IconSymbol
+              name="chevron.down"
+              size={16}
+              color={colors.paper.onSurface}
+            />
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -620,14 +776,16 @@ export default function TransactionsScreen() {
       {renderFilterModal()}
 
       {/* Results Info Text */}
-      <Text
-        variant="bodyMedium"
-        style={{ color: colors.paper.onSurfaceVariant }}
-      >
-        Showing {filteredTransactions.length} of {transactions.length}{" "}
-        transactions
-        {filteredTransactions.length < transactions.length && " (filtered)"}
-      </Text>
+      <View style={styles.resultsInfo}>
+        <Text
+          variant="bodyMedium"
+          style={{ color: colors.paper.onSurfaceVariant }}
+        >
+          Showing {filteredTransactions.length} of {transactions.length}{" "}
+          transactions
+          {filteredTransactions.length < transactions.length && " (filtered)"}
+        </Text>
+      </View>
     </ScreenContainer>
   );
 }
@@ -743,10 +901,38 @@ const styles = StyleSheet.create({
   transactionInfo: {
     flex: 1,
   },
-  customerName: {
-    fontSize: fontSize(16),
-    fontWeight: "600",
+  customerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: hp(4),
+  },
+  statusBadge: {
+    paddingHorizontal: wp(8),
+    paddingVertical: hp(2),
+    borderRadius: wp(12),
+    marginLeft: wp(8),
+  },
+  statusText: {
+    fontSize: fontSize(10),
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  debtInfo: {
+    marginTop: hp(4),
+    gap: hp(2),
+  },
+  debtText: {
+    fontSize: fontSize(12),
+    fontWeight: "500",
+  },
+  paymentMethod: {
+    fontSize: fontSize(10),
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: hp(2),
   },
   description: {
     fontSize: fontSize(14),
@@ -878,6 +1064,11 @@ const styles = StyleSheet.create({
     height: hp(40),
     borderRadius: wp(20),
     justifyContent: "center",
+    alignItems: "center",
+  },
+  resultsInfo: {
+    paddingHorizontal: wp(16),
+    paddingVertical: hp(8),
     alignItems: "center",
   },
 });

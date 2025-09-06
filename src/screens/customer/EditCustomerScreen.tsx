@@ -1,8 +1,8 @@
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
-import { useCustomerStore } from "@/stores/customerStore";
-import { Customer, UpdateCustomerInput } from "@/types/customer";
+import { useCustomer, useCustomers } from "@/hooks/useCustomers";
+import { UpdateCustomerInput } from "@/types/customer";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, SafeAreaView, ScrollView, View } from "react-native";
 import {
@@ -31,11 +31,14 @@ export default function EditCustomerScreen({
   customerId,
 }: EditCustomerScreenProps) {
   const router = useRouter();
-  const { getCustomerById, updateCustomer, loading, clearError } =
-    useCustomerStore();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
-  const [customer, setCustomer] = useState<Customer | null>(null);
+
+  // Use React Query hooks instead of Zustand store
+  const { updateCustomer, isUpdating } = useCustomers();
+  const { data: customer, isLoading: customerLoading } =
+    useCustomer(customerId);
+
   const [initialLoading, setInitialLoading] = useState(true);
 
   const {
@@ -52,36 +55,27 @@ export default function EditCustomerScreen({
     },
   });
 
-  const loadCustomer = useCallback(async () => {
-    if (!customerId) return;
-
-    try {
-      setInitialLoading(true);
-      clearError(); // Clear any previous errors
-      const customerData = await getCustomerById(customerId);
-      setCustomer(customerData);
-
-      if (customerData) {
-        reset({
-          name: customerData.name,
-          phone: customerData.phone,
-          email: customerData.email || "",
-          address: customerData.address || "",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load customer:", error);
-      Alert.alert("Error", "Failed to load customer information");
-      router.back();
-    } finally {
+  // Load customer data when it becomes available
+  useEffect(() => {
+    if (customer && !customerLoading) {
+      reset({
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email || "",
+        address: customer.address || "",
+      });
       setInitialLoading(false);
     }
-  }, [customerId, getCustomerById, reset, router, clearError]);
+  }, [customer, customerLoading, reset]);
 
-  // Load customer data on mount only - edit screens don't need focus refresh
+  // Handle customer not found
   useEffect(() => {
-    loadCustomer();
-  }, [loadCustomer]);
+    if (!customerLoading && !customer && customerId) {
+      Alert.alert("Error", "Customer not found", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    }
+  }, [customer, customerLoading, customerId, router]);
 
   const validatePhone = (phone: string) => {
     // Nigerian phone number validation
@@ -102,8 +96,6 @@ export default function EditCustomerScreen({
     if (!customer) return;
 
     try {
-      clearError(); // Clear any previous errors
-
       const updateData: UpdateCustomerInput = {
         name: data.name.trim(),
         phone: data.phone.trim(),
@@ -111,7 +103,10 @@ export default function EditCustomerScreen({
         address: data.address?.trim() || undefined,
       };
 
-      await updateCustomer(customer.id, updateData);
+      await updateCustomer({
+        id: customer.id,
+        updates: updateData,
+      });
 
       Alert.alert(
         "Success",
@@ -133,7 +128,7 @@ export default function EditCustomerScreen({
     }
   };
 
-  if (initialLoading) {
+  if (initialLoading || customerLoading) {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.paper.background }]}
@@ -393,13 +388,13 @@ export default function EditCustomerScreen({
               <Button
                 mode="contained"
                 onPress={handleSubmit(onSubmit)}
-                loading={loading}
-                disabled={loading}
+                loading={isUpdating}
+                disabled={isUpdating}
                 style={styles.submitButton}
                 contentStyle={styles.submitButtonContent}
-                icon={loading ? undefined : "account-edit"}
+                icon={isUpdating ? undefined : "account-edit"}
               >
-                {loading ? "Updating Customer..." : "Update Customer"}
+                {isUpdating ? "Updating Customer..." : "Update Customer"}
               </Button>
             </View>
 

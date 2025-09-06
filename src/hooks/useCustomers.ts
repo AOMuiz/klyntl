@@ -51,7 +51,7 @@ export function useCustomers(
   const countQuery = useQuery({
     queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
     queryFn: () =>
-      databaseService!.getCustomersCountWithFilters(searchQuery, filters),
+      databaseService!.customers.countWithFilters(filters, searchQuery),
     enabled: Boolean(databaseService),
     staleTime: 2 * 60 * 1000,
   });

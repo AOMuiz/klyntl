@@ -2,10 +2,9 @@ import { ContactImportButton } from "@/components/ContactImportButton";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useCustomerStore } from "@/stores/customerStore";
+import { useCustomers } from "@/hooks/useCustomers";
 import { CreateCustomerInput } from "@/types/customer";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -13,7 +12,6 @@ import {
   ScrollView,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { HelperText, TextInput, useTheme } from "react-native-paper";
 import { createStyles } from "./AddCustomerScreen.styles";
@@ -33,10 +31,9 @@ interface CustomerFormData {
 export default function AddCustomerScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const colorScheme = useColorScheme();
   // Create dynamic styles
   const dynamicStyles = createStyles(theme);
-  const { addCustomer, loading, clearError } = useCustomerStore();
+  const { createCustomer, isCreating } = useCustomers();
 
   const {
     control,
@@ -63,11 +60,6 @@ export default function AddCustomerScreen() {
   const watchedPhone = watch("phone");
   const watchedCompany = watch("company");
 
-  // Clear any existing errors when component mounts
-  useEffect(() => {
-    clearError();
-  }, [clearError]);
-
   const validatePhone = (phone: string) => {
     // Nigerian phone number validation
     const nigerianPhoneRegex = /^(\+234|0)[789][01]\d{8}$/;
@@ -85,8 +77,6 @@ export default function AddCustomerScreen() {
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
-      clearError(); // Clear any previous errors
-
       const customerData: CreateCustomerInput = {
         name: data.name.trim(),
         phone: data.phone.trim(),
@@ -100,7 +90,7 @@ export default function AddCustomerScreen() {
         contactSource: "manual",
       };
 
-      await addCustomer(customerData);
+      await createCustomer(customerData);
 
       // Success - customer was added
       Alert.alert(
@@ -111,7 +101,6 @@ export default function AddCustomerScreen() {
             text: "Add Another",
             onPress: () => {
               reset();
-              clearError();
             },
           },
           {
@@ -132,10 +121,6 @@ export default function AddCustomerScreen() {
 
       Alert.alert("Error", errorMessage);
     }
-  };
-
-  const handleCancel = () => {
-    router.dismiss();
   };
 
   return (
@@ -564,12 +549,12 @@ export default function AddCustomerScreen() {
               <TouchableOpacity
                 style={[
                   dynamicStyles.submitButton,
-                  loading && dynamicStyles.disabledButton,
+                  isCreating && dynamicStyles.disabledButton,
                 ]}
                 onPress={handleSubmit(onSubmit)}
-                disabled={loading}
+                disabled={isCreating}
               >
-                {loading ? (
+                {isCreating ? (
                   <View style={dynamicStyles.loadingContainer}>
                     <ThemedText style={dynamicStyles.submitButtonText}>
                       Adding...

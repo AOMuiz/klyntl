@@ -51,10 +51,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
   const cardColor = useThemeColor({}, "background");
   const borderColor = useThemeColor({}, "text");
 
-  const hasActiveFilters = Object.keys(activeFilters).length > 0;
+  const hasActiveFilters = Object.keys(localFilters).length > 0;
 
   const openFilterModal = () => {
-    setLocalFilters(activeFilters);
+    setLocalFilters({});
     setLocalSort(sortOptions);
     setShowFilterModal(true);
   };
@@ -62,7 +62,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
   const applyLocalFilters = async () => {
     setFilters(localFilters);
     setSortOptions(localSort);
-    await applyFilters();
     onFiltersChange?.(localFilters, localSort);
     setShowFilterModal(false);
   };
@@ -70,17 +69,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
   const resetFilters = async () => {
     setLocalFilters({});
     setLocalSort({ field: "name", direction: "asc" });
-    await clearFilters();
+    clearFilters();
     onFiltersChange?.({}, { field: "name", direction: "asc" });
     setShowFilterModal(false);
   };
 
   const applyPreset = async (presetId: string) => {
-    await applyFilterPreset(presetId);
     const preset = CUSTOMER_FILTER_PRESETS.find((p) => p.id === presetId);
     if (preset) {
       setLocalFilters(preset.filters);
       setLocalSort(preset.sort || { field: "name", direction: "asc" });
+      applyFilterPreset(presetId);
       onFiltersChange?.(
         preset.filters,
         preset.sort || { field: "name", direction: "asc" }
@@ -531,7 +530,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
               color={textColor}
             />
             <Text style={styles.sortButtonText}>
-              {sortOptions.field} {sortOptions.direction === "asc" ? "↑" : "↓"}
+              {localSort.field} {localSort.direction === "asc" ? "↑" : "↓"}
             </Text>
           </TouchableOpacity>
         </View>

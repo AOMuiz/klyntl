@@ -184,7 +184,7 @@ export default function TransactionForm({
 
       if (transactionId) {
         // Editing mode
-        await updateTransaction({
+        updateTransaction({
           id: transactionId,
           updates: transactionData,
         });
@@ -194,7 +194,7 @@ export default function TransactionForm({
         );
       } else {
         // Creating mode
-        await createTransaction(transactionData);
+        createTransaction(transactionData);
         Alert.alert(
           "Success",
           getSuccessMessage(data, selectedCustomer?.name, false),
@@ -270,8 +270,8 @@ export default function TransactionForm({
           <View
             style={{
               alignItems: "center",
-              marginBottom: 20,
-              paddingVertical: 8,
+              marginBottom: hp(20),
+              paddingVertical: hp(8),
             }}
           >
             <IconSymbol

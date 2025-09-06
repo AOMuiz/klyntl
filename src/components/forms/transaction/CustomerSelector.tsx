@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Customer } from "@/types/customer";
 import { getCustomerInitials } from "@/utils/helpers";
-import { hp, wp } from "@/utils/responsive_dimensions_system";
+import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import { useEffect, useRef } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { TextInput, useTheme } from "react-native-paper";
@@ -113,7 +113,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
                   <ThemedText
                     style={{
                       color: theme.colors.onPrimary,
-                      fontSize: 14,
+                      fontSize: fontSize(14),
                       fontWeight: "bold",
                     }}
                   >
@@ -125,7 +125,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
                     {
                       fontSize: 12,
                       textAlign: "center",
-                      maxWidth: 70,
+                      maxWidth: wp(70),
                       color: theme.colors.onSurface,
                     },
                     isSelected && {
