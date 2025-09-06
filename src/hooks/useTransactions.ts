@@ -122,7 +122,9 @@ export function useTransactions(customerId?: string) {
 
     // Actions
     createTransaction: createMutation.mutate,
+    createTransactionAsync: createMutation.mutateAsync,
     updateTransaction: updateMutation.mutate,
+    updateTransactionAsync: updateMutation.mutateAsync,
     deleteTransaction: deleteMutation.mutate,
 
     // Success states

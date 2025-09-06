@@ -54,7 +54,7 @@ export default function TransactionForm({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const { createTransaction, updateTransaction } = useTransactions();
+  const { createTransactionAsync, updateTransactionAsync } = useTransactions();
   const { customers } = useCustomers();
 
   const [loading, setLoading] = useState(false);
@@ -170,6 +170,28 @@ export default function TransactionForm({
     try {
       setLoading(true);
 
+      // Ensure amount is a valid number
+      const numericAmount = parseFloat(data.amount);
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        Alert.alert("Error", "Please enter a valid amount greater than 0");
+        return;
+      }
+
+      // Validate customer exists
+      if (!data.customerId || data.customerId.trim() === "") {
+        Alert.alert("Error", "Please select a customer");
+        return;
+      }
+
+      const customerExists = customers?.find((c) => c.id === data.customerId);
+      if (!customerExists) {
+        Alert.alert(
+          "Error",
+          "Selected customer not found. Please select a valid customer."
+        );
+        return;
+      }
+
       // Validate appliedToDebt for payment transactions
       const appliedToDebtValidation = validateAppliedToDebt(
         data.type,
@@ -180,11 +202,14 @@ export default function TransactionForm({
         return;
       }
 
-      const transactionData = formatTransactionData(data);
+      const transactionData = formatTransactionData({
+        ...data,
+        amount: numericAmount.toString(),
+      });
 
       if (transactionId) {
         // Editing mode
-        updateTransaction({
+        await updateTransactionAsync({
           id: transactionId,
           updates: transactionData,
         });
@@ -194,7 +219,7 @@ export default function TransactionForm({
         );
       } else {
         // Creating mode
-        createTransaction(transactionData);
+        await createTransactionAsync(transactionData);
         Alert.alert(
           "Success",
           getSuccessMessage(data, selectedCustomer?.name, false),
@@ -332,14 +357,36 @@ export default function TransactionForm({
 
           {/* Amount Field */}
           <FormField label="Amount" required error={errors.amount?.message}>
-            <AmountInput
-              value={watchedValues.amount}
-              onChange={(value) => setValue("amount", value)}
-              onQuickAmountSelect={(amount) =>
-                setValue("amount", amount.toString())
-              }
-              error={errors.amount?.message}
-              transactionType={watchedValues.type}
+            <Controller
+              control={control}
+              name="amount"
+              rules={{
+                required: "Amount is required",
+                validate: (value) => {
+                  if (!value || value.trim() === "") {
+                    return "Amount is required";
+                  }
+                  const numericValue = parseFloat(value);
+                  if (isNaN(numericValue)) {
+                    return "Amount must be a valid number";
+                  }
+                  if (numericValue <= 0) {
+                    return "Amount must be greater than 0";
+                  }
+                  return true;
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <AmountInput
+                  value={value}
+                  onChange={onChange}
+                  onQuickAmountSelect={(amount) =>
+                    setValue("amount", amount.toString())
+                  }
+                  error={errors.amount?.message}
+                  transactionType={watchedValues.type}
+                />
+              )}
             />
 
             {/* Visual Confirmations for Credit Transactions */}

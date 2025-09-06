@@ -295,16 +295,16 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         ),
         this.db.getAllAsync<any>(
           `SELECT 
-            p.id as productId,
-            p.name,
-            COUNT(t.id) as quantitySold,
-            SUM(t.amount) as revenue
-           FROM products p
-           LEFT JOIN transactions t ON p.id = t.productId AND t.type = 'sale'
-           WHERE p.isActive = 1
-           GROUP BY p.id, p.name
-           ORDER BY revenue DESC
-           LIMIT 10`
+               p.id as productId,
+               p.name,
+               COALESCE(COUNT(t.id), 0) as quantitySold,
+               COALESCE(SUM(t.amount), 0) as revenue
+             FROM products p
+             LEFT JOIN transactions t ON p.id = t.productId AND t.type = 'sale'
+             WHERE p.isActive = 1
+             GROUP BY p.id, p.name
+             ORDER BY revenue DESC
+             LIMIT 10`
         ),
       ]);
 

@@ -4,6 +4,7 @@ import ScreenContainer, {
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { Colors } from "@/constants/Colors";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -23,6 +24,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
@@ -36,6 +38,8 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // Use React Query hooks instead of Zustand stores
   const transactionsQuery = useTransactions();
@@ -146,9 +150,9 @@ export default function TransactionsScreen() {
       case "refund":
         return colors.warning[100];
       case "payment":
-        return colors.success[100];
+        return "#E8F5E8"; // Light green
       case "credit":
-        return colors.accent[100];
+        return "#E3F2FD"; // Light blue
       default:
         return colors.paper.surfaceVariant;
     }
@@ -161,9 +165,9 @@ export default function TransactionsScreen() {
       case "refund":
         return colors.warning;
       case "payment":
-        return colors.success;
+        return "#4CAF50"; // Green
       case "credit":
-        return colors.accent;
+        return "#2196F3"; // Blue
       default:
         return colors.paper.onSurface;
     }
@@ -172,20 +176,50 @@ export default function TransactionsScreen() {
   const getAmountColor = (type: string, status?: string) => {
     switch (type) {
       case "sale":
-        return colors.success;
+        return "#2E7D32"; // Dark green
       case "refund":
         return colors.warning;
       case "payment":
-        return colors.success;
+        return "#2E7D32"; // Dark green
       case "credit":
-        if (status === "completed") return colors.success;
-        if (status === "pending") return colors.warning;
-        if (status === "partial") return colors.accent;
-        if (status === "cancelled") return colors.error;
-        return colors.accent;
+        return "#1976D2"; // Dark blue
       default:
         return colors.paper.onSurface;
     }
+  };
+
+  const getPaymentMethodStyle = (paymentMethod: string) => {
+    const paymentMethodConfig = {
+      cash: {
+        color: Colors[isDark ? "dark" : "light"].success,
+        backgroundColor: Colors[isDark ? "dark" : "light"].success + "20",
+      },
+      bank_transfer: {
+        color: Colors[isDark ? "dark" : "light"].secondary,
+        backgroundColor: Colors[isDark ? "dark" : "light"].secondary + "20",
+      },
+      credit: {
+        color: Colors[isDark ? "dark" : "light"].warning,
+        backgroundColor: Colors[isDark ? "dark" : "light"].warning + "20",
+      },
+      pos_card: {
+        color: Colors[isDark ? "dark" : "light"].primary,
+        backgroundColor: Colors[isDark ? "dark" : "light"].primary + "20",
+      },
+      mixed: {
+        color: Colors[isDark ? "dark" : "light"].accent,
+        backgroundColor: Colors[isDark ? "dark" : "light"].accent + "20",
+      },
+    };
+
+    return (
+      paymentMethodConfig[
+        paymentMethod as keyof typeof paymentMethodConfig
+      ] || {
+        color: "#1976D2",
+        backgroundColor: "#E3F2FD",
+      }
+    );
   };
 
   const getStatusBadge = (status?: string, dueDate?: string) => {
@@ -197,6 +231,7 @@ export default function TransactionsScreen() {
         if (due < today) {
           return {
             color: colors.error,
+            backgroundColor: "#FFEBEE",
             text: "Overdue",
           };
         }
@@ -204,18 +239,32 @@ export default function TransactionsScreen() {
       return null;
     }
 
-    const statusColors = {
-      pending: colors.warning,
-      partial: colors.accent,
-      cancelled: colors.error,
+    const statusConfig = {
+      pending: {
+        color: "#FF8F00",
+        backgroundColor: "#FFF3E0",
+        text: "PENDING",
+      },
+      partial: {
+        color: colors.accent,
+        backgroundColor: colors.accent + "20",
+        text: "PARTIAL",
+      },
+      cancelled: {
+        color: colors.error,
+        backgroundColor: "#FFEBEE",
+        text: "CANCELLED",
+      },
     };
 
-    return {
-      color:
-        statusColors[status as keyof typeof statusColors] ||
-        colors.paper.onSurface,
-      text: status.charAt(0).toUpperCase() + status.slice(1),
-    };
+    const config = statusConfig[status as keyof typeof statusConfig];
+    return (
+      config || {
+        color: colors.paper.onSurface,
+        backgroundColor: colors.paper.surfaceVariant,
+        text: status.toUpperCase(),
+      }
+    );
   };
 
   const handleAddTransaction = () => {
@@ -399,18 +448,21 @@ export default function TransactionsScreen() {
 
   const renderFlashListItem = ({
     item,
+    index,
   }: {
     item: (typeof flashListData)[0];
+    index: number;
   }) => {
     if (item.type === "section") {
       return (
         <ThemedText
+          key={`section-${index}`}
           style={[
             styles.sectionHeader,
             { color: colors.paper.onSurfaceVariant },
           ]}
         >
-          {item.title}
+          {item.title.toUpperCase()}
         </ThemedText>
       );
     }
@@ -423,6 +475,7 @@ export default function TransactionsScreen() {
 
     return (
       <TouchableOpacity
+        key={`transaction-${transaction.id}`}
         activeOpacity={0.7}
         onPress={() =>
           router.push(`/(modal)/transaction/edit/${transaction.id}`)
@@ -430,8 +483,8 @@ export default function TransactionsScreen() {
         style={[
           styles.transactionCard,
           {
-            backgroundColor: colors.paper.background,
-            borderColor: colors.neutral[200],
+            backgroundColor: colors.paper.surface,
+            borderColor: colors.paper.outline,
           },
         ]}
         accessibilityRole="button"
@@ -448,7 +501,7 @@ export default function TransactionsScreen() {
           >
             <IconSymbol
               name={getTransactionIcon(transaction.type)}
-              size={24}
+              size={20}
               color={getTransactionIconColor(transaction.type)}
             />
           </View>
@@ -457,25 +510,12 @@ export default function TransactionsScreen() {
             <View style={styles.customerRow}>
               <ThemedText
                 style={[styles.customerName, { color: colors.paper.onSurface }]}
-                numberOfLines={2}
+                numberOfLines={1}
               >
                 {transaction.customerName}
               </ThemedText>
-              {statusBadge && (
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: statusBadge.color + "20" },
-                  ]}
-                >
-                  <ThemedText
-                    style={[styles.statusText, { color: statusBadge.color }]}
-                  >
-                    {statusBadge.text}
-                  </ThemedText>
-                </View>
-              )}
             </View>
+
             <ThemedText
               style={[
                 styles.description,
@@ -493,45 +533,56 @@ export default function TransactionsScreen() {
             {hasDebtInfo && (
               <View style={styles.debtInfo}>
                 {transaction.paidAmount && transaction.paidAmount > 0 && (
-                  <ThemedText
-                    style={[styles.debtText, { color: colors.success }]}
-                  >
+                  <ThemedText style={[styles.debtText, { color: "#4CAF50" }]}>
                     Paid: {formatCurrency(transaction.paidAmount)}
                   </ThemedText>
                 )}
                 {transaction.remainingAmount &&
                   transaction.remainingAmount > 0 && (
-                    <ThemedText
-                      style={[styles.debtText, { color: colors.warning }]}
-                    >
+                    <ThemedText style={[styles.debtText, { color: "#FF8F00" }]}>
                       Due: {formatCurrency(transaction.remainingAmount)}
                     </ThemedText>
                   )}
-                {transaction.dueDate && (
-                  <ThemedText
-                    style={[
-                      styles.debtText,
-                      { color: colors.paper.onSurfaceVariant },
-                    ]}
-                  >
-                    Due: {new Date(transaction.dueDate).toLocaleDateString()}
-                  </ThemedText>
-                )}
               </View>
             )}
 
             {/* Payment method for transactions that have it */}
             {transaction.paymentMethod &&
-              transaction.paymentMethod !== "cash" && (
-                <ThemedText
-                  style={[styles.paymentMethod, { color: colors.accent }]}
-                >
-                  {transaction.paymentMethod.replace("_", " ").toUpperCase()}
-                </ThemedText>
-              )}
+              transaction.paymentMethod !== "cash" &&
+              (() => {
+                const style = getPaymentMethodStyle(transaction.paymentMethod!);
+                return (
+                  <ThemedText
+                    type="button"
+                    style={[
+                      styles.paymentMethod,
+                      {
+                        color: style.color,
+                        backgroundColor: style.backgroundColor,
+                      },
+                    ]}
+                  >
+                    {transaction.paymentMethod!.replace("_", " ").toUpperCase()}
+                  </ThemedText>
+                );
+              })()}
           </View>
 
           <View style={styles.transactionAmount}>
+            {statusBadge && (
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusBadge.backgroundColor },
+                ]}
+              >
+                <ThemedText
+                  style={[styles.statusText, { color: statusBadge.color }]}
+                >
+                  {statusBadge.text}
+                </ThemedText>
+              </View>
+            )}
             <ThemedText
               style={[
                 styles.amountText,
@@ -539,7 +590,7 @@ export default function TransactionsScreen() {
               ]}
             >
               {transaction.type === "refund" ? "- " : ""}
-              {formatCurrency(transaction.amount)}
+              {formatCurrency(transaction.amount, { short: true })}
             </ThemedText>
             <ThemedText
               style={[
@@ -556,11 +607,6 @@ export default function TransactionsScreen() {
   };
 
   // Which chips are currently active (used to show a colored border)
-  const isAllActive =
-    statusFilter === "all" &&
-    dateFilter === "all" &&
-    customerFilter === "all" &&
-    debtStatusFilter === "all";
   const isDateActive = dateFilter !== "all";
   const isCustomerActive = customerFilter !== "all";
   const isStatusActive = statusFilter !== "all";
@@ -589,10 +635,10 @@ export default function TransactionsScreen() {
           </ThemedText>
 
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary[600] }]}
+            style={styles.addButton}
             onPress={handleAddTransaction}
           >
-            <IconSymbol name="plus" size={20} color="#fff" />
+            <IconSymbol name="plus" size={24} color="white" />
           </TouchableOpacity>
         </View>
 
@@ -605,7 +651,7 @@ export default function TransactionsScreen() {
         >
           <IconSymbol
             name="magnifyingglass"
-            size={18}
+            size={20}
             color={colors.paper.onSurfaceVariant}
           />
           <TextInput
@@ -627,13 +673,7 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              statusFilter === "all"
-                ? { backgroundColor: colors.secondary[600] }
-                : { backgroundColor: colors.paper.surfaceVariant },
-              (statusFilter === "all" || isAllActive) && {
-                borderColor: colors.primary[600],
-                borderWidth: 1,
-              },
+              statusFilter === "all" ? styles.activeChip : styles.inactiveChip,
             ]}
             onPress={() => {
               // Make "All" reset all filters and close any active filter modal
@@ -647,10 +687,9 @@ export default function TransactionsScreen() {
             <ThemedText
               style={[
                 styles.filterChipText,
-                {
-                  color:
-                    statusFilter === "all" ? "#fff" : colors.paper.onSurface,
-                },
+                statusFilter === "all"
+                  ? styles.activeChipText
+                  : styles.inactiveChipText,
               ]}
             >
               All
@@ -660,13 +699,13 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.paper.surfaceVariant },
-              isDateActive && { borderColor: colors.primary, borderWidth: 2 },
+              styles.inactiveChip,
+              isDateActive && styles.activeFilterChip,
             ]}
             onPress={() => setActiveFilter("date")}
           >
             <ThemedText
-              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+              style={[styles.filterChipText, styles.inactiveChipText]}
             >
               {getFilterLabel("date")}
             </ThemedText>
@@ -680,13 +719,13 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.paper.surfaceVariant },
-              isStatusActive && { borderColor: colors.primary, borderWidth: 2 },
+              styles.inactiveChip,
+              isStatusActive && styles.activeFilterChip,
             ]}
             onPress={() => setActiveFilter("status")}
           >
             <ThemedText
-              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+              style={[styles.filterChipText, styles.inactiveChipText]}
             >
               {getFilterLabel("status")}
             </ThemedText>
@@ -700,16 +739,13 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.paper.surfaceVariant },
-              isCustomerActive && {
-                borderColor: colors.primary,
-                borderWidth: 2,
-              },
+              styles.inactiveChip,
+              isCustomerActive && styles.activeFilterChip,
             ]}
             onPress={() => setActiveFilter("customer")}
           >
             <ThemedText
-              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+              style={[styles.filterChipText, styles.inactiveChipText]}
             >
               {getFilterLabel("customer")}
             </ThemedText>
@@ -723,16 +759,13 @@ export default function TransactionsScreen() {
           <TouchableOpacity
             style={[
               styles.filterChip,
-              { backgroundColor: colors.paper.surfaceVariant },
-              debtStatusFilter !== "all" && {
-                borderColor: colors.primary,
-                borderWidth: 2,
-              },
+              styles.inactiveChip,
+              debtStatusFilter !== "all" && styles.activeFilterChip,
             ]}
             onPress={() => setActiveFilter("debtStatus")}
           >
             <ThemedText
-              style={[styles.filterChipText, { color: colors.paper.onSurface }]}
+              style={[styles.filterChipText, styles.inactiveChipText]}
             >
               {debtStatusFilter === "all"
                 ? "Debt Status"
@@ -749,7 +782,6 @@ export default function TransactionsScreen() {
       </View>
 
       {/* Transaction List */}
-
       <View style={styles.listContainer}>
         <FlashList
           data={flashListData}
@@ -775,17 +807,19 @@ export default function TransactionsScreen() {
       {/* Filter Modal */}
       {renderFilterModal()}
 
-      {/* Results Info Text */}
-      <View style={styles.resultsInfo}>
-        <Text
-          variant="bodyMedium"
-          style={{ color: colors.paper.onSurfaceVariant }}
-        >
-          Showing {filteredTransactions.length} of {transactions.length}{" "}
-          transactions
-          {filteredTransactions.length < transactions.length && " (filtered)"}
-        </Text>
-      </View>
+      {/* Results Info Text - Hidden when empty */}
+      {filteredTransactions.length > 0 && (
+        <View style={styles.resultsInfo}>
+          <Text
+            variant="bodySmall"
+            style={{ color: colors.paper.onSurfaceVariant }}
+          >
+            Showing {filteredTransactions.length} of {transactions.length}{" "}
+            transactions
+            {filteredTransactions.length < transactions.length && " (filtered)"}
+          </Text>
+        </View>
+      )}
     </ScreenContainer>
   );
 }
@@ -798,105 +832,137 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: hp(16),
-    paddingBottom: hp(8),
+    paddingHorizontal: wp(20),
+    paddingTop: hp(20),
+    paddingBottom: hp(12),
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: hp(16),
-  },
-  backButton: {
-    padding: hp(8),
-    marginLeft: wp(-8),
+    marginBottom: hp(24),
   },
   headerTitle: {
     flex: 1,
-    fontSize: fontSize(25),
-    fontWeight: "600",
+    fontSize: fontSize(32),
+    fontWeight: "700",
+    letterSpacing: -0.5,
   },
   addButton: {
-    padding: wp(12),
-    borderRadius: wp(24),
+    width: wp(50),
+    height: wp(50),
+    borderRadius: wp(28),
+    backgroundColor: "#34C759", // iOS green
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   addButtonText: {
     color: "white",
     fontWeight: "600",
-    fontSize: fontSize(14),
+    fontSize: fontSize(16),
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: hp(14),
-    paddingHorizontal: wp(18),
-    borderRadius: wp(28),
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(20),
+    borderRadius: wp(12),
     marginBottom: hp(20),
+    borderWidth: 1,
+    borderColor: "#E5E5E7",
   },
   searchInput: {
     flex: 1,
     fontSize: fontSize(16),
     paddingLeft: wp(12),
     paddingVertical: 0,
+    fontWeight: "400",
   },
   filtersContent: {
-    paddingVertical: hp(4),
-    paddingHorizontal: wp(2),
+    paddingVertical: hp(8),
     alignItems: "center",
-    gap: wp(8),
+    gap: wp(12),
   },
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: hp(10),
-    paddingHorizontal: wp(16),
+    paddingVertical: hp(12),
+    paddingHorizontal: wp(20),
     borderRadius: wp(24),
-    gap: wp(6),
+    gap: wp(8),
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  activeChip: {
+    backgroundColor: "#34C759", // iOS green
+  },
+  inactiveChip: {
+    backgroundColor: "#F2F2F7", // Light gray
+    borderColor: "#E5E5E7",
+  },
+  activeFilterChip: {
+    borderColor: "#34C759",
+    borderWidth: 2,
   },
   filterChipText: {
-    fontSize: fontSize(14),
-    fontWeight: "500",
+    fontSize: fontSize(13),
+    fontWeight: "600",
+  },
+  activeChipText: {
+    color: "white",
+  },
+  inactiveChipText: {
+    color: "#1C1C1E",
   },
   listContainer: {
     flex: 1,
-    paddingHorizontal: wp(16),
+    paddingHorizontal: wp(20),
   },
   listContent: {
-    paddingBottom: hp(20),
-  },
-  section: {
-    marginBottom: hp(24),
+    paddingBottom: hp(40),
+    paddingTop: hp(8),
   },
   sectionHeader: {
-    fontSize: fontSize(14),
-    fontWeight: "600",
-    marginBottom: hp(16),
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    opacity: 0.8,
+    fontSize: fontSize(13),
+    fontWeight: "700",
+    marginBottom: hp(12),
+    marginTop: hp(20),
+    letterSpacing: 1.0,
+    opacity: 0.7,
+    paddingHorizontal: wp(4),
   },
   transactionCard: {
-    marginBottom: hp(8),
+    marginBottom: hp(12),
     paddingVertical: hp(16),
-    paddingHorizontal: wp(16),
-    borderRadius: wp(12),
-    borderColor: "#eee",
-    borderWidth: 1.5,
+    paddingHorizontal: wp(20),
+    borderRadius: wp(16),
+    borderWidth: 1,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   transactionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: wp(2),
+    gap: wp(16),
   },
   transactionIcon: {
-    width: wp(48),
-    height: wp(48),
-    borderRadius: wp(24),
+    width: wp(44),
+    height: wp(44),
+    borderRadius: wp(22),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: wp(16),
   },
   transactionInfo: {
     flex: 1,
@@ -907,50 +973,65 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: hp(4),
   },
+  customerName: {
+    fontSize: fontSize(17),
+    fontWeight: "600",
+    flex: 1,
+    lineHeight: hp(22),
+  },
   statusBadge: {
     paddingHorizontal: wp(8),
     paddingVertical: hp(2),
     borderRadius: wp(12),
     marginLeft: wp(8),
+    alignSelf: "center",
   },
   statusText: {
-    fontSize: fontSize(10),
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontSize: fontSize(9),
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   debtInfo: {
-    marginTop: hp(4),
-    gap: hp(2),
+    marginTop: hp(8),
+    gap: hp(4),
   },
   debtText: {
     fontSize: fontSize(12),
     fontWeight: "500",
+    lineHeight: hp(18),
   },
   paymentMethod: {
     fontSize: fontSize(10),
-    fontWeight: "600",
-    textTransform: "uppercase",
+    fontWeight: "500",
     letterSpacing: 0.5,
-    marginTop: hp(2),
+    marginTop: hp(6),
+    paddingHorizontal: wp(6),
+    paddingVertical: hp(2),
+    borderRadius: wp(8),
+    alignSelf: "flex-start",
   },
   description: {
-    fontSize: fontSize(14),
+    fontSize: fontSize(13),
     lineHeight: hp(20),
+    marginBottom: hp(4),
+    opacity: 0.8,
+    fontWeight: "400",
   },
   transactionAmount: {
+    gap: hp(3),
     alignItems: "flex-end",
+    justifyContent: "center",
   },
   amountText: {
-    fontSize: fontSize(14),
+    fontSize: fontSize(17),
     fontWeight: "700",
-    marginBottom: hp(4),
+    // marginBottom: hp(2),
+    lineHeight: hp(22),
   },
   timeText: {
     fontSize: fontSize(12),
     fontWeight: "500",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    opacity: 0.7,
   },
   emptyState: {
     flex: 1,
@@ -996,75 +1077,6 @@ const styles = StyleSheet.create({
   },
   filterOptionText: {
     fontSize: fontSize(16),
-  },
-  // Legacy styles to maintain compatibility
-  transactionCount: {
-    marginTop: hp(4),
-    opacity: 0.7,
-  },
-  list: {
-    flex: 1,
-  },
-  transactionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  transactionDate: {
-    marginTop: hp(2),
-  },
-  typeText: {
-    marginTop: hp(2),
-    fontSize: fontSize(12),
-    textTransform: "uppercase",
-  },
-  fab: {
-    position: "absolute",
-    width: wp(56),
-    height: hp(56),
-    alignItems: "center",
-    justifyContent: "center",
-    right: wp(16),
-    bottom: hp(60),
-    borderRadius: wp(28),
-    backgroundColor: "#007AFF",
-    display: "none", // Hide FAB since we have header button
-  },
-  chipsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: hp(8),
-    flexWrap: "wrap",
-  },
-  chip: {
-    paddingVertical: hp(8),
-    paddingHorizontal: hp(12),
-    borderRadius: hp(16),
-    marginRight: hp(8),
-    marginBottom: hp(8),
-  },
-  chipText: {
-    fontWeight: "500",
-  },
-  menu: {
-    position: "absolute",
-    top: hp(56),
-    right: wp(16),
-    borderRadius: wp(8),
-    overflow: "hidden",
-    zIndex: 1000,
-  },
-  menuItem: {
-    paddingVertical: hp(12),
-    paddingHorizontal: wp(16),
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  topAddButton: {
-    width: wp(40),
-    height: hp(40),
-    borderRadius: wp(20),
-    justifyContent: "center",
-    alignItems: "center",
   },
   resultsInfo: {
     paddingHorizontal: wp(16),

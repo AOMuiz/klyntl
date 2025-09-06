@@ -64,23 +64,43 @@ export const useTransactionBusinessLogic = ({
     let paidAmount: number | undefined;
     let remainingAmount: number | undefined;
 
+    // Validate and parse amount
+    const parsedAmount = parseFloat(data.amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      throw new Error("Invalid amount provided");
+    }
+
     if (data.type === "credit") {
       // For credit transactions, no payment is received
       finalPaymentMethod = "credit";
       paidAmount = 0;
-      remainingAmount = parseFloat(data.amount);
+      remainingAmount = parsedAmount;
     } else {
       finalPaymentMethod = data.paymentMethod;
-      paidAmount = data.paidAmount ? parseFloat(data.paidAmount) : undefined;
-      remainingAmount = data.remainingAmount
-        ? parseFloat(data.remainingAmount)
-        : undefined;
+
+      // Set paidAmount and remainingAmount based on payment method
+      if (finalPaymentMethod === "cash") {
+        paidAmount = parsedAmount;
+        remainingAmount = 0;
+      } else if (finalPaymentMethod === "mixed") {
+        paidAmount = data.paidAmount ? parseFloat(data.paidAmount) : 0;
+        remainingAmount = data.remainingAmount
+          ? parseFloat(data.remainingAmount)
+          : parsedAmount;
+      } else if (finalPaymentMethod === "credit") {
+        paidAmount = 0;
+        remainingAmount = parsedAmount;
+      } else {
+        // For other payment methods (bank_transfer, pos_card, etc.)
+        paidAmount = parsedAmount;
+        remainingAmount = 0;
+      }
     }
 
     return {
       customerId: data.customerId,
-      amount: parseFloat(data.amount),
-      description: data.description.trim() || undefined,
+      amount: parsedAmount,
+      description: data.description?.trim() || undefined,
       date: format(data.date, "yyyy-MM-dd"),
       type: data.type,
       paymentMethod: finalPaymentMethod,

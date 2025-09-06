@@ -33,14 +33,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
   });
 
   const {
-    activeFilters,
     sortOptions,
     appliedFilterDescription,
     totalCustomersCount,
     filteredCustomersCount,
     setFilters,
     setSortOptions,
-    applyFilters,
     clearFilters,
     applyFilterPreset,
   } = useCustomerStore();

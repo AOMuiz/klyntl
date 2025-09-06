@@ -133,7 +133,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                 ]}
                 testID={`${testID}-total-spent`}
               >
-                {formatCurrency(customer.totalSpent)}
+                {formatCurrency(customer.totalSpent, { short: true })}
               </Text>
               <Text
                 variant="bodySmall"

@@ -173,9 +173,9 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
         >
           <View
             style={{
-              width: wp(24),
-              height: hp(24),
-              borderRadius: wp(12),
+              width: wp(30),
+              height: hp(30),
+              borderRadius: wp(15),
               backgroundColor: theme.colors.primary,
               justifyContent: "center",
               alignItems: "center",
@@ -197,7 +197,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
           <View>
             <ThemedText
               style={{
-                fontSize: 12,
+                fontSize: fontSize(12),
                 fontWeight: "600",
                 color: theme.colors.onSurface,
               }}
