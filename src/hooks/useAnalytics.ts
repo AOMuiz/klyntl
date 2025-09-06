@@ -59,6 +59,7 @@ export function useRevenueAnalytics() {
       return {
         totalRevenue: analytics.totalRevenue,
         totalTransactions: analytics.totalTransactions,
+        totalOutstandingDebts: analytics.totalOutstandingDebts,
       };
     },
     enabled: Boolean(databaseService),

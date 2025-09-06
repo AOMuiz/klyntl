@@ -51,6 +51,7 @@ export default function HomeScreen() {
     totalCustomers: analytics?.totalCustomers ?? 0,
     recentTransactions: analytics?.totalTransactions ?? 0,
     totalRevenue: analytics?.totalRevenue ?? 0,
+    totalOutstandingDebts: analytics?.totalOutstandingDebts ?? 0,
   };
 
   const handleQuickAction = (action: string) => {
@@ -315,6 +316,53 @@ export default function HomeScreen() {
                       </ThemedText>
                     </View>
                   </TouchableOpacity>
+
+                  {/* Outstanding Debts Card */}
+                  <TouchableOpacity
+                    style={[
+                      styles.overviewCard,
+                      {
+                        backgroundColor: colors.error[50],
+                        borderColor: colors.error[100],
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardIcon,
+                        { backgroundColor: colors.error[100] },
+                      ]}
+                    >
+                      <IconSymbol
+                        name="creditcard"
+                        size={wp(32)}
+                        color={colors.error[700]}
+                      />
+                    </View>
+                    <View style={styles.cardContent}>
+                      <ThemedText
+                        style={[styles.cardValue, { color: colors.error[900] }]}
+                      >
+                        {isLoading
+                          ? "..."
+                          : overviewData.totalOutstandingDebts >= 1000
+                          ? `${formatCurrency(
+                              overviewData.totalOutstandingDebts,
+                              {
+                                short: true,
+                              }
+                            )}`
+                          : `${formatCurrency(
+                              overviewData.totalOutstandingDebts
+                            )}`}
+                      </ThemedText>
+                      <ThemedText
+                        style={[styles.cardLabel, { color: colors.error[600] }]}
+                      >
+                        Outstanding Debts
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -503,6 +551,7 @@ const styles = StyleSheet.create({
   },
   bottomRow: {
     flexDirection: "row",
+    gap: wp(16),
   },
   overviewCard: {
     flex: 1,

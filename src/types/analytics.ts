@@ -5,6 +5,7 @@ export interface Analytics {
   totalCustomers: number;
   totalRevenue: number;
   totalTransactions: number;
+  totalOutstandingDebts: number;
   topCustomers: Customer[];
 }
 

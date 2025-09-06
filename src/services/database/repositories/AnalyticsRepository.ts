@@ -24,26 +24,35 @@ export class AnalyticsRepository implements IAnalyticsRepository {
   // Basic analytics (maintain backward compatibility)
   async getBasicAnalytics(): Promise<Analytics> {
     try {
-      const [customerCount, transactionCount, totalRevenue, topCustomers] =
-        await Promise.all([
-          this.db.getFirstAsync<{ count: number }>(
-            "SELECT COUNT(*) as count FROM customers"
-          ),
-          this.db.getFirstAsync<{ count: number }>(
-            "SELECT COUNT(*) as count FROM transactions"
-          ),
-          this.db.getFirstAsync<{ total: number }>(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'sale'"
-          ),
-          this.db.getAllAsync<any>(
-            "SELECT * FROM customers ORDER BY totalSpent DESC LIMIT 5"
-          ),
-        ]);
+      const [
+        customerCount,
+        transactionCount,
+        totalRevenue,
+        totalOutstandingDebts,
+        topCustomers,
+      ] = await Promise.all([
+        this.db.getFirstAsync<{ count: number }>(
+          "SELECT COUNT(*) as count FROM customers"
+        ),
+        this.db.getFirstAsync<{ count: number }>(
+          "SELECT COUNT(*) as count FROM transactions"
+        ),
+        this.db.getFirstAsync<{ total: number }>(
+          "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'sale'"
+        ),
+        this.db.getFirstAsync<{ total: number }>(
+          "SELECT COALESCE(SUM(remainingAmount), 0) as total FROM transactions WHERE remainingAmount > 0 AND status != 'cancelled'"
+        ),
+        this.db.getAllAsync<any>(
+          "SELECT * FROM customers ORDER BY totalSpent DESC LIMIT 5"
+        ),
+      ]);
 
       return {
         totalCustomers: customerCount?.count || 0,
         totalTransactions: transactionCount?.count || 0,
         totalRevenue: totalRevenue?.total || 0,
+        totalOutstandingDebts: totalOutstandingDebts?.total || 0,
         topCustomers: (topCustomers || []).map((customer) =>
           this.augmentCustomerData(customer)
         ),
