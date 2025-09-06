@@ -92,6 +92,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               value === method && { borderWidth: 2 },
               value === method && {
                 backgroundColor: paymentMethodConfig[method].color + "20",
+                borderColor: paymentMethodConfig[method].color,
               },
             ]}
             onPress={() => onChange(method)}

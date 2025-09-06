@@ -1,4 +1,3 @@
-import React from "react";
 import TransactionForm from "@/components/forms/transaction/TransactionForm";
 
 interface AddTransactionScreenProps {

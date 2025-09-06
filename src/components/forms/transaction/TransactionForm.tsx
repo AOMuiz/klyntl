@@ -21,7 +21,6 @@ import { useTransactionBusinessLogic } from "@/hooks/business/useTransactionBusi
 import { useTransactionForm } from "@/hooks/forms/useTransactionForm";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
-import { useDatabase } from "@/services/database/hooks";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 
@@ -53,7 +52,6 @@ export default function TransactionForm({ customerId }: TransactionFormProps) {
 
   const { createTransaction } = useTransactions();
   const { customers } = useCustomers();
-  const { db } = useDatabase();
 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

@@ -9,7 +9,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { HelperText, TextInput, useTheme } from "react-native-paper";
+import { TextInput, useTheme } from "react-native-paper";
 
 interface AmountInputProps {
   value: string;
@@ -75,19 +75,9 @@ export const AmountInput: React.FC<AmountInputProps> = ({
 
   return (
     <View>
-      <ThemedText
-        style={{
-          fontSize: wp(16),
-          fontWeight: "600",
-          marginBottom: 8,
-          color: theme.colors.onSurface,
-        }}
-      >
-        Amount *
-      </ThemedText>
+      {/* Label removed: FormField provides the field label to avoid duplicates */}
 
       <TextInput
-        label="Amount *"
         mode="outlined"
         value={value}
         onChangeText={(text) => onChange(formatAmountInput(text))}
@@ -129,9 +119,7 @@ export const AmountInput: React.FC<AmountInputProps> = ({
         </View>
       )}
 
-      <HelperText type="error" visible={!!error}>
-        {error}
-      </HelperText>
+      {/* Error UI removed here — FormField will render errors */}
 
       {/* Quick Amount Presets */}
       <View style={{ marginBottom: 16 }}>
@@ -183,7 +171,7 @@ export const AmountInput: React.FC<AmountInputProps> = ({
                   },
                 ]}
               >
-                ₦{preset.toLocaleString()}
+                {formatCurrency(preset)}
               </ThemedText>
             </TouchableOpacity>
           ))}

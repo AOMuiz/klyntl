@@ -26,16 +26,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
 
   return (
     <View>
-      <ThemedText
-        style={{
-          fontSize: wp(16),
-          fontWeight: "600",
-          marginBottom: 8,
-          color: theme.colors.onSurface,
-        }}
-      >
-        Customer *
-      </ThemedText>
+      {/* Label removed: FormField provides the field label to avoid duplicates */}
 
       {/* Search Input */}
       <TextInput

@@ -1,5 +1,4 @@
 import { ThemedText } from "@/components/ThemedText";
-import { wp } from "@/utils/responsive_dimensions_system";
 import { format } from "date-fns";
 import { TouchableOpacity, View } from "react-native";
 import { TextInput, useTheme } from "react-native-paper";
@@ -53,16 +52,7 @@ export const DatePickerWithPresets: React.FC<DatePickerWithPresetsProps> = ({
 
   return (
     <View>
-      <ThemedText
-        style={{
-          fontSize: wp(16),
-          fontWeight: "600",
-          marginBottom: 8,
-          color: theme.colors.onSurface,
-        }}
-      >
-        Date *
-      </ThemedText>
+      {/* Label removed: FormField provides the field label to avoid duplicates */}
 
       <TouchableOpacity
         onPress={onToggleVisibility}
@@ -71,7 +61,7 @@ export const DatePickerWithPresets: React.FC<DatePickerWithPresetsProps> = ({
       >
         <View pointerEvents="none">
           <TextInput
-            label="Transaction Date *"
+            // label removed; FormField shows label
             mode="outlined"
             value={format(value, "PPP")}
             editable={false}

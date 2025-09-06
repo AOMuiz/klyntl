@@ -71,6 +71,7 @@ export const TransactionTypeSelector: React.FC<
                 value === type && { borderWidth: 2 },
                 value === type && {
                   backgroundColor: getTypeColor(type) + "20",
+                  borderColor: getTypeColor(type),
                 },
               ]}
               onPress={() => onChange(type)}
