@@ -34,60 +34,227 @@ interface TransactionWithCustomer extends Transaction {
 
 type FilterType = "all" | "date" | "customer" | "status" | "debtStatus";
 
-export default function TransactionsScreen() {
-  const router = useRouter();
-  const theme = useTheme<ExtendedKlyntlTheme>();
-  const colors = useKlyntlColors(theme);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+// Utility functions
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
-  // Use React Query hooks instead of Zustand stores
-  const transactionsQuery = useTransactions();
-  const customersQuery = useCustomers();
+const getTransactionIcon = (type: string) => {
+  switch (type) {
+    case "sale":
+      return "arrow.down.circle.fill";
+    case "refund":
+      return "arrow.up.circle.fill";
+    case "payment":
+      return "arrow.down.circle.fill";
+    case "credit":
+      return "creditcard.fill";
+    default:
+      return "circle.fill";
+  }
+};
 
-  const [refreshing, setRefreshing] = useState(false);
+const getTransactionIconBackground = (type: string, colors: any) => {
+  switch (type) {
+    case "sale":
+      return colors.success[100];
+    case "refund":
+      return colors.warning[100];
+    case "payment":
+      return "#E8F5E8"; // Light green
+    case "credit":
+      return "#E3F2FD"; // Light blue
+    default:
+      return colors.paper.surfaceVariant;
+  }
+};
 
-  // New UI state for search + filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [customerFilter, setCustomerFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [debtStatusFilter, setDebtStatusFilter] = useState<string>("all");
+const getTransactionIconColor = (type: string, colors: any) => {
+  switch (type) {
+    case "sale":
+      return colors.success;
+    case "refund":
+      return colors.warning;
+    case "payment":
+      return "#4CAF50"; // Green
+    case "credit":
+      return "#2196F3"; // Blue
+    default:
+      return colors.paper.onSurface;
+  }
+};
 
-  // Filter modal state
-  const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
+const getAmountColor = (type: string, colors: any) => {
+  switch (type) {
+    case "sale":
+      return "#2E7D32"; // Dark green
+    case "refund":
+      return colors.warning;
+    case "payment":
+      return "#2E7D32"; // Dark green
+    case "credit":
+      return "#1976D2"; // Dark blue
+    default:
+      return colors.paper.onSurface;
+  }
+};
 
-  // Extract data from queries
-  const transactions = transactionsQuery.transactions;
-  const customers = customersQuery.customers;
+const getPaymentMethodStyle = (paymentMethod: string, isDark: boolean) => {
+  const paymentMethodConfig = {
+    cash: {
+      color: Colors[isDark ? "dark" : "light"].success,
+      backgroundColor: Colors[isDark ? "dark" : "light"].success + "20",
+    },
+    bank_transfer: {
+      color: Colors[isDark ? "dark" : "light"].secondary,
+      backgroundColor: Colors[isDark ? "dark" : "light"].secondary + "20",
+    },
+    credit: {
+      color: Colors[isDark ? "dark" : "light"].warning,
+      backgroundColor: Colors[isDark ? "dark" : "light"].warning + "20",
+    },
+    pos_card: {
+      color: Colors[isDark ? "dark" : "light"].primary,
+      backgroundColor: Colors[isDark ? "dark" : "light"].primary + "20",
+    },
+    mixed: {
+      color: Colors[isDark ? "dark" : "light"].accent,
+      backgroundColor: Colors[isDark ? "dark" : "light"].accent + "20",
+    },
+  };
 
-  // Create a computed value for transactions with customer names
-  const transactionsWithCustomers: TransactionWithCustomer[] = transactions.map(
-    (transaction: Transaction) => {
-      const customer = customers.find((c) => c.id === transaction.customerId);
-      return {
-        ...transaction,
-        customerName: customer?.name || "Unknown Customer",
-      };
+  return (
+    paymentMethodConfig[paymentMethod as keyof typeof paymentMethodConfig] || {
+      color: "#1976D2",
+      backgroundColor: "#E3F2FD",
     }
   );
+};
 
+const getStatusBadge = (status?: string, dueDate?: string, colors?: any) => {
+  if (!status || status === "completed") {
+    // Check if overdue
+    if (dueDate && status !== "completed") {
+      const today = new Date();
+      const due = new Date(dueDate);
+      if (due < today) {
+        return {
+          color: colors.error,
+          backgroundColor: "#FFEBEE",
+          text: "Overdue",
+        };
+      }
+    }
+    return null;
+  }
+
+  const statusConfig = {
+    pending: {
+      color: "#FF8F00",
+      backgroundColor: "#FFF3E0",
+      text: "PENDING",
+    },
+    partial: {
+      color: colors.accent,
+      backgroundColor: colors.accent + "20",
+      text: "PARTIAL",
+    },
+    cancelled: {
+      color: colors.error,
+      backgroundColor: "#FFEBEE",
+      text: "CANCELLED",
+    },
+  };
+
+  const config = statusConfig[status as keyof typeof statusConfig];
+  return (
+    config || {
+      color: colors.paper.onSurface,
+      backgroundColor: colors.paper.surfaceVariant,
+      text: status.toUpperCase(),
+    }
+  );
+};
+
+const getFilterLabel = (
+  filterType: FilterType,
+  dateFilter: string,
+  statusFilter: string,
+  customers: any[]
+) => {
+  switch (filterType) {
+    case "date":
+      if (dateFilter === "all") return "Date";
+      if (dateFilter === "today") return "Today";
+      if (dateFilter === "yesterday") return "Yesterday";
+      if (dateFilter === "this_month") return "This Month";
+      return "Date";
+    case "status":
+      return statusFilter === "all"
+        ? "Status"
+        : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+    default:
+      return "All";
+  }
+};
+
+// Custom hooks for better separation of concerns
+const useTransactionFilters = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [debtStatusFilter, setDebtStatusFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
+
+  const resetAllFilters = () => {
+    setStatusFilter("all");
+    setDateFilter("all");
+    setDebtStatusFilter("all");
+    setActiveFilter(null);
+  };
+
+  return {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    dateFilter,
+    setDateFilter,
+    debtStatusFilter,
+    setDebtStatusFilter,
+    activeFilter,
+    setActiveFilter,
+    resetAllFilters,
+  };
+};
+
+const useTransactionData = (
+  transactions: Transaction[],
+  customers: any[],
+  searchQuery: string,
+  statusFilter: string,
+  dateFilter: string,
+  debtStatusFilter: string
+) => {
   // Filtering logic
-  const filteredTransactions = transactionsWithCustomers.filter((t) => {
+  const filteredTransactions = transactions.filter((t) => {
     // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const inName = t.customerName?.toLowerCase().includes(q);
+      const customer = customers.find((c) => c.id === t.customerId);
+      const customerName = customer?.name?.toLowerCase() || "";
+      const inName = customerName.includes(q);
       const inDesc = t.description?.toLowerCase().includes(q);
       if (!inName && !inDesc) return false;
     }
 
     // Status filter
     if (statusFilter !== "all" && t.type !== statusFilter) return false;
-
-    // Customer filter
-    if (customerFilter !== "all" && t.customerId !== customerFilter)
-      return false;
 
     // Debt status filter
     if (debtStatusFilter !== "all" && t.status !== debtStatusFilter)
@@ -113,184 +280,97 @@ export default function TransactionsScreen() {
     return true;
   });
 
+  // Group transactions by time buckets for sectioned UI
+  const grouped = groupByDatePeriods(filteredTransactions, {
+    todayLabel: "Today",
+    yesterdayLabel: "Yesterday",
+    thisMonthLabel: "This Month",
+    monthFormat: "long",
+    yearFormat: "numeric",
+  });
+
+  // Get ordered section keys for consistent display
+  const sectionKeys = getOrderedGroupKeys(grouped, [
+    "Today",
+    "Yesterday",
+    "This Month",
+  ]);
+
+  // Create flattened data for FlashList with section headers
+  const flashListData = useMemo(() => {
+    const data: (
+      | { type: "section"; title: string }
+      | { type: "transaction"; item: TransactionWithCustomer }
+    )[] = [];
+
+    sectionKeys.forEach((sectionKey) => {
+      const items = grouped[sectionKey];
+      if (items.length > 0) {
+        data.push({ type: "section", title: sectionKey });
+        items.forEach((item) => {
+          data.push({ type: "transaction", item });
+        });
+      }
+    });
+
+    return data;
+  }, [grouped, sectionKeys]);
+
+  return {
+    filteredTransactions,
+    flashListData,
+  };
+};
+
+export default function TransactionsScreen() {
+  const router = useRouter();
+  const theme = useTheme<ExtendedKlyntlTheme>();
+  const colors = useKlyntlColors(theme);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  // Use React Query hooks instead of Zustand stores
+  const transactionsQuery = useTransactions();
+  const customersQuery = useCustomers();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // New UI state for search + filters
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    dateFilter,
+    setDateFilter,
+    debtStatusFilter,
+    setDebtStatusFilter,
+    activeFilter,
+    setActiveFilter,
+    resetAllFilters,
+  } = useTransactionFilters();
+
+  // Extract data from queries
+  const transactions = transactionsQuery.transactions;
+  const customers = customersQuery.customers;
+
+  const { filteredTransactions, flashListData } = useTransactionData(
+    transactions,
+    customers,
+    searchQuery,
+    statusFilter,
+    dateFilter,
+    debtStatusFilter
+  );
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([transactionsQuery.refetch(), customersQuery.refetch()]);
     setRefreshing(false);
   }, [transactionsQuery, customersQuery]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case "sale":
-        return "arrow.down.circle.fill";
-      case "refund":
-        return "arrow.up.circle.fill";
-      case "payment":
-        return "arrow.down.circle.fill";
-      case "credit":
-        return "creditcard.fill";
-      default:
-        return "circle.fill";
-    }
-  };
-
-  const getTransactionIconBackground = (type: string) => {
-    switch (type) {
-      case "sale":
-        return colors.success[100];
-      case "refund":
-        return colors.warning[100];
-      case "payment":
-        return "#E8F5E8"; // Light green
-      case "credit":
-        return "#E3F2FD"; // Light blue
-      default:
-        return colors.paper.surfaceVariant;
-    }
-  };
-
-  const getTransactionIconColor = (type: string) => {
-    switch (type) {
-      case "sale":
-        return colors.success;
-      case "refund":
-        return colors.warning;
-      case "payment":
-        return "#4CAF50"; // Green
-      case "credit":
-        return "#2196F3"; // Blue
-      default:
-        return colors.paper.onSurface;
-    }
-  };
-
-  const getAmountColor = (type: string, status?: string) => {
-    switch (type) {
-      case "sale":
-        return "#2E7D32"; // Dark green
-      case "refund":
-        return colors.warning;
-      case "payment":
-        return "#2E7D32"; // Dark green
-      case "credit":
-        return "#1976D2"; // Dark blue
-      default:
-        return colors.paper.onSurface;
-    }
-  };
-
-  const getPaymentMethodStyle = (paymentMethod: string) => {
-    const paymentMethodConfig = {
-      cash: {
-        color: Colors[isDark ? "dark" : "light"].success,
-        backgroundColor: Colors[isDark ? "dark" : "light"].success + "20",
-      },
-      bank_transfer: {
-        color: Colors[isDark ? "dark" : "light"].secondary,
-        backgroundColor: Colors[isDark ? "dark" : "light"].secondary + "20",
-      },
-      credit: {
-        color: Colors[isDark ? "dark" : "light"].warning,
-        backgroundColor: Colors[isDark ? "dark" : "light"].warning + "20",
-      },
-      pos_card: {
-        color: Colors[isDark ? "dark" : "light"].primary,
-        backgroundColor: Colors[isDark ? "dark" : "light"].primary + "20",
-      },
-      mixed: {
-        color: Colors[isDark ? "dark" : "light"].accent,
-        backgroundColor: Colors[isDark ? "dark" : "light"].accent + "20",
-      },
-    };
-
-    return (
-      paymentMethodConfig[
-        paymentMethod as keyof typeof paymentMethodConfig
-      ] || {
-        color: "#1976D2",
-        backgroundColor: "#E3F2FD",
-      }
-    );
-  };
-
-  const getStatusBadge = (status?: string, dueDate?: string) => {
-    if (!status || status === "completed") {
-      // Check if overdue
-      if (dueDate && status !== "completed") {
-        const today = new Date();
-        const due = new Date(dueDate);
-        if (due < today) {
-          return {
-            color: colors.error,
-            backgroundColor: "#FFEBEE",
-            text: "Overdue",
-          };
-        }
-      }
-      return null;
-    }
-
-    const statusConfig = {
-      pending: {
-        color: "#FF8F00",
-        backgroundColor: "#FFF3E0",
-        text: "PENDING",
-      },
-      partial: {
-        color: colors.accent,
-        backgroundColor: colors.accent + "20",
-        text: "PARTIAL",
-      },
-      cancelled: {
-        color: colors.error,
-        backgroundColor: "#FFEBEE",
-        text: "CANCELLED",
-      },
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig];
-    return (
-      config || {
-        color: colors.paper.onSurface,
-        backgroundColor: colors.paper.surfaceVariant,
-        text: status.toUpperCase(),
-      }
-    );
-  };
-
   const handleAddTransaction = () => {
     router.push("/(modal)/transaction/add");
-  };
-
-  const getFilterLabel = (filterType: FilterType) => {
-    switch (filterType) {
-      case "date":
-        if (dateFilter === "all") return "Date";
-        if (dateFilter === "today") return "Today";
-        if (dateFilter === "yesterday") return "Yesterday";
-        if (dateFilter === "this_month") return "This Month";
-        return "Date";
-      case "customer":
-        if (customerFilter === "all") return "Customer";
-        return (
-          customers.find((c) => c.id === customerFilter)?.name ?? "Customer"
-        );
-      case "status":
-        return statusFilter === "all"
-          ? "Status"
-          : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
-      default:
-        return "All";
-    }
   };
 
   const renderFilterModal = () => {
@@ -311,16 +391,6 @@ export default function TransactionsScreen() {
         ];
         onSelect = (value) => {
           setDateFilter(value);
-          setActiveFilter(null);
-        };
-        break;
-      case "customer":
-        options = [
-          { label: "All", value: "all" },
-          ...customers.map((c) => ({ label: c.name, value: c.id })),
-        ];
-        onSelect = (value) => {
-          setCustomerFilter(value);
           setActiveFilter(null);
         };
         break;
@@ -410,42 +480,6 @@ export default function TransactionsScreen() {
     </View>
   );
 
-  // Group transactions by time buckets for sectioned UI
-  const grouped = groupByDatePeriods(filteredTransactions, {
-    todayLabel: "Today",
-    yesterdayLabel: "Yesterday",
-    thisMonthLabel: "This Month",
-    monthFormat: "long",
-    yearFormat: "numeric",
-  });
-
-  // Get ordered section keys for consistent display
-  const sectionKeys = getOrderedGroupKeys(grouped, [
-    "Today",
-    "Yesterday",
-    "This Month",
-  ]);
-
-  // Create flattened data for FlashList with section headers
-  const flashListData = useMemo(() => {
-    const data: (
-      | { type: "section"; title: string }
-      | { type: "transaction"; item: TransactionWithCustomer }
-    )[] = [];
-
-    sectionKeys.forEach((sectionKey) => {
-      const items = grouped[sectionKey];
-      if (items.length > 0) {
-        data.push({ type: "section", title: sectionKey });
-        items.forEach((item) => {
-          data.push({ type: "transaction", item });
-        });
-      }
-    });
-
-    return data;
-  }, [grouped, sectionKeys]);
-
   const renderFlashListItem = ({
     item,
     index,
@@ -468,7 +502,13 @@ export default function TransactionsScreen() {
     }
 
     const transaction = item.item;
-    const statusBadge = getStatusBadge(transaction.status, transaction.dueDate);
+    const customer = customers.find((c) => c.id === transaction.customerId);
+    const customerName = customer?.name || "Unknown Customer";
+    const statusBadge = getStatusBadge(
+      transaction.status,
+      transaction.dueDate,
+      colors
+    );
     const hasDebtInfo =
       transaction.type === "credit" &&
       (transaction.paidAmount || transaction.remainingAmount);
@@ -488,21 +528,24 @@ export default function TransactionsScreen() {
           },
         ]}
         accessibilityRole="button"
-        accessibilityLabel={`Edit transaction ${transaction.customerName}`}
+        accessibilityLabel={`Edit transaction ${customerName}`}
       >
         <View style={styles.transactionRow}>
           <View
             style={[
               styles.transactionIcon,
               {
-                backgroundColor: getTransactionIconBackground(transaction.type),
+                backgroundColor: getTransactionIconBackground(
+                  transaction.type,
+                  colors
+                ),
               },
             ]}
           >
             <IconSymbol
               name={getTransactionIcon(transaction.type)}
               size={20}
-              color={getTransactionIconColor(transaction.type)}
+              color={getTransactionIconColor(transaction.type, colors)}
             />
           </View>
 
@@ -512,7 +555,7 @@ export default function TransactionsScreen() {
                 style={[styles.customerName, { color: colors.paper.onSurface }]}
                 numberOfLines={1}
               >
-                {transaction.customerName}
+                {customerName}
               </ThemedText>
             </View>
 
@@ -550,7 +593,10 @@ export default function TransactionsScreen() {
             {transaction.paymentMethod &&
               transaction.paymentMethod !== "cash" &&
               (() => {
-                const style = getPaymentMethodStyle(transaction.paymentMethod!);
+                const style = getPaymentMethodStyle(
+                  transaction.paymentMethod!,
+                  isDark
+                );
                 return (
                   <ThemedText
                     type="button"
@@ -586,7 +632,7 @@ export default function TransactionsScreen() {
             <ThemedText
               style={[
                 styles.amountText,
-                { color: getAmountColor(transaction.type, transaction.status) },
+                { color: getAmountColor(transaction.type, colors) },
               ]}
             >
               {transaction.type === "refund" ? "- " : ""}
@@ -606,11 +652,6 @@ export default function TransactionsScreen() {
     );
   };
 
-  // Which chips are currently active (used to show a colored border)
-  const isDateActive = dateFilter !== "all";
-  const isCustomerActive = customerFilter !== "all";
-  const isStatusActive = statusFilter !== "all";
-
   return (
     <ScreenContainer
       containerStyle={[
@@ -626,159 +667,26 @@ export default function TransactionsScreen() {
       <View
         style={[styles.header, { backgroundColor: colors.paper.background }]}
       >
-        <View style={styles.headerRow}>
-          <ThemedText
-            type="title"
-            style={[styles.headerTitle, { color: colors.paper.onSurface }]}
-          >
-            Transactions
-          </ThemedText>
+        <TransactionHeader
+          colors={colors}
+          handleAddTransaction={handleAddTransaction}
+        />
 
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddTransaction}
-          >
-            <IconSymbol name="plus" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+        <TransactionSearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          colors={colors}
+        />
 
-        {/* Search input */}
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.paper.surfaceVariant },
-          ]}
-        >
-          <IconSymbol
-            name="magnifyingglass"
-            size={20}
-            color={colors.paper.onSurfaceVariant}
-          />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search by customer or description"
-            placeholderTextColor={colors.paper.onSurfaceVariant}
-            style={[styles.searchInput, { color: colors.paper.onSurface }]}
-            returnKeyType="search"
-          />
-        </View>
-
-        {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContent}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              statusFilter === "all" ? styles.activeChip : styles.inactiveChip,
-            ]}
-            onPress={() => {
-              // Make "All" reset all filters and close any active filter modal
-              setStatusFilter("all");
-              setCustomerFilter("all");
-              setDateFilter("all");
-              setDebtStatusFilter("all");
-              setActiveFilter(null);
-            }}
-          >
-            <ThemedText
-              style={[
-                styles.filterChipText,
-                statusFilter === "all"
-                  ? styles.activeChipText
-                  : styles.inactiveChipText,
-              ]}
-            >
-              All
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              styles.inactiveChip,
-              isDateActive && styles.activeFilterChip,
-            ]}
-            onPress={() => setActiveFilter("date")}
-          >
-            <ThemedText
-              style={[styles.filterChipText, styles.inactiveChipText]}
-            >
-              {getFilterLabel("date")}
-            </ThemedText>
-            <IconSymbol
-              name="chevron.down"
-              size={16}
-              color={colors.paper.onSurface}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              styles.inactiveChip,
-              isStatusActive && styles.activeFilterChip,
-            ]}
-            onPress={() => setActiveFilter("status")}
-          >
-            <ThemedText
-              style={[styles.filterChipText, styles.inactiveChipText]}
-            >
-              {getFilterLabel("status")}
-            </ThemedText>
-            <IconSymbol
-              name="chevron.down"
-              size={16}
-              color={colors.paper.onSurface}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              styles.inactiveChip,
-              isCustomerActive && styles.activeFilterChip,
-            ]}
-            onPress={() => setActiveFilter("customer")}
-          >
-            <ThemedText
-              style={[styles.filterChipText, styles.inactiveChipText]}
-            >
-              {getFilterLabel("customer")}
-            </ThemedText>
-            <IconSymbol
-              name="chevron.down"
-              size={16}
-              color={colors.paper.onSurface}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              styles.inactiveChip,
-              debtStatusFilter !== "all" && styles.activeFilterChip,
-            ]}
-            onPress={() => setActiveFilter("debtStatus")}
-          >
-            <ThemedText
-              style={[styles.filterChipText, styles.inactiveChipText]}
-            >
-              {debtStatusFilter === "all"
-                ? "Debt Status"
-                : debtStatusFilter.charAt(0).toUpperCase() +
-                  debtStatusFilter.slice(1)}
-            </ThemedText>
-            <IconSymbol
-              name="chevron.down"
-              size={16}
-              color={colors.paper.onSurface}
-            />
-          </TouchableOpacity>
-        </ScrollView>
+        <TransactionFilterChips
+          statusFilter={statusFilter}
+          dateFilter={dateFilter}
+          debtStatusFilter={debtStatusFilter}
+          customers={customers}
+          colors={colors}
+          resetAllFilters={resetAllFilters}
+          setActiveFilter={setActiveFilter}
+        />
       </View>
 
       {/* Transaction List */}
@@ -807,19 +715,11 @@ export default function TransactionsScreen() {
       {/* Filter Modal */}
       {renderFilterModal()}
 
-      {/* Results Info Text - Hidden when empty */}
-      {filteredTransactions.length > 0 && (
-        <View style={styles.resultsInfo}>
-          <Text
-            variant="bodySmall"
-            style={{ color: colors.paper.onSurfaceVariant }}
-          >
-            Showing {filteredTransactions.length} of {transactions.length}{" "}
-            transactions
-            {filteredTransactions.length < transactions.length && " (filtered)"}
-          </Text>
-        </View>
-      )}
+      <TransactionResultsInfo
+        filteredTransactions={filteredTransactions}
+        transactions={transactions}
+        colors={colors}
+      />
     </ScreenContainer>
   );
 }
@@ -1084,3 +984,186 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
+// Reusable UI Components
+const TransactionHeader = ({
+  colors,
+  handleAddTransaction,
+}: {
+  colors: any;
+  handleAddTransaction: () => void;
+}) => (
+  <View style={styles.headerRow}>
+    <ThemedText
+      type="title"
+      style={[styles.headerTitle, { color: colors.paper.onSurface }]}
+    >
+      Transactions
+    </ThemedText>
+    <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
+      <IconSymbol name="plus" size={24} color="white" />
+    </TouchableOpacity>
+  </View>
+);
+
+const TransactionSearchBar = ({
+  searchQuery,
+  setSearchQuery,
+  colors,
+}: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  colors: any;
+}) => (
+  <View
+    style={[
+      styles.searchContainer,
+      { backgroundColor: colors.paper.surfaceVariant },
+    ]}
+  >
+    <IconSymbol
+      name="magnifyingglass"
+      size={20}
+      color={colors.paper.onSurfaceVariant}
+    />
+    <TextInput
+      value={searchQuery}
+      onChangeText={setSearchQuery}
+      placeholder="Search by customer or description"
+      placeholderTextColor={colors.paper.onSurfaceVariant}
+      style={[styles.searchInput, { color: colors.paper.onSurface }]}
+      returnKeyType="search"
+    />
+  </View>
+);
+
+const TransactionFilterChips = ({
+  statusFilter,
+  dateFilter,
+  debtStatusFilter,
+  customers,
+  colors,
+  resetAllFilters,
+  setActiveFilter,
+}: {
+  statusFilter: string;
+  dateFilter: string;
+  debtStatusFilter: string;
+  customers: any[];
+  colors: any;
+  resetAllFilters: () => void;
+  setActiveFilter: (filter: FilterType) => void;
+}) => {
+  const isDateActive = dateFilter !== "all";
+  const isStatusActive = statusFilter !== "all";
+  const isDebtStatusActive = debtStatusFilter !== "all";
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filtersContent}
+    >
+      <TouchableOpacity
+        style={[
+          styles.filterChip,
+          statusFilter === "all" ? styles.activeChip : styles.inactiveChip,
+        ]}
+        onPress={resetAllFilters}
+      >
+        <ThemedText
+          style={[
+            styles.filterChipText,
+            statusFilter === "all"
+              ? styles.activeChipText
+              : styles.inactiveChipText,
+          ]}
+        >
+          All
+        </ThemedText>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterChip,
+          styles.inactiveChip,
+          isDateActive && styles.activeFilterChip,
+        ]}
+        onPress={() => setActiveFilter("date")}
+      >
+        <ThemedText style={[styles.filterChipText, styles.inactiveChipText]}>
+          {getFilterLabel("date", dateFilter, statusFilter, customers)}
+        </ThemedText>
+        <IconSymbol
+          name="chevron.down"
+          size={16}
+          color={colors.paper.onSurface}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterChip,
+          styles.inactiveChip,
+          isStatusActive && styles.activeFilterChip,
+        ]}
+        onPress={() => setActiveFilter("status")}
+      >
+        <ThemedText style={[styles.filterChipText, styles.inactiveChipText]}>
+          {getFilterLabel("status", dateFilter, statusFilter, customers)}
+        </ThemedText>
+        <IconSymbol
+          name="chevron.down"
+          size={16}
+          color={colors.paper.onSurface}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterChip,
+          styles.inactiveChip,
+          isDebtStatusActive && styles.activeFilterChip,
+        ]}
+        onPress={() => setActiveFilter("debtStatus")}
+      >
+        <ThemedText style={[styles.filterChipText, styles.inactiveChipText]}>
+          {debtStatusFilter === "all"
+            ? "Debt Status"
+            : debtStatusFilter.charAt(0).toUpperCase() +
+              debtStatusFilter.slice(1)}
+        </ThemedText>
+        <IconSymbol
+          name="chevron.down"
+          size={16}
+          color={colors.paper.onSurface}
+        />
+      </TouchableOpacity>
+    </ScrollView>
+  );
+};
+
+const TransactionResultsInfo = ({
+  filteredTransactions,
+  transactions,
+  colors,
+}: {
+  filteredTransactions: TransactionWithCustomer[];
+  transactions: Transaction[];
+  colors: any;
+}) => {
+  if (filteredTransactions.length === 0) return null;
+
+  return (
+    <View style={styles.resultsInfo}>
+      <Text
+        variant="bodySmall"
+        style={{ color: colors.paper.onSurfaceVariant }}
+      >
+        Showing {filteredTransactions.length} of {transactions.length}{" "}
+        transactions
+        {filteredTransactions.length < transactions.length && " (filtered)"}
+      </Text>
+    </View>
+  );
+};
