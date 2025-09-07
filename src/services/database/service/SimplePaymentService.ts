@@ -79,9 +79,9 @@ export class SimplePaymentService {
         creditCreated = paymentAmount - currentDebt;
 
         // Clear debt
-        await this.customerRepo.updateOutstandingBalance(
+        await this.customerRepo.decreaseOutstandingBalance(
           customerId,
-          -currentDebt
+          currentDebt
         );
 
         // Create credit for excess
@@ -104,9 +104,9 @@ export class SimplePaymentService {
       } else {
         // Normal payment - reduce debt
         debtReduced = paymentAmount;
-        await this.customerRepo.updateOutstandingBalance(
+        await this.customerRepo.decreaseOutstandingBalance(
           customerId,
-          -paymentAmount
+          paymentAmount
         );
         await this.logSimpleAudit(
           customerId,
@@ -201,9 +201,10 @@ export class SimplePaymentService {
 
         // Update customer debt (reduce by credit used)
         if (newRemainingAmount > 0) {
-          await this.customerRepo.updateOutstandingBalance(
+          // This creates new debt, so we need to increase outstanding balance
+          await this.customerRepo.increaseOutstandingBalance(
             customerId,
-            newRemainingAmount - saleAmount
+            newRemainingAmount
           );
         }
       });
