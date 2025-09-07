@@ -1,5 +1,9 @@
 import * as SQLite from "expo-sqlite";
-import { CreateTransactionInput } from "../../types/transaction";
+import {
+  CreateTransactionInput,
+  PaymentMethod,
+  TransactionStatus,
+} from "../../types/transaction";
 import { generateId } from "../../utils/helpers";
 import { TransactionRepository } from "../database/repositories/TransactionRepository";
 import { ValidationService } from "../database/service/ValidationService";
@@ -126,13 +130,18 @@ describe("TransactionRepository - Debt Management", () => {
         isDeleted: false,
       });
 
-      expect(mockCustomerRepo.increaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        30000
+      // Verify SQL queries for debt management within transaction
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET totalSpent = totalSpent + ?"
+        ),
+        expect.arrayContaining([50000, expect.any(String), "cust_1"])
       );
-      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
-        "cust_1",
-        50000
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
+        ),
+        expect.arrayContaining([30000, expect.any(String), "cust_1"])
       );
     });
 
@@ -171,11 +180,13 @@ describe("TransactionRepository - Debt Management", () => {
         isDeleted: false,
       });
 
-      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        15000
+      // Verify SQL query for payment reducing debt
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?)"
+        ),
+        expect.arrayContaining([15000, expect.any(String), "cust_1"])
       );
-      expect(mockCustomerRepo.updateTotalSpent).not.toHaveBeenCalled();
     });
 
     it("should handle mixed payment method", async () => {
@@ -198,13 +209,18 @@ describe("TransactionRepository - Debt Management", () => {
       expect(result.remainingAmount).toBe(25000);
       expect(result.status).toBe("partial");
 
-      expect(mockCustomerRepo.increaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        25000
+      // Verify SQL queries for mixed payment
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET totalSpent = totalSpent + ?"
+        ),
+        expect.arrayContaining([75000, expect.any(String), "cust_1"])
       );
-      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
-        "cust_1",
-        75000
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
+        ),
+        expect.arrayContaining([25000, expect.any(String), "cust_1"])
       );
     });
 
@@ -227,13 +243,19 @@ describe("TransactionRepository - Debt Management", () => {
       expect(result.remainingAmount).toBe(0);
       expect(result.status).toBe("completed");
 
-      expect(
-        mockCustomerRepo.increaseOutstandingBalance
-      ).not.toHaveBeenCalled();
-      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
-        "cust_1",
-        25000
+      // Verify SQL query for total spent update only (no debt for cash payment)
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET totalSpent = totalSpent + ?"
+        ),
+        expect.arrayContaining([25000, expect.any(String), "cust_1"])
       );
+
+      // Should not update outstanding balance for cash payment
+      const outstandingBalanceCalls = mockDb.runAsync.mock.calls.filter(
+        (call: any[]) => call[0]?.includes("outstandingBalance")
+      );
+      expect(outstandingBalanceCalls.length).toBe(0);
     });
 
     it("should validate debt management fields", async () => {
@@ -276,10 +298,12 @@ describe("TransactionRepository - Debt Management", () => {
       expect(result.amount).toBe(10000);
       expect(result.status).toBe("completed");
 
-      // Refunds should reduce outstanding balance if linked to credit transaction
-      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        10000
+      // Verify SQL query for refund reducing outstanding balance
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?)"
+        ),
+        expect.arrayContaining([10000, expect.any(String), "cust_1"])
       );
     });
   });
@@ -302,11 +326,11 @@ describe("TransactionRepository - Debt Management", () => {
       mockDb.getFirstAsync.mockResolvedValue(existingTransaction);
 
       const updateData = {
-        paymentMethod: "credit",
+        paymentMethod: "credit" as PaymentMethod,
         paidAmount: 20000,
         remainingAmount: 30000,
         dueDate: "2024-02-15T00:00:00Z",
-        status: "pending",
+        status: "pending" as TransactionStatus,
       };
 
       await transactionRepository.update("txn_1", updateData);
@@ -324,9 +348,11 @@ describe("TransactionRepository - Debt Management", () => {
       );
 
       // Should adjust outstanding balance: +30000 (new debt) - 0 (old debt) = +30000
-      expect(mockCustomerRepo.increaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        30000
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
+        ),
+        expect.arrayContaining([30000, expect.any(String), "cust_1"])
       );
     });
 
@@ -345,16 +371,19 @@ describe("TransactionRepository - Debt Management", () => {
       mockDb.getFirstAsync.mockResolvedValue(existingTransaction);
 
       const updateData = {
-        status: "completed",
+        status: "completed" as TransactionStatus,
         paidAmount: 50000,
         remainingAmount: 0,
       };
 
       await transactionRepository.update("txn_1", updateData);
 
-      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
-        "cust_1",
-        30000
+      // Should reduce outstanding balance by 30000 (remaining amount)
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?)"
+        ),
+        expect.arrayContaining([30000, expect.any(String), "cust_1"])
       );
     });
   });

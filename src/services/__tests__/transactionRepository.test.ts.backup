@@ -127,24 +127,9 @@ describe("TransactionRepository", () => {
         expect.stringContaining("INSERT INTO transactions"),
         expect.any(Array)
       );
-      // Verify SQL query for total spent update within transaction
-      expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "UPDATE customers SET totalSpent = totalSpent + ?"
-        ),
-        expect.arrayContaining([25000, expect.any(String), "cust_1"])
-      );
-      expect(mockCustomerRepo.findById).toHaveBeenCalledWith("cust_1");
-      expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining("INSERT INTO transactions"),
-        expect.any(Array)
-      );
-      // Verify SQL query for total spent update within transaction
-      expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "UPDATE customers SET totalSpent = totalSpent + ?"
-        ),
-        expect.arrayContaining([25000, expect.any(String), "cust_1"])
+      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
+        "cust_1",
+        25000
       );
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({

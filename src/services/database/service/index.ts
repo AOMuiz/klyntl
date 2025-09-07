@@ -8,7 +8,11 @@ import {
 import { Customer } from "@/types/customer";
 import { CustomerFilters } from "@/types/filters";
 import { StoreConfig, UpdateStoreConfigInput } from "@/types/store";
-import type { CreateTransactionInput, Transaction } from "@/types/transaction";
+import type {
+  CreateTransactionInput,
+  Transaction,
+  UpdateTransactionInput,
+} from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
 import { AnalyticsRepository } from "../repositories/AnalyticsRepository";
@@ -297,6 +301,35 @@ export class DatabaseService {
     } catch (error) {
       throw new DatabaseError("getCustomersCountWithFilters", error as Error);
     }
+  }
+
+  /**
+   * @deprecated Use this.transactions.create() instead
+   * Maintained for backward compatibility with existing components
+   */
+  async createTransaction(
+    transactionData: CreateTransactionInput
+  ): Promise<Transaction> {
+    return this.transactions.create(transactionData);
+  }
+
+  /**
+   * @deprecated Use this.transactions.update() instead
+   * Maintained for backward compatibility with existing components
+   */
+  async updateTransaction(
+    id: string,
+    updates: UpdateTransactionInput
+  ): Promise<void> {
+    return this.transactions.update(id, updates);
+  }
+
+  /**
+   * @deprecated Use this.transactions.delete() instead
+   * Maintained for backward compatibility with existing components
+   */
+  async deleteTransaction(id: string): Promise<void> {
+    return this.transactions.delete(id);
   }
 
   // Batch operations for performance

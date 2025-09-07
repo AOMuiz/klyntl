@@ -60,6 +60,7 @@ export class TransactionRepository implements ITransactionRepository {
       };
 
       await this.db.withTransactionAsync(async () => {
+        // Insert the transaction
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -85,8 +86,8 @@ export class TransactionRepository implements ITransactionRepository {
           ]
         );
 
-        // Handle debt management based on transaction type
-        await this.handleDebtManagement(transaction);
+        // Handle debt management within the same transaction
+        await this.handleDebtManagementInTransaction(transaction);
 
         await this.auditService.logEntry({
           tableName: "transactions",
@@ -167,9 +168,12 @@ export class TransactionRepository implements ITransactionRepository {
           [...values, id]
         );
 
-        // Handle debt management changes
+        // Handle debt management changes within the same transaction
         const updatedTransaction = { ...currentTransaction, ...updates };
-        await this.handleDebtUpdate(currentTransaction, updatedTransaction);
+        await this.handleDebtUpdateInTransaction(
+          currentTransaction,
+          updatedTransaction
+        );
 
         // Handle total spent changes for sale transactions
         if (
@@ -178,9 +182,13 @@ export class TransactionRepository implements ITransactionRepository {
         ) {
           const amountDifference = updates.amount - currentTransaction.amount;
           if (amountDifference !== 0) {
-            await this.customerRepo.updateTotalSpent(
-              currentTransaction.customerId,
-              amountDifference
+            await this.db.runAsync(
+              `UPDATE customers SET totalSpent = totalSpent + ?, updatedAt = ? WHERE id = ?`,
+              [
+                amountDifference,
+                new Date().toISOString(),
+                currentTransaction.customerId,
+              ]
             );
           }
         }
@@ -1221,14 +1229,95 @@ export class TransactionRepository implements ITransactionRepository {
 
     if (debtDifference !== 0) {
       if (debtDifference > 0) {
-        await this.customerRepo.increaseOutstandingBalance(
-          newTx.customerId,
-          debtDifference
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+          [debtDifference, new Date().toISOString(), newTx.customerId]
         );
       } else {
-        await this.customerRepo.decreaseOutstandingBalance(
-          newTx.customerId,
-          Math.abs(debtDifference)
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
+        );
+      }
+    }
+  }
+
+  /**
+   * Handle debt management logic within a transaction context
+   */
+  private async handleDebtManagementInTransaction(
+    transaction: Transaction
+  ): Promise<void> {
+    const debtAmount = transaction.remainingAmount || 0;
+
+    switch (transaction.type) {
+      case "sale":
+        // Update total spent for all sales
+        await this.db.runAsync(
+          `UPDATE customers SET totalSpent = totalSpent + ?, updatedAt = ? WHERE id = ?`,
+          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        );
+
+        if (
+          (transaction.paymentMethod === "credit" ||
+            transaction.paymentMethod === "mixed") &&
+          debtAmount > 0
+        ) {
+          // For credit/mixed payments, increase outstanding balance
+          await this.db.runAsync(
+            `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+            [debtAmount, new Date().toISOString(), transaction.customerId]
+          );
+        }
+        break;
+
+      case "payment":
+        // Payment received: decrease customer's outstanding balance
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        );
+        break;
+
+      case "credit":
+        // Credit/loan issued: increase customer's outstanding balance
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        );
+        break;
+
+      case "refund":
+        // Refund: decrease customer's outstanding balance
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        );
+        break;
+    }
+  }
+
+  /**
+   * Handle debt management updates within a transaction context
+   */
+  private async handleDebtUpdateInTransaction(
+    oldTx: Transaction,
+    newTx: Transaction
+  ): Promise<void> {
+    const oldDebtChange = this.calculateDebtChange(oldTx);
+    const newDebtChange = this.calculateDebtChange(newTx);
+    const debtDifference = newDebtChange - oldDebtChange;
+
+    if (debtDifference !== 0) {
+      if (debtDifference > 0) {
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+          [debtDifference, new Date().toISOString(), newTx.customerId]
+        );
+      } else {
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
         );
       }
     }

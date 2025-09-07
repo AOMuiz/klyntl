@@ -31,7 +31,19 @@ export class PaymentService {
   ): Promise<PaymentAllocationResult> {
     let result: PaymentAllocationResult | null = null;
 
-    await this.db.withTransactionAsync(async () => {
+    // Check if we're already in a transaction by trying to start a nested transaction
+    let inTransaction = false;
+    try {
+      await this.db.withTransactionAsync(async () => {
+        // If we can start a transaction, we're not already in one
+        inTransaction = false;
+      });
+    } catch {
+      // If we get an error starting a transaction, we're already in one
+      inTransaction = true;
+    }
+
+    const executeAllocation = async () => {
       const customer = await this.customerRepo.findById(customerId);
       if (!customer) {
         throw new Error("Customer not found");
@@ -103,7 +115,15 @@ export class PaymentService {
         remainingUnallocated: 0,
         auditRecords,
       };
-    });
+    };
+
+    if (inTransaction) {
+      // We're already in a transaction, execute directly
+      await executeAllocation();
+    } else {
+      // We're not in a transaction, create one
+      await this.db.withTransactionAsync(executeAllocation);
+    }
 
     if (!result) {
       throw new Error("Failed to allocate payment");
