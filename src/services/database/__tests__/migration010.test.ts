@@ -8,7 +8,7 @@ class MockDb {
     // seed customers and transactions tables
     this.tables["customers"] = [
       {
-        id: "customer_1",
+        id: "cust_1",
         outstandingBalance: 0,
         updatedAt: new Date().toISOString(),
       },
@@ -17,7 +17,7 @@ class MockDb {
     this.tables["transactions"] = [
       {
         id: "txn_debt",
-        customerId: "customer_1",
+        customerId: "cust_1",
         type: "credit",
         amount: 5000,
         remainingAmount: 5000,
@@ -26,7 +26,7 @@ class MockDb {
       },
       {
         id: "txn_payment",
-        customerId: "customer_1",
+        customerId: "cust_1",
         type: "payment",
         amount: 5000,
         remainingAmount: 0,

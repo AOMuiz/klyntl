@@ -72,7 +72,7 @@ describe("CustomerRepository", () => {
         birthday: new Date(customerInput.birthday).toISOString(),
         totalSpent: 0,
       });
-      expect(result.id).toMatch(/^customer_\d+_[a-z0-9]+$/);
+      expect(result.id).toMatch(/^cust_\d+_[a-z0-9]+$/);
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
       expect(mockDb.runAsync).toHaveBeenCalled();

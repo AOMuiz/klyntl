@@ -333,7 +333,13 @@ export abstract class BaseRepository<T, TId extends string | number = string>
   }
 
   protected generateEntityId(): string {
-    return generateId(this.tableName.replace(/s$/, "")); // Remove plural 's'
+    // Special-case customers to use shorter 'cust' prefix instead of 'customer'
+    const base = this.tableName.replace(/s$/, ""); // Remove plural 's'
+    if (base === "customer") {
+      return generateId("cust");
+    }
+
+    return generateId(base);
   }
 
   protected buildSearchCondition(searchQuery: string): {

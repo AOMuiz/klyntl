@@ -1,6 +1,6 @@
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Alert, ScrollView, Share, TouchableOpacity, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 
@@ -12,6 +12,9 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomer } from "@/hooks/useCustomers";
 import { usePaymentAudit } from "@/hooks/usePaymentAudit";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
+import { AuditManagementService } from "@/services/audit/AuditManagementService";
+import { TransactionCalculationService } from "@/services/calculations/TransactionCalculationService";
+import { useDatabase } from "@/services/database/hooks";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 
@@ -19,6 +22,7 @@ export default function TransactionDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const theme = useTheme();
+  const { db } = useDatabase();
 
   const { data: transaction, isLoading, error } = useTransaction(id);
   // Load payment audit records for this transaction (if any) — call hook unconditionally
@@ -30,12 +34,76 @@ export default function TransactionDetailsScreen() {
   const txnsQuery = useTransactions(customerId);
   const allCustomerTxns = txnsQuery.transactions || [];
 
+  // State for enhanced calculations and audit data
+  const [paymentBreakdown, setPaymentBreakdown] = useState<any>(null);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [auditSummary, setAuditSummary] = useState<any>(null);
+
   useEffect(() => {
     if (error) {
       console.error("Failed to load transaction:", error);
       router.back();
     }
   }, [error, router]);
+
+  // Calculate enhanced payment breakdown and audit when data is available
+  useEffect(() => {
+    if (transaction && db) {
+      const calculateTransactionData = async () => {
+        try {
+          // Get proper audit history with customer_id
+          const auditManagementService = new AuditManagementService(db);
+          const transactionAudit =
+            await auditManagementService.getTransactionAuditHistory(
+              transaction.id
+            );
+          const customerAudit =
+            await auditManagementService.getCustomerAuditHistory(
+              transaction.customerId
+            );
+
+          // Convert audit data to PaymentAudit format for calculations
+          const paymentAuditData = customerAudit.map((audit) => ({
+            id: audit.id,
+            customer_id: audit.customerId,
+            transaction_id: audit.sourceTransactionId || "",
+            type: audit.type,
+            amount: audit.amount,
+            created_at: audit.createdAt,
+            metadata: audit.metadata || {},
+          }));
+
+          // Generate payment breakdown using the calculation service
+          const breakdown =
+            TransactionCalculationService.generatePaymentBreakdown(
+              transaction,
+              paymentAuditData
+            );
+          setPaymentBreakdown(breakdown);
+
+          // Verify transaction consistency
+          const verification =
+            TransactionCalculationService.verifyTransactionConsistency(
+              transaction,
+              paymentAuditData
+            );
+          setVerificationResult(verification);
+
+          // Set audit summary
+          setAuditSummary({
+            transactionAudit,
+            customerAudit,
+            hasAuditTrail:
+              transactionAudit.entries.length > 0 || customerAudit.length > 0,
+          });
+        } catch (err) {
+          console.error("Failed to calculate transaction data:", err);
+        }
+      };
+
+      calculateTransactionData();
+    }
+  }, [transaction, db]);
 
   if (isLoading) {
     return (
@@ -205,60 +273,29 @@ export default function TransactionDetailsScreen() {
     }
   }
 
-  // client-side audit-based reconciliation (UI-only fallback when you can't access DB)
-  // Aggregate audit rows that reference this transaction as the source to compute paid/remaining
-  const allocationsForTxn = (auditHistory || []).filter((a: any) => {
-    return (
-      a?.source_transaction_id === transaction.id ||
-      a?.sourceTransactionId === transaction.id ||
-      a?.source === transaction.id
-    );
-  });
-
-  const computedPaidFromAudit = allocationsForTxn.reduce(
-    (sum: number, a: any) => sum + (Number(a?.amount) || 0),
-    0
-  );
-  const computedRemainingFromAudit =
-    Number(transaction.amount || 0) - computedPaidFromAudit;
-
+  // Use enhanced payment breakdown and verification from centralized services
   const paidStored = Number(transaction.paidAmount || 0);
   const remainingStored = Number(transaction.remainingAmount || 0);
 
   // prefer audit-derived values when they exist, otherwise fallback to stored DB fields
-  const displayedPaid = paidStored || computedPaidFromAudit || 0;
+  const displayedPaid = paymentBreakdown?.totalPaid || paidStored || 0;
   const displayedRemaining =
-    remainingStored ||
-    (computedRemainingFromAudit >= 0 ? computedRemainingFromAudit : 0);
+    paymentBreakdown?.totalRemaining || remainingStored || 0;
 
-  const usingAudit =
-    computedPaidFromAudit > 0 || computedRemainingFromAudit !== remainingStored;
+  const usingAudit = paymentBreakdown?.hasAuditData || false;
 
-  // Enhanced inconsistency detection with better explanations
-  const inconsistencyDetails = (() => {
-    const totalAmount = Number(transaction.amount || 0);
-    const storedTotal = paidStored + remainingStored;
-    const computedTotal = displayedPaid + displayedRemaining;
-
-    const storedInconsistent = Math.abs(storedTotal - totalAmount) > 0.01; // Allow for small floating point differences
-    const computedInconsistent = Math.abs(computedTotal - totalAmount) > 0.01;
-
-    if (!storedInconsistent && !computedInconsistent) {
-      return null; // No inconsistency
-    }
-
-    return {
-      storedInconsistent,
-      computedInconsistent,
-      storedTotal,
-      computedTotal,
-      totalAmount,
-      difference: Math.max(
-        Math.abs(storedTotal - totalAmount),
-        Math.abs(computedTotal - totalAmount)
-      ),
-    };
-  })();
+  // Use verification result from centralized service
+  const inconsistencyDetails = verificationResult?.hasInconsistencies
+    ? {
+        storedInconsistent: verificationResult.storedAmountsInconsistent,
+        computedInconsistent: verificationResult.auditAmountsInconsistent,
+        storedTotal: verificationResult.storedTotal,
+        computedTotal: verificationResult.auditTotal,
+        totalAmount: verificationResult.originalAmount,
+        difference: verificationResult.maxDiscrepancy,
+        issues: verificationResult.issues,
+      }
+    : null;
 
   const isInconsistent = !!inconsistencyDetails;
 
@@ -376,6 +413,20 @@ export default function TransactionDetailsScreen() {
             </View>
           )}
 
+          {transaction.type && (
+            <View style={{ marginTop: hp(12) }}>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Transaction Type
+              </Text>
+              <Text variant="bodyMedium" style={{ marginTop: hp(6) }}>
+                {transaction.type}
+              </Text>
+            </View>
+          )}
+
           {transaction.paymentMethod && (
             <View style={{ marginTop: hp(12) }}>
               <Text
@@ -464,10 +515,34 @@ export default function TransactionDetailsScreen() {
                             inconsistencyDetails.difference
                           )}`
                         : ""}
+                      {inconsistencyDetails?.issues &&
+                      inconsistencyDetails.issues.length > 0
+                        ? `\n• Issues detected: ${inconsistencyDetails.issues.join(
+                            ", "
+                          )}`
+                        : ""}
                       {"\n• This may indicate a data synchronization issue"}
                       {
                         "\n• Using payment history for most accurate information"
                       }
+                    </Text>
+                  </View>
+                ) : verificationResult?.isHealthy ? (
+                  <View style={{ marginTop: hp(8) }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.primary, fontWeight: "600" }}
+                    >
+                      ✅ Data Verified
+                    </Text>
+                    <Text
+                      variant="bodySmall"
+                      style={{
+                        color: theme.colors.onSurfaceVariant,
+                        marginTop: hp(4),
+                      }}
+                    >
+                      Transaction amounts are consistent across all records
                     </Text>
                   </View>
                 ) : null}
@@ -545,35 +620,121 @@ export default function TransactionDetailsScreen() {
             </View>
           )}
 
-          {/* Show allocations / audit entries for this transaction */}
-          {auditHistory && auditHistory.length > 0 && (
+          {/* Show enhanced audit information and payment allocations */}
+          {auditSummary?.hasAuditTrail && (
             <View style={{ marginTop: hp(12) }}>
               <Text
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                Payment Allocations
+                Payment Allocations & Audit Trail
               </Text>
-              <View style={{ marginTop: hp(6) }}>
-                {(auditHistory || []).map((a: any, i: number) => {
-                  const typeLabel =
-                    typeof a?.type === "string"
-                      ? a.type
-                      : String(a?.type ?? a?.metadata?.type ?? "allocation");
-                  const amountNum = Number(a?.amount || 0);
-                  const dateStr = a?.created_at
-                    ? new Date(a.created_at).toLocaleString()
-                    : "";
-                  return (
-                    <Text key={a.id ?? `audit-${i}`} variant="bodyMedium">
-                      {typeLabel} · {safeFormat(amountNum)}
-                      {amountNum === 0 ? "" : ""} · {dateStr}
+
+              {/* Show payment breakdown allocations if available */}
+              {paymentBreakdown?.allocations &&
+                paymentBreakdown.allocations.length > 0 && (
+                  <View style={{ marginTop: hp(6) }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.primary, fontWeight: "600" }}
+                    >
+                      Payment Allocations ({paymentBreakdown.allocations.length}
+                      )
                     </Text>
-                  );
-                })}
-              </View>
+                    {paymentBreakdown.allocations.map(
+                      (allocation: any, i: number) => (
+                        <Text
+                          key={`allocation-${i}`}
+                          variant="bodyMedium"
+                          style={{ marginTop: hp(2) }}
+                        >
+                          {allocation.type} ·{" "}
+                          {formatCurrency(allocation.amount)} ·{" "}
+                          {new Date(allocation.created_at).toLocaleString()}
+                        </Text>
+                      )
+                    )}
+                  </View>
+                )}
+
+              {/* Show transaction-specific audit entries */}
+              {auditSummary?.transactionAudit?.entries &&
+                auditSummary.transactionAudit.entries.length > 0 && (
+                  <View style={{ marginTop: hp(8) }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{
+                        color: theme.colors.secondary,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Transaction Audit (
+                      {auditSummary.transactionAudit.entries.length} entries)
+                    </Text>
+                    {auditSummary.transactionAudit.entries.map(
+                      (entry: any, i: number) => (
+                        <Text
+                          key={`tx-audit-${i}`}
+                          variant="bodyMedium"
+                          style={{ marginTop: hp(2) }}
+                        >
+                          {entry.type} · {formatCurrency(entry.amount)} ·{" "}
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </Text>
+                      )
+                    )}
+                  </View>
+                )}
+
+              {/* Fallback to old audit history if new data not available */}
+              {(!paymentBreakdown?.allocations ||
+                paymentBreakdown.allocations.length === 0) &&
+                (!auditSummary?.transactionAudit?.entries ||
+                  auditSummary.transactionAudit.entries.length === 0) &&
+                auditHistory &&
+                auditHistory.length > 0 && (
+                  <View style={{ marginTop: hp(6) }}>
+                    {(auditHistory || []).map((a: any, i: number) => {
+                      const typeLabel =
+                        typeof a?.type === "string"
+                          ? a.type
+                          : String(
+                              a?.type ?? a?.metadata?.type ?? "allocation"
+                            );
+                      const amountNum = Number(a?.amount || 0);
+                      const dateStr = a?.created_at
+                        ? new Date(a.created_at).toLocaleString()
+                        : "";
+                      return (
+                        <Text key={a.id ?? `audit-${i}`} variant="bodyMedium">
+                          {typeLabel} · {safeFormat(amountNum)}
+                          {amountNum === 0 ? "" : ""} · {dateStr}
+                        </Text>
+                      );
+                    })}
+                  </View>
+                )}
             </View>
           )}
+
+          {/* Show message when no audit trail exists */}
+          {!auditSummary?.hasAuditTrail &&
+            (!auditHistory || auditHistory.length === 0) && (
+              <View style={{ marginTop: hp(12) }}>
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  Payment Audit Trail
+                </Text>
+                <Text
+                  variant="bodyMedium"
+                  style={{ marginTop: hp(6), color: theme.colors.outline }}
+                >
+                  No payment audit records found
+                </Text>
+              </View>
+            )}
 
           <View
             style={{ marginTop: hp(12), flexDirection: "column", gap: hp(12) }}

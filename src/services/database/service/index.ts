@@ -15,6 +15,9 @@ import type {
 } from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
+import { AuditManagementService } from "../../audit/AuditManagementService";
+import { TransactionCalculationService } from "../../calculations/TransactionCalculationService";
+import { DatabaseTransactionIntegrityService } from "../DatabaseTransactionIntegrityService";
 import { AnalyticsRepository } from "../repositories/AnalyticsRepository";
 import { CustomerRepository } from "../repositories/CustomerRepository";
 import { ProductCategoryRepository } from "../repositories/ProductCategoryRepository";
@@ -40,7 +43,24 @@ export class DatabaseService {
   public readonly products: ProductRepository;
   public readonly productCategories: ProductCategoryRepository;
   public readonly storeConfig: StoreConfigRepository;
-  public readonly analytics: AnalyticsRepository;
+  public get analytics(): AnalyticsRepository {
+    if (!this._analytics) {
+      this._analytics = new AnalyticsRepository(
+        this.db,
+        this.config,
+        this.auditService
+      );
+    }
+    return this._analytics;
+  }
+
+  // ===== LAZY-LOADED REPOSITORIES =====
+  private _analytics?: AnalyticsRepository;
+
+  // ===== CENTRALIZED CALCULATION & AUDIT SERVICES =====
+  public readonly calculationService: TransactionCalculationService;
+  public readonly auditManagementService: AuditManagementService;
+  public readonly integrityService: DatabaseTransactionIntegrityService;
 
   constructor(
     private db: SQLiteDatabase,
@@ -87,11 +107,33 @@ export class DatabaseService {
       this.config,
       this.auditService
     );
-    this.analytics = new AnalyticsRepository(
-      this.db,
-      this.config,
-      this.auditService
-    );
+    // AnalyticsRepository - lazy loaded
+    // this.analytics = new AnalyticsRepository(
+    //   this.db,
+    //   this.config,
+    //   this.auditService
+    // );
+
+    // ===== INITIALIZE CENTRALIZED CALCULATION & AUDIT SERVICES =====
+    this.calculationService = new TransactionCalculationService();
+    this.auditManagementService = new AuditManagementService(this.db);
+    this.integrityService = new DatabaseTransactionIntegrityService(this.db);
+  }
+
+  // ===== COMMON DATABASE OPERATIONS =====
+
+  /**
+   * Execute raw SQL query (for complex operations)
+   */
+  async executeQuery<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+    return await this.db.getAllAsync<T>(sql, params);
+  }
+
+  /**
+   * Execute raw SQL command
+   */
+  async executeCommand(sql: string, params: any[] = []): Promise<void> {
+    await this.db.runAsync(sql, params);
   }
 
   // Analytics methods
@@ -407,6 +449,68 @@ export class DatabaseService {
       throw new DatabaseError("batchCreateTransactions", error as Error);
     }
   }
+
+  // ===== CENTRALIZED CALCULATION & AUDIT METHODS =====
+
+  /**
+   * Calculate transaction status using centralized service
+   */
+  calculateTransactionStatus(
+    type: string,
+    paymentMethod: string,
+    totalAmount: number,
+    paidAmount: number,
+    remainingAmount: number,
+    dueDate?: string
+  ) {
+    return TransactionCalculationService.calculateTransactionStatus(
+      type,
+      paymentMethod,
+      totalAmount,
+      paidAmount,
+      remainingAmount,
+      dueDate
+    );
+  }
+
+  /**
+   * Calculate initial amounts for transaction creation
+   */
+  calculateInitialAmounts(type: string, paymentMethod: string, amount: number) {
+    return TransactionCalculationService.calculateInitialAmounts(
+      type,
+      paymentMethod,
+      amount
+    );
+  }
+
+  /**
+   * Get customer audit history using centralized service
+   */
+  async getCustomerAuditHistory(customerId: string) {
+    return this.auditManagementService.getCustomerAuditHistory(customerId);
+  }
+
+  /**
+   * Perform database integrity check using centralized service
+   */
+  async performIntegrityCheck() {
+    return this.integrityService.performFullIntegrityCheck();
+  }
+
+  /**
+   * Repair inconsistent debt calculations
+   */
+  async repairDebtCalculations() {
+    return this.integrityService.repairCustomerDebtCalculations();
+  }
+
+  /**
+   * Execute operations within a database transaction
+   */
+  async withTransaction(callback: () => Promise<void>): Promise<void> {
+    return await this.db.withTransactionAsync(callback);
+  }
 }
 
 // ===== FACTORY FUNCTION =====
@@ -416,3 +520,108 @@ export function createDatabaseService(
 ): DatabaseService {
   return new DatabaseService(db, config);
 }
+
+/**
+ * Service Locator Pattern - For accessing services throughout the app
+ *
+ * This provides a centralized way to access all services without
+ * passing dependencies everywhere.
+ */
+export class ServiceLocator {
+  private static instance: ServiceLocator;
+  private services: Map<string, any> = new Map();
+
+  static getInstance(): ServiceLocator {
+    if (!ServiceLocator.instance) {
+      ServiceLocator.instance = new ServiceLocator();
+    }
+    return ServiceLocator.instance;
+  }
+
+  register<T>(key: string, service: T): void {
+    this.services.set(key, service);
+  }
+
+  get<T>(key: string): T {
+    const service = this.services.get(key);
+    if (!service) {
+      throw new Error(`Service ${key} not registered`);
+    }
+    return service as T;
+  }
+
+  has(key: string): boolean {
+    return this.services.has(key);
+  }
+}
+
+// ===== USAGE EXAMPLES =====
+
+/**
+ * How to use the pragmatic approach:
+ */
+
+// 1. Initialize services once at app startup
+export function initializeServices(db: SQLiteDatabase) {
+  const config: DatabaseConfig = {
+    customerActiveDays: 90,
+    defaultLowStockThreshold: 10,
+    defaultPageSize: 20,
+    enableAuditLog: true,
+    maxBatchSize: 100,
+  };
+
+  // Create main database service
+  const databaseService = new DatabaseService(db, config);
+
+  // Register in service locator
+  const locator = ServiceLocator.getInstance();
+  locator.register("database", databaseService);
+
+  return { databaseService };
+}
+
+// 2. Use services throughout the app
+export function useServices() {
+  const locator = ServiceLocator.getInstance();
+  const db = locator.get<DatabaseService>("database");
+
+  return {
+    // Only load repositories when actually needed
+    customers: db.customers,
+    transactions: db.transactions,
+
+    // Access to raw database operations if needed
+    executeQuery: db.executeQuery.bind(db),
+    withTransaction: db.withTransaction.bind(db),
+  };
+}
+
+/*
+STRATEGY BENEFITS:
+
+✅ SOLID Principles Maintained:
+- Single Responsibility: Each repository/service has one clear purpose
+- Open/Closed: Easy to extend without modifying existing code
+- Liskov Substitution: All repositories follow same interface
+- Interface Segregation: Clean separation of concerns
+- Dependency Inversion: Depends on abstractions
+
+✅ Pragmatic Approach:
+- Lazy loading prevents unnecessary instantiation
+- Service locator provides centralized access
+- Only load what you actually use
+- Easy to add new repositories when needed
+
+✅ Avoids Fragmentation:
+- Single DatabaseService as main entry point
+- Related functionality grouped together
+- Clear boundaries between concerns
+- No unnecessary service proliferation
+
+✅ Future-Proof:
+- Easy to add new repositories as app grows
+- Maintains clean architecture
+- Scales well with additional features
+- Backward compatible
+*/

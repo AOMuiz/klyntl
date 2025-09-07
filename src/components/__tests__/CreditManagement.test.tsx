@@ -25,7 +25,7 @@ jest.mock("@/utils/currency", () => ({
 }));
 
 const mockCustomer = {
-  id: "customer_1",
+  id: "cust_1",
   name: "John Doe",
   phone: "+2348012345678",
   email: "john@example.com",
