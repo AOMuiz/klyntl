@@ -20,7 +20,8 @@ export interface Customer {
   preferredContactMethod?: PreferredContactMethod;
   // Business fields
   totalSpent: number;
-  outstandingBalance: number; // Amount customer owes (in kobo)
+  outstandingBalance: number; // Amount customer owes (in kobo, >= 0)
+  creditBalance: number; // Amount customer has as credit/prepaid (in kobo, >= 0)
   lastPurchase?: string;
   createdAt: string;
   updatedAt: string;

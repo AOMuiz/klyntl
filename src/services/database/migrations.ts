@@ -529,6 +529,63 @@ const migration008: Migration = {
 };
 
 /**
+ * Migration 9: Add credit balance and payment audit for over-payment handling
+ */
+const migration009: Migration = {
+  version: 9,
+  name: "credit_balance_and_payment_audit",
+  up: async (db: SQLiteDatabase) => {
+    // Add credit_balance to customers table
+    await addColumnIfNotExists(
+      db,
+      "customers",
+      "credit_balance",
+      "INTEGER DEFAULT 0"
+    );
+
+    // Create payment_audit table for tracking over-payments and credit allocations
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS payment_audit (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        source_transaction_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('payment', 'over_payment', 'refund', 'credit_note')),
+        amount INTEGER NOT NULL,
+        currency TEXT DEFAULT 'NGN',
+        metadata TEXT, -- JSON string for additional data
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+        FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Add indexes for payment_audit
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_payment_audit_customer ON payment_audit(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_payment_audit_source_tx ON payment_audit(source_transaction_id);
+      CREATE INDEX IF NOT EXISTS idx_payment_audit_type ON payment_audit(type);
+      CREATE INDEX IF NOT EXISTS idx_payment_audit_created ON payment_audit(created_at);
+    `);
+
+    // Add index for credit_balance queries
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_customers_credit_balance ON customers(credit_balance);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Note: SQLite doesn't support DROP COLUMN, so we leave the columns
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_customers_credit_balance;
+      DROP INDEX IF EXISTS idx_payment_audit_created;
+      DROP INDEX IF EXISTS idx_payment_audit_type;
+      DROP INDEX IF EXISTS idx_payment_audit_source_tx;
+      DROP INDEX IF EXISTS idx_payment_audit_customer;
+      DROP TABLE IF EXISTS payment_audit;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -541,6 +598,7 @@ export const migrations: Migration[] = [
   migration006,
   migration007,
   migration008,
+  migration009, // Add credit balance and payment audit migration
 ];
 
 /**

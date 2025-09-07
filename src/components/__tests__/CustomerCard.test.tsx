@@ -2,6 +2,14 @@ import { fireEvent } from "@testing-library/react-native";
 import { mockCustomer, render } from "../../__tests__/test-utils";
 import { CustomerCard } from "../CustomerCard";
 
+// Mock expo-router
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 describe("CustomerCard", () => {
   const mockOnPress = jest.fn();
   const mockOnLongPress = jest.fn();
@@ -26,7 +34,7 @@ describe("CustomerCard", () => {
       mockCustomer.phone
     );
     expect(getByTestId("customer-card-total-spent").props.children).toBe(
-      "₦50,000"
+      "₦50K"
     );
     expect(getByText("Total Spent")).toBeTruthy();
   });
@@ -58,7 +66,7 @@ describe("CustomerCard", () => {
     );
 
     expect(getByTestId("customer-card-total-spent").props.children).toBe(
-      "₦1,500,000"
+      "₦1.5M"
     );
   });
 
@@ -236,5 +244,64 @@ describe("CustomerCard", () => {
       // Avatar should be rendered (initials would be 'JM' - first 2 letters)
       expect(getByTestId("customer-card-avatar")).toBeTruthy();
     });
+  });
+
+  it("should show credit management button when customer has credit balance", () => {
+    const customerWithCredit = { ...mockCustomer, creditBalance: 2500 };
+    const { getByText } = render(
+      <CustomerCard
+        customer={customerWithCredit}
+        onPress={mockOnPress}
+        testID="customer-card"
+      />
+    );
+
+    expect(getByText("Manage")).toBeTruthy();
+  });
+
+  it("should not show credit management button when customer has no credit balance", () => {
+    const customerWithoutCredit = { ...mockCustomer, creditBalance: 0 };
+    const { queryByText } = render(
+      <CustomerCard
+        customer={customerWithoutCredit}
+        onPress={mockOnPress}
+        testID="customer-card"
+      />
+    );
+
+    expect(queryByText("Manage")).toBeNull();
+  });
+
+  it("should navigate to credit management screen when manage button is pressed", () => {
+    const customerWithCredit = { ...mockCustomer, creditBalance: 2500 };
+    const { getByText } = render(
+      <CustomerCard
+        customer={customerWithCredit}
+        onPress={mockOnPress}
+        testID="customer-card"
+      />
+    );
+
+    const manageButton = getByText("Manage");
+    fireEvent.press(manageButton);
+
+    // Verify navigation was called with correct params
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/customer/credit-management",
+      params: { customerId: customerWithCredit.id },
+    });
+  });
+
+  it("should display credit balance with correct formatting", () => {
+    const customerWithCredit = { ...mockCustomer, creditBalance: 5000 };
+    const { getByText } = render(
+      <CustomerCard
+        customer={customerWithCredit}
+        onPress={mockOnPress}
+        testID="customer-card"
+      />
+    );
+
+    expect(getByText("₦5K credit")).toBeTruthy();
   });
 });

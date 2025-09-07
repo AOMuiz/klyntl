@@ -1,5 +1,6 @@
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { groupContactsAlphabetically } from "@/utils/grouping";
+import { validateNigerianPhone } from "@/utils/helpers";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
@@ -239,8 +240,9 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
           const cleanPhone = phoneNumber.number.replace(/\D/g, "");
           console.log("Clean phone:", cleanPhone);
 
-          // DISABLED STRICT FILTERING - Accept any phone number with 7+ digits
-          const isValid = cleanPhone.length >= 7;
+          // Use proper Nigerian phone validation to match ValidationService
+          const validation = validateNigerianPhone(cleanPhone);
+          const isValid = validation.isValid;
 
           console.log("Is valid:", isValid);
 

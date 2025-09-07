@@ -689,6 +689,8 @@ export class CustomerRepository
     const customerWithDefaults = {
       ...customerData,
       totalSpent: 0,
+      outstandingBalance: 0,
+      creditBalance: 0,
       lastContactDate: undefined,
       contactSource: customerData.contactSource || "manual",
       birthday: customerData.birthday
@@ -894,6 +896,134 @@ export class CustomerRepository
         "Customer",
         "updateTotalSpent",
         "Failed to update total spent",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Get customer's credit balance
+   */
+  async getCreditBalance(customerId: string): Promise<number> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "getCreditBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+
+    try {
+      const result = await this.db.getFirstAsync<{
+        credit_balance: number;
+      }>("SELECT credit_balance FROM customers WHERE id = ?", [customerId]);
+
+      if (!result) {
+        throw new RepositoryNotFoundError("Customer", customerId);
+      }
+
+      return result.credit_balance || 0;
+    } catch (error) {
+      if (error instanceof RepositoryNotFoundError) {
+        throw error;
+      }
+      throw new RepositoryError(
+        "Customer",
+        "getCreditBalance",
+        "Failed to get credit balance",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Increase customer's credit balance (when they have over-payment)
+   */
+  async increaseCreditBalance(
+    customerId: string,
+    amount: number
+  ): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "increaseCreditBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (amount <= 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "increaseCreditBalance",
+        "amount",
+        "Amount must be positive"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        `UPDATE customers SET credit_balance = credit_balance + ?, updatedAt = ? WHERE id = ?`,
+        [amount, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { credit_balance: `+${amount}` },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "increaseCreditBalance",
+        "Failed to increase credit balance",
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Decrease customer's credit balance (when they use credit)
+   */
+  async decreaseCreditBalance(
+    customerId: string,
+    amount: number
+  ): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "decreaseCreditBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (amount <= 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "decreaseCreditBalance",
+        "amount",
+        "Amount must be positive"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        `UPDATE customers SET credit_balance = GREATEST(0, credit_balance - ?), updatedAt = ? WHERE id = ?`,
+        [amount, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { credit_balance: `-${amount}` },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "decreaseCreditBalance",
+        "Failed to decrease credit balance",
         error as Error
       );
     }

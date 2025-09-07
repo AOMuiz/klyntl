@@ -1,6 +1,7 @@
 import { formatCurrency } from "@/utils/currency";
 import { getCustomerInitials } from "@/utils/helpers";
 import { wp } from "@/utils/responsive_dimensions_system";
+import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, Text, useTheme } from "react-native-paper";
@@ -22,6 +23,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 }) => {
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
+  const router = useRouter();
 
   const formatLastPurchase = (date?: string): string => {
     if (!date) return "No purchases yet";
@@ -53,6 +55,13 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   };
 
   const spendingTier = getSpendingTier(customer.totalSpent);
+
+  const handleCreditManagement = () => {
+    router.push({
+      pathname: "/customer/credit-management",
+      params: { customerId: customer.id },
+    });
+  };
 
   return (
     <TouchableOpacity
@@ -141,6 +150,41 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
               >
                 Total Spent
               </Text>
+              {customer.outstandingBalance > 0 && (
+                <Text
+                  variant="bodySmall"
+                  style={[styles.debt, { color: colors.error[600] }]}
+                  testID={`${testID}-outstanding`}
+                >
+                  {formatCurrency(customer.outstandingBalance, { short: true })}{" "}
+                  owed
+                </Text>
+              )}
+              {customer.creditBalance > 0 && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.credit, { color: colors.success[600] }]}
+                    testID={`${testID}-credit`}
+                  >
+                    {formatCurrency(customer.creditBalance, { short: true })}{" "}
+                    credit
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleCreditManagement}
+                    style={styles.creditButton}
+                    accessibilityLabel="Manage credit"
+                  >
+                    <Text style={styles.creditButtonText}>Manage</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </Card.Content>
@@ -219,5 +263,26 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     opacity: 0.7,
+  },
+  debt: {
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  credit: {
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  creditButton: {
+    backgroundColor: "#059669",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  creditButtonText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

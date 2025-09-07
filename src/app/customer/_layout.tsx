@@ -25,6 +25,23 @@ export default function CustomerLayout() {
           headerTintColor: colors.primary,
         }}
       />
+      <Stack.Screen
+        name="credit-management"
+        options={{
+          // Show native header for customer details and set a friendly back button label
+          headerShown: true,
+          headerTitle: "Credit Management",
+          headerBackTitle: "Customers",
+          headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTitleStyle: {
+            color: colors.text,
+          },
+          headerTintColor: colors.primary,
+        }}
+      />
     </Stack>
   );
 }

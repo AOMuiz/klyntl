@@ -7,6 +7,7 @@ import {
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
 import { AuditLogService } from "../service/AuditLogService";
+import { PaymentService } from "../service/PaymentService";
 import {
   DatabaseError,
   NotFoundError,
@@ -21,7 +22,8 @@ export class TransactionRepository implements ITransactionRepository {
   constructor(
     private db: SQLiteDatabase,
     private auditService: AuditLogService,
-    private customerRepo: CustomerRepository
+    private customerRepo: CustomerRepository,
+    private paymentService?: PaymentService
   ) {}
 
   async create(transactionData: CreateTransactionInput): Promise<Transaction> {
@@ -908,21 +910,50 @@ export class TransactionRepository implements ITransactionRepository {
             transaction.paymentMethod === "mixed") &&
           debtAmount > 0
         ) {
-          // Credit or mixed sale with remaining debt: increase customer's outstanding balance
-          await this.customerRepo.increaseOutstandingBalance(
-            transaction.customerId,
-            debtAmount
-          );
+          // For credit/mixed payments, check if customer has available credit first
+          if (this.paymentService) {
+            const creditResult = await this.paymentService.applyCreditToSale(
+              transaction.customerId,
+              debtAmount,
+              transaction.id
+            );
+
+            // If credit was applied, reduce the debt amount
+            const remainingDebt = creditResult.remainingAmount;
+
+            if (remainingDebt > 0) {
+              // Only create debt for the remaining amount after credit application
+              await this.customerRepo.increaseOutstandingBalance(
+                transaction.customerId,
+                remainingDebt
+              );
+            }
+          } else {
+            // Fallback to old method if PaymentService not available
+            await this.customerRepo.increaseOutstandingBalance(
+              transaction.customerId,
+              debtAmount
+            );
+          }
         }
         // For cash sales, no additional debt impact beyond total spent
         break;
 
       case "payment":
-        // Payment received: decrease customer's outstanding balance
-        await this.customerRepo.decreaseOutstandingBalance(
-          transaction.customerId,
-          transaction.amount
-        );
+        // Payment received: use PaymentService to handle allocation
+        if (this.paymentService) {
+          await this.paymentService.handlePaymentAllocation(
+            transaction.customerId,
+            transaction.id,
+            transaction.amount
+          );
+        } else {
+          // Fallback to old method if PaymentService not available
+          await this.customerRepo.decreaseOutstandingBalance(
+            transaction.customerId,
+            transaction.amount
+          );
+        }
         break;
 
       case "credit":
