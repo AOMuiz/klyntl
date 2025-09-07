@@ -49,6 +49,20 @@ export default function ModalTransactionLayout() {
           ),
         }}
       />
+      <Stack.Screen
+        name="summary]"
+        options={{
+          title: "Transaction Summary",
+          presentation: "modal",
+          headerLeft: () => (
+            <ModalCloseButton
+              variant="text"
+              text="Done"
+              textColor={colors.primary}
+            />
+          ),
+        }}
+      />
     </Stack>
   );
 }

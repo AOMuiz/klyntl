@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Controller } from "react-hook-form";
 import {
-  Alert,
   ScrollView,
   TouchableOpacity,
   View,
@@ -21,7 +20,6 @@ import { Colors } from "@/constants/Colors";
 import { useTransactionBusinessLogic } from "@/hooks/business/useTransactionBusinessLogic";
 import { useTransactionForm } from "@/hooks/forms/useTransactionForm";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 
@@ -54,17 +52,15 @@ export default function TransactionForm({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const { createTransactionAsync, updateTransactionAsync } = useTransactions();
   const { customers } = useCustomers();
 
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
     control,
     handleSubmit,
     errors,
-    reset: resetForm,
     watch,
     setValue,
     watchedValues,
@@ -86,7 +82,6 @@ export default function TransactionForm({
     calculateNewDebt,
     shouldShowDebtPreview,
     shouldShowFutureServiceNote,
-    formatTransactionData,
   } = useTransactionBusinessLogic({
     customerId: watchedValues.customerId,
     amount: watchedValues.amount,
@@ -128,122 +123,18 @@ export default function TransactionForm({
     }
   };
 
-  const getSuccessMessage = (
-    data: TransactionFormData,
-    customerName: string | undefined,
-    isEdit: boolean
-  ): string => {
-    const amount = formatCurrency(parseFloat(data.amount));
-    const action = isEdit ? "updated" : "recorded";
-    const customer = customerName || "the customer";
-
-    switch (data.type) {
-      case "sale":
-        if (data.paymentMethod === "credit") {
-          return `Sale of ${amount} on credit has been ${action} for ${customer}`;
-        } else if (data.paymentMethod === "mixed") {
-          const paidAmount = formatCurrency(parseFloat(data.paidAmount || "0"));
-          return `Sale of ${amount} with ${paidAmount} paid now has been ${action} for ${customer}`;
-        } else {
-          return `Sale of ${amount} has been ${action} for ${customer}`;
-        }
-
-      case "payment":
-        if (data.appliedToDebt) {
-          return `Payment of ${amount} received from ${customer} and applied to outstanding debt`;
-        } else {
-          return `Payment of ${amount} received from ${customer} as deposit for future service`;
-        }
-
-      case "credit":
-        return `Credit of ${amount} has been issued to ${customer}`;
-
-      case "refund":
-        return `Refund of ${amount} has been processed for ${customer}`;
-
-      default:
-        return `Transaction has been ${action} successfully`;
-    }
-  };
-
   const onSubmit = async (data: TransactionFormData) => {
-    try {
-      setLoading(true);
+    // Navigate to summary screen instead of directly submitting
+    const summaryParams = {
+      transactionData: JSON.stringify(data),
+      isEdit: transactionId ? "true" : "false",
+      transactionId: transactionId || "",
+    };
 
-      // Ensure amount is a valid number
-      const numericAmount = parseFloat(data.amount);
-      if (isNaN(numericAmount) || numericAmount <= 0) {
-        Alert.alert("Error", "Please enter a valid amount greater than 0");
-        return;
-      }
-
-      // Validate customer exists
-      if (!data.customerId || data.customerId.trim() === "") {
-        Alert.alert("Error", "Please select a customer");
-        return;
-      }
-
-      const customerExists = customers?.find((c) => c.id === data.customerId);
-      if (!customerExists) {
-        Alert.alert(
-          "Error",
-          "Selected customer not found. Please select a valid customer."
-        );
-        return;
-      }
-
-      // Validate appliedToDebt for payment transactions
-      const appliedToDebtValidation = validateAppliedToDebt(
-        data.type,
-        data.appliedToDebt
-      );
-      if (appliedToDebtValidation !== true) {
-        Alert.alert("Error", appliedToDebtValidation);
-        return;
-      }
-
-      const transactionData = formatTransactionData({
-        ...data,
-        amount: numericAmount.toString(),
-      });
-
-      if (transactionId) {
-        // Editing mode
-        await updateTransactionAsync({
-          id: transactionId,
-          updates: transactionData,
-        });
-        Alert.alert(
-          "Success",
-          getSuccessMessage(data, selectedCustomer?.name, true)
-        );
-      } else {
-        // Creating mode
-        await createTransactionAsync(transactionData);
-        Alert.alert(
-          "Success",
-          getSuccessMessage(data, selectedCustomer?.name, false),
-          [
-            {
-              text: "Add Another",
-              onPress: () => resetForm(data.customerId),
-            },
-            {
-              text: "View Customer",
-              onPress: () => {
-                router.dismiss();
-                router.push(`/customer/${data.customerId}`);
-              },
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error("Failed to save transaction:", error);
-      Alert.alert("Error", "Failed to save transaction. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    router.push({
+      pathname: "/transaction/summary",
+      params: summaryParams,
+    });
   };
 
   const selectedCustomer = customers?.find(
