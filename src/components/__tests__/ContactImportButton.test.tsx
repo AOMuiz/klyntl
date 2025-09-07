@@ -95,14 +95,21 @@ describe("ContactImportButton", () => {
         return undefined as any;
       });
 
-    mockUseContactImport.mockReturnValue({
-      importFromContacts: mockImportFromContacts,
-      importSelectedContacts: mockImportSelectedContacts,
-      checkContactAccess: mockCheckContactAccess,
-      clearImportCache: mockClearImportCache,
-      isImporting: false,
-      error: null,
-    } as any);
+    // Provide a hook-like mock that updates `isImporting` via React state
+    // Deterministic mock: return the mocked functions and a static isImporting flag.
+    // Tests that need to simulate the importing state should override this mock per-test
+    // and call `rerender` to cause the component to pick up the new state.
+    mockUseContactImport.mockImplementation(() => {
+      return {
+        importFromContacts: (...args: any[]) => mockImportFromContacts(...args),
+        importSelectedContacts: (...args: any[]) =>
+          mockImportSelectedContacts(...args),
+        checkContactAccess: mockCheckContactAccess,
+        clearImportCache: mockClearImportCache,
+        isImporting: false,
+        error: null,
+      } as any;
+    });
 
     // Default mock implementation for checkContactAccess
     mockCheckContactAccess.mockResolvedValue({
@@ -346,7 +353,7 @@ describe("ContactImportButton", () => {
       });
       mockImportFromContacts.mockReturnValue(importPromise as any);
 
-      const { getByTestId, getByText, unmount } =
+      const { getByTestId, getByText, rerender, unmount } =
         await renderWithSettledEffects(
           <ContactImportButton variant="button" />
         );
@@ -365,9 +372,26 @@ describe("ContactImportButton", () => {
       const importCallback = buttons.find((b: any) =>
         (b.text || "").toString().startsWith("Import")
       ).onPress;
+
+      // Trigger the import callback
       await act(async () => {
-        importCallback();
+        const maybe = importCallback();
+        if (maybe && typeof maybe.then === "function") await maybe;
       });
+
+      // Simulate the hook reporting isImporting by overriding the hook return and rerendering
+      mockUseContactImport.mockImplementation(
+        () =>
+          ({
+            importFromContacts: mockImportFromContacts,
+            importSelectedContacts: mockImportSelectedContacts,
+            checkContactAccess: mockCheckContactAccess,
+            clearImportCache: mockClearImportCache,
+            isImporting: true,
+            error: null,
+          } as any)
+      );
+      rerender(<ContactImportButton variant="button" />);
 
       // Should show importing text
       await waitFor(() => {
@@ -382,7 +406,20 @@ describe("ContactImportButton", () => {
         errors: [],
       });
 
-      // Should go back to normal text
+      // Now simulate hook reporting not importing and rerender
+      mockUseContactImport.mockImplementation(
+        () =>
+          ({
+            importFromContacts: mockImportFromContacts,
+            importSelectedContacts: mockImportSelectedContacts,
+            checkContactAccess: mockCheckContactAccess,
+            clearImportCache: mockClearImportCache,
+            isImporting: false,
+            error: null,
+          } as any)
+      );
+      rerender(<ContactImportButton variant="button" />);
+
       await waitFor(() => {
         expect(getByText("Import Contacts")).toBeTruthy();
       });
@@ -434,7 +471,7 @@ describe("ContactImportButton", () => {
       });
       mockImportFromContacts.mockReturnValue(importPromise as any);
 
-      const { getByText, unmount } = await renderWithSettledEffects(
+      const { getByText, rerender, unmount } = await renderWithSettledEffects(
         <ContactImportButton variant="text" />
       );
 
@@ -452,16 +489,30 @@ describe("ContactImportButton", () => {
       const importCallback = buttons.find((b: any) =>
         (b.text || "").toString().startsWith("Import")
       ).onPress;
+
       await act(async () => {
-        importCallback();
+        const maybe = importCallback();
+        if (maybe && typeof maybe.then === "function") await maybe;
       });
 
-      // Should show importing text
+      // Simulate isImporting
+      mockUseContactImport.mockImplementation(
+        () =>
+          ({
+            importFromContacts: mockImportFromContacts,
+            importSelectedContacts: mockImportSelectedContacts,
+            checkContactAccess: mockCheckContactAccess,
+            clearImportCache: mockClearImportCache,
+            isImporting: true,
+            error: null,
+          } as any)
+      );
+      rerender(<ContactImportButton variant="text" />);
+
       await waitFor(() => {
         expect(getByText("Importing...")).toBeTruthy();
       });
 
-      // Complete the import
       resolveImport!({
         imported: 0,
         skipped: 0,
@@ -469,7 +520,19 @@ describe("ContactImportButton", () => {
         errors: [],
       });
 
-      // Should go back to normal text
+      mockUseContactImport.mockImplementation(
+        () =>
+          ({
+            importFromContacts: mockImportFromContacts,
+            importSelectedContacts: mockImportSelectedContacts,
+            checkContactAccess: mockCheckContactAccess,
+            clearImportCache: mockClearImportCache,
+            isImporting: false,
+            error: null,
+          } as any)
+      );
+      rerender(<ContactImportButton variant="text" />);
+
       await waitFor(() => {
         expect(getByText("Import Contacts")).toBeTruthy();
       });

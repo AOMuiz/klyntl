@@ -12,6 +12,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: wp(20),
     paddingTop: hp(20),
     paddingBottom: hp(12),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: "row",
@@ -26,8 +31,8 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   addButton: {
-    width: wp(50),
-    height: wp(50),
+    width: wp(40),
+    height: wp(40),
     borderRadius: wp(28),
     backgroundColor: "#34C759", // iOS green
     justifyContent: "center",

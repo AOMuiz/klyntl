@@ -13,7 +13,6 @@ import { useCustomer } from "@/hooks/useCustomers";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
-// clipboard package not available in this workspace; use share as a fallback for copying
 
 export default function TransactionDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

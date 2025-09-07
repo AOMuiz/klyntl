@@ -540,7 +540,7 @@ export default function TransactionsScreen() {
       withPadding={false}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.paper.surface }]}>
         <TransactionHeader
           colors={colors}
           handleAddTransaction={handleAddTransaction}
