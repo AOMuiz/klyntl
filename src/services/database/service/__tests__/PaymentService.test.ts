@@ -31,6 +31,22 @@ describe("PaymentService", () => {
         creditBalance: 0,
       } as any);
 
+      // Mock debts query to return mock debts
+      mockDb.getAllAsync.mockResolvedValue([
+        {
+          id: "debt_1",
+          remainingAmount: 3000,
+          date: "2024-01-01T00:00:00Z",
+          status: "pending",
+        },
+        {
+          id: "debt_2",
+          remainingAmount: 2000,
+          date: "2024-01-02T00:00:00Z",
+          status: "pending",
+        },
+      ]);
+
       // Mock transaction callback
       mockDb.withTransactionAsync.mockImplementation(async (callback) => {
         return await callback();
@@ -49,14 +65,33 @@ describe("PaymentService", () => {
       expect(result.appliedToDebt).toBe(5000);
       expect(result.creditCreated).toBe(2000);
       expect(result.remainingUnallocated).toBe(0);
-      expect(result.auditRecords).toHaveLength(2);
+      expect(result.auditRecords).toHaveLength(3); // 2 debt allocations + 1 over payment
+      expect(result.statusChanges).toHaveLength(2); // Both debts should change status
 
-      // Verify DB calls
+      // Verify debt allocations occurred
       expect(mockDb.runAsync).toHaveBeenCalledWith(
-        `UPDATE customers SET outstandingBalance = GREATEST(0, outstandingBalance - ?) WHERE id = ?`,
-        [5000, "customer_1"]
+        `UPDATE transactions 
+             SET remainingAmount = remainingAmount - ?, 
+                 status = ? 
+             WHERE id = ?`,
+        [3000, "completed", "debt_1"]
       );
 
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        `UPDATE transactions 
+             SET remainingAmount = remainingAmount - ?, 
+                 status = ? 
+             WHERE id = ?`,
+        [2000, "completed", "debt_2"]
+      );
+
+      // Verify customer balance update
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        `UPDATE customers SET outstandingBalance = CASE WHEN outstandingBalance - ? < 0 THEN 0 ELSE outstandingBalance - ? END WHERE id = ?`,
+        [5000, 5000, "customer_1"]
+      );
+
+      // Verify credit creation
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         `UPDATE customers SET credit_balance = credit_balance + ? WHERE id = ?`,
         [2000, "customer_1"]
@@ -69,6 +104,22 @@ describe("PaymentService", () => {
         outstandingBalance: 5000,
         creditBalance: 0,
       } as any);
+
+      // Mock debts that equal the payment amount
+      mockDb.getAllAsync.mockResolvedValue([
+        {
+          id: "debt_1",
+          remainingAmount: 3000,
+          date: "2024-01-01T00:00:00Z",
+          status: "pending",
+        },
+        {
+          id: "debt_2",
+          remainingAmount: 2000,
+          date: "2024-01-02T00:00:00Z",
+          status: "pending",
+        },
+      ]);
 
       mockDb.withTransactionAsync.mockImplementation(async (callback) => {
         return await callback();
@@ -83,7 +134,8 @@ describe("PaymentService", () => {
 
       expect(result.appliedToDebt).toBe(5000);
       expect(result.creditCreated).toBe(0);
-      expect(result.auditRecords).toHaveLength(1);
+      expect(result.auditRecords).toHaveLength(2); // 2 debt allocations only
+      expect(result.statusChanges).toHaveLength(2); // Both debts change status
     });
 
     it("should handle payment less than outstanding balance", async () => {
@@ -92,6 +144,22 @@ describe("PaymentService", () => {
         outstandingBalance: 5000,
         creditBalance: 0,
       } as any);
+
+      // Mock debts where payment won't cover all
+      mockDb.getAllAsync.mockResolvedValue([
+        {
+          id: "debt_1",
+          remainingAmount: 3000,
+          date: "2024-01-01T00:00:00Z",
+          status: "pending",
+        },
+        {
+          id: "debt_2",
+          remainingAmount: 2000,
+          date: "2024-01-02T00:00:00Z",
+          status: "pending",
+        },
+      ]);
 
       mockDb.withTransactionAsync.mockImplementation(async (callback) => {
         return await callback();
@@ -106,7 +174,8 @@ describe("PaymentService", () => {
 
       expect(result.appliedToDebt).toBe(3000);
       expect(result.creditCreated).toBe(0);
-      expect(result.auditRecords).toHaveLength(1);
+      expect(result.auditRecords).toHaveLength(1); // Only first debt fully allocated
+      expect(result.statusChanges).toHaveLength(1); // Only first debt changes status
     });
   });
 
@@ -136,7 +205,17 @@ describe("PaymentService", () => {
         return await callback();
       });
       mockDb.runAsync.mockResolvedValue({ changes: 1, lastInsertRowId: 1 });
-      mockDb.getFirstAsync.mockResolvedValue({ credit_balance: 3000 });
+      mockDb.getFirstAsync
+        .mockResolvedValueOnce({ credit_balance: 3000 }) // First call for getCreditBalance in useCredit
+        .mockResolvedValueOnce({ credit_balance: 3000 }) // Second call for getCreditBalance in applyCreditToSale
+        .mockResolvedValueOnce({
+          // Third call for current transaction details
+          amount: 5000,
+          paidAmount: 0,
+          remainingAmount: 5000,
+          paymentMethod: "credit",
+          type: "sale",
+        });
 
       const result = await paymentService.applyCreditToSale(
         "customer_1",
@@ -147,16 +226,51 @@ describe("PaymentService", () => {
       expect(result.creditUsed).toBe(3000);
       expect(result.remainingAmount).toBe(2000);
 
-      // Verify credit was deducted
+      // Verify credit was deducted (via useCredit method)
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         `UPDATE customers SET credit_balance = credit_balance - ? WHERE id = ?`,
         [3000, "customer_1"]
       );
 
-      // Verify audit record was created
+      // Verify transaction was updated with proper status calculation
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        `UPDATE transactions SET 
+               paidAmount = ?, 
+               remainingAmount = ?, 
+               status = ? 
+             WHERE id = ?`,
+        [3000, 2000, "partial", "txn_123"]
+      );
+
+      // Verify outstanding balance was reduced
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        `UPDATE customers SET outstandingBalance = CASE WHEN outstandingBalance - ? < 0 THEN 0 ELSE outstandingBalance - ? END WHERE id = ?`,
+        [3000, 3000, "customer_1"]
+      );
+
+      // Verify audit records were created (one for credit usage, one for credit applied to sale)
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         `INSERT INTO payment_audit (id, customer_id, source_transaction_id, type, amount, metadata) VALUES (?, ?, ?, ?, ?, ?)`,
-        expect.any(Array)
+        expect.arrayContaining([
+          expect.any(String),
+          "customer_1",
+          "credit_usage",
+          "credit_used",
+          3000,
+          expect.any(String),
+        ])
+      );
+
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        `INSERT INTO payment_audit (id, customer_id, source_transaction_id, type, amount, metadata) VALUES (?, ?, ?, ?, ?, ?)`,
+        expect.arrayContaining([
+          expect.any(String),
+          "customer_1",
+          "txn_123",
+          "credit_applied_to_sale",
+          3000,
+          expect.any(String),
+        ])
       );
     });
 
@@ -170,7 +284,17 @@ describe("PaymentService", () => {
         return await callback();
       });
       mockDb.runAsync.mockResolvedValue({ changes: 1, lastInsertRowId: 1 });
-      mockDb.getFirstAsync.mockResolvedValue({ credit_balance: 5000 });
+      mockDb.getFirstAsync
+        .mockResolvedValueOnce({ credit_balance: 5000 }) // First call for getCreditBalance in useCredit
+        .mockResolvedValueOnce({ credit_balance: 5000 }) // Second call for getCreditBalance in applyCreditToSale
+        .mockResolvedValueOnce({
+          // Third call for current transaction details
+          amount: 2000,
+          paidAmount: 0,
+          remainingAmount: 2000,
+          paymentMethod: "credit",
+          type: "sale",
+        });
 
       const result = await paymentService.applyCreditToSale(
         "customer_1",

@@ -10,6 +10,7 @@ import ScreenContainer, {
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomer } from "@/hooks/useCustomers";
+import { usePaymentAudit } from "@/hooks/usePaymentAudit";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
@@ -20,6 +21,8 @@ export default function TransactionDetailsScreen() {
   const theme = useTheme();
 
   const { data: transaction, isLoading, error } = useTransaction(id);
+  // Load payment audit records for this transaction (if any) — call hook unconditionally
+  const { data: auditHistory } = usePaymentAudit(transaction?.customerId);
 
   // Load customer + all transactions for running balance calculation
   const customerId = transaction?.customerId;
@@ -161,14 +164,17 @@ export default function TransactionDetailsScreen() {
     // Try to include metadata if present
     if (transaction.metadata) {
       try {
-        const m = JSON.parse(transaction.metadata);
-        if (m.transactionRef) lines.push(`Ref: ${m.transactionRef}`);
-        if (m.cardLast4) lines.push(`Card: **** **** **** ${m.cardLast4}`);
-        if (m.bankRef) lines.push(`Bank ref: ${m.bankRef}`);
+        parsedMetadata = JSON.parse(transaction.metadata);
+        if (parsedMetadata.transactionRef)
+          lines.push(`Ref: ${parsedMetadata.transactionRef}`);
+        if (parsedMetadata.cardLast4)
+          lines.push(`Card: **** **** **** ${parsedMetadata.cardLast4}`);
+        if (parsedMetadata.bankRef)
+          lines.push(`Bank ref: ${parsedMetadata.bankRef}`);
       } catch (err) {
         // not JSON, include raw and log parse error
         console.warn("Failed to parse transaction.metadata", err);
-        lines.push(`Metadata: ${transaction.metadata}`);
+        parsedMetadata = { raw: transaction.metadata };
       }
     }
 
@@ -198,6 +204,51 @@ export default function TransactionDetailsScreen() {
       parsedMetadata = { raw: transaction.metadata };
     }
   }
+
+  // client-side audit-based reconciliation (UI-only fallback when you can't access DB)
+  // Aggregate audit rows that reference this transaction as the source to compute paid/remaining
+  const allocationsForTxn = (auditHistory || []).filter((a: any) => {
+    return (
+      a?.source_transaction_id === transaction.id ||
+      a?.sourceTransactionId === transaction.id ||
+      a?.source === transaction.id
+    );
+  });
+
+  const computedPaidFromAudit = allocationsForTxn.reduce(
+    (sum: number, a: any) => sum + (Number(a?.amount) || 0),
+    0
+  );
+  const computedRemainingFromAudit =
+    Number(transaction.amount || 0) - computedPaidFromAudit;
+
+  const paidStored = Number(transaction.paidAmount || 0);
+  const remainingStored = Number(transaction.remainingAmount || 0);
+
+  // prefer audit-derived values when they exist, otherwise fallback to stored DB fields
+  const displayedPaid = paidStored || computedPaidFromAudit || 0;
+  const displayedRemaining =
+    remainingStored ||
+    (computedRemainingFromAudit >= 0 ? computedRemainingFromAudit : 0);
+
+  const usingAudit =
+    computedPaidFromAudit > 0 || computedRemainingFromAudit !== remainingStored;
+
+  const isInconsistent =
+    Math.abs(paidStored + remainingStored - Number(transaction.amount || 0)) >
+      0 ||
+    Math.abs(
+      displayedPaid + displayedRemaining - Number(transaction.amount || 0)
+    ) > 0;
+
+  const safeFormat = (val: any) => {
+    const n = Number(val || 0);
+    try {
+      return formatCurrency(n);
+    } catch (e) {
+      return String(val ?? "-");
+    }
+  };
 
   return (
     <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
@@ -326,7 +377,7 @@ export default function TransactionDetailsScreen() {
             </Text>
           </View>
 
-          {(transaction.paidAmount || transaction.remainingAmount) && (
+          {(displayedPaid || displayedRemaining) && (
             <View style={{ marginTop: hp(12) }}>
               <Text
                 variant="bodySmall"
@@ -335,14 +386,28 @@ export default function TransactionDetailsScreen() {
                 Breakdown
               </Text>
               <View style={{ marginTop: hp(6) }}>
-                {transaction.paidAmount ? (
+                {displayedPaid ? (
                   <Text variant="bodyMedium">
-                    Paid now: {formatCurrency(transaction.paidAmount)}
+                    Paid now: {safeFormat(displayedPaid)}
+                    {usingAudit && displayedPaid !== paidStored
+                      ? " (computed)"
+                      : ""}
                   </Text>
                 ) : null}
-                {transaction.remainingAmount ? (
+                {displayedRemaining ? (
                   <Text variant="bodyMedium">
-                    Remaining: {formatCurrency(transaction.remainingAmount)}
+                    Remaining: {safeFormat(displayedRemaining)}
+                    {usingAudit && displayedRemaining !== remainingStored
+                      ? " (computed)"
+                      : ""}
+                  </Text>
+                ) : null}
+                {isInconsistent ? (
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.error }}
+                  >
+                    Data inconsistent: paid + remaining ≠ total
                   </Text>
                 ) : null}
               </View>
@@ -393,6 +458,36 @@ export default function TransactionDetailsScreen() {
                 {parsedMetadata.raw && (
                   <Text variant="bodyMedium">{parsedMetadata.raw}</Text>
                 )}
+              </View>
+            </View>
+          )}
+
+          {/* Show allocations / audit entries for this transaction */}
+          {auditHistory && auditHistory.length > 0 && (
+            <View style={{ marginTop: hp(12) }}>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Payment Allocations
+              </Text>
+              <View style={{ marginTop: hp(6) }}>
+                {(auditHistory || []).map((a: any, i: number) => {
+                  const typeLabel =
+                    typeof a?.type === "string"
+                      ? a.type
+                      : String(a?.type ?? a?.metadata?.type ?? "allocation");
+                  const amountNum = Number(a?.amount || 0);
+                  const dateStr = a?.created_at
+                    ? new Date(a.created_at).toLocaleString()
+                    : "";
+                  return (
+                    <Text key={a.id ?? `audit-${i}`} variant="bodyMedium">
+                      {typeLabel} · {safeFormat(amountNum)}
+                      {amountNum === 0 ? "" : ""} · {dateStr}
+                    </Text>
+                  );
+                })}
               </View>
             </View>
           )}

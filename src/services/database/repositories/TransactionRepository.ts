@@ -680,7 +680,9 @@ export class TransactionRepository implements ITransactionRepository {
             paymentMethod: transactionData.paymentMethod || "cash",
             paidAmount: transactionData.paidAmount || transactionData.amount,
             remainingAmount: transactionData.remainingAmount || 0,
+            status: this.calculateTransactionStatus(transactionData),
             linkedTransactionId: transactionData.linkedTransactionId,
+            appliedToDebt: transactionData.appliedToDebt,
             dueDate: transactionData.dueDate,
             currency: transactionData.currency || "NGN",
             exchangeRate: transactionData.exchangeRate || 1,
@@ -689,7 +691,7 @@ export class TransactionRepository implements ITransactionRepository {
           };
 
           await this.db.runAsync(
-            `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, dueDate, currency, exchangeRate, metadata, isDeleted) 
+            `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               transaction.id,
@@ -704,6 +706,7 @@ export class TransactionRepository implements ITransactionRepository {
               transaction.remainingAmount || 0,
               transaction.status || "completed",
               transaction.linkedTransactionId || null,
+              transaction.appliedToDebt ? 1 : 0,
               transaction.dueDate || null,
               transaction.currency || "NGN",
               transaction.exchangeRate || 1,
@@ -929,7 +932,8 @@ export class TransactionRepository implements ITransactionRepository {
             const creditResult = await this.paymentService.applyCreditToSale(
               transaction.customerId,
               debtAmount,
-              transaction.id
+              transaction.id,
+              true // withinExistingTransaction = true
             );
 
             // If credit was applied, reduce the debt amount
@@ -954,20 +958,35 @@ export class TransactionRepository implements ITransactionRepository {
         break;
 
       case "payment":
-        // Payment received: use PaymentService to handle allocation
-        if (this.paymentService) {
-          await this.paymentService.handlePaymentAllocation(
-            transaction.customerId,
-            transaction.id,
-            transaction.amount
-          );
-        } else {
-          // Fallback to old method if PaymentService not available
+        // Payment received: use PaymentService to handle allocation only if appliedToDebt is true
+        if (this.paymentService && transaction.appliedToDebt) {
+          try {
+            // Use PaymentService to handle proper payment allocation
+            await this.paymentService.handlePaymentAllocation(
+              transaction.customerId,
+              transaction.id,
+              transaction.amount,
+              true // withinExistingTransaction = true
+            );
+          } catch (error) {
+            console.warn(
+              "PaymentService allocation failed, using fallback:",
+              error
+            );
+            // Fallback to old method if PaymentService fails
+            await this.customerRepo.decreaseOutstandingBalance(
+              transaction.customerId,
+              transaction.amount
+            );
+          }
+        } else if (transaction.appliedToDebt) {
+          // Fallback to old method if PaymentService not available but appliedToDebt is true
           await this.customerRepo.decreaseOutstandingBalance(
             transaction.customerId,
             transaction.amount
           );
         }
+        // If appliedToDebt is false, don't reduce outstanding balance (future service deposit)
         break;
 
       case "credit":
@@ -994,6 +1013,18 @@ export class TransactionRepository implements ITransactionRepository {
   private calculateTransactionStatus(
     data: CreateTransactionInput
   ): TransactionStatus {
+    // Use PaymentService for accurate status calculation if available
+    if (this.paymentService) {
+      return this.paymentService.calculateTransactionStatus(
+        data.type,
+        data.paymentMethod || "cash",
+        data.amount,
+        data.paidAmount || 0,
+        data.remainingAmount || 0
+      ) as TransactionStatus;
+    }
+
+    // Fallback to original logic
     if (data.type === "payment") {
       return "completed";
     }
@@ -1031,65 +1062,95 @@ export class TransactionRepository implements ITransactionRepository {
 
     try {
       await this.db.withTransactionAsync(async () => {
-        // Create the payment transaction
-        const createdPayment = await this.create({
-          ...paymentTx,
+        // Create payment transaction record
+        const paymentId = generateId("txn");
+        const paymentTransaction: Transaction = {
+          id: paymentId,
+          customerId: paymentTx.customerId,
+          productId: paymentTx.productId,
+          amount: paymentTx.amount,
+          description: paymentTx.description || undefined,
+          date: paymentTx.date,
+          type: "payment",
+          paymentMethod: paymentTx.paymentMethod || "cash",
           paidAmount: paymentTx.amount,
           remainingAmount: 0,
+          status: "completed",
+          linkedTransactionId: paymentTx.linkedTransactionId,
+          appliedToDebt: paymentTx.appliedToDebt,
+          dueDate: paymentTx.dueDate,
+          currency: paymentTx.currency || "NGN",
+          exchangeRate: paymentTx.exchangeRate || 1,
+          metadata: paymentTx.metadata,
+          isDeleted: false,
+        };
+
+        await this.db.runAsync(
+          `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            paymentTransaction.id,
+            paymentTransaction.customerId,
+            paymentTransaction.productId || null,
+            paymentTransaction.amount,
+            paymentTransaction.description || null,
+            paymentTransaction.date,
+            paymentTransaction.type,
+            paymentTransaction.paymentMethod || "cash",
+            paymentTransaction.paidAmount || paymentTransaction.amount,
+            paymentTransaction.remainingAmount || 0,
+            paymentTransaction.status || "completed",
+            paymentTransaction.linkedTransactionId || null,
+            paymentTransaction.appliedToDebt ? 1 : 0,
+            paymentTransaction.dueDate || null,
+            paymentTransaction.currency || "NGN",
+            paymentTransaction.exchangeRate || 1,
+            paymentTransaction.metadata || null,
+            paymentTransaction.isDeleted ? 1 : 0,
+          ]
+        );
+
+        await this.auditService.logEntry({
+          tableName: "transactions",
+          operation: "CREATE",
+          recordId: paymentTransaction.id,
+          newValues: paymentTransaction,
         });
 
-        // Get outstanding debts ordered by date
-        const outstandingDebts = await this.db.getAllAsync<{
-          id: string;
-          remainingAmount: number;
-          date: string;
-        }>(
-          `SELECT id, remainingAmount, date FROM transactions 
-           WHERE customerId = ? AND type IN ('sale', 'credit') 
-           AND remainingAmount > 0 AND isDeleted = 0 
-           ORDER BY date ${applyToOldest ? "ASC" : "DESC"}`,
-          [paymentTx.customerId]
-        );
-
-        let remainingToAllocate = paymentTx.amount;
-
-        for (const debt of outstandingDebts) {
-          if (remainingToAllocate <= 0) break;
-
-          const allocateAmount = Math.min(
-            remainingToAllocate,
-            debt.remainingAmount
+        // Delegate allocation to PaymentService when available
+        if (this.paymentService) {
+          try {
+            await this.paymentService.handlePaymentAllocation(
+              paymentTx.customerId,
+              paymentTransaction.id,
+              paymentTx.amount,
+              true // withinExistingTransaction = true
+            );
+          } catch (error) {
+            console.warn(
+              "PaymentService allocation failed, using fallback:",
+              error
+            );
+            // Fallback to old method: allocate to outstanding debts
+            await this.fallbackPaymentAllocation(
+              paymentTx.customerId,
+              paymentTransaction.id,
+              paymentTx.amount,
+              applyToOldest
+            );
+          }
+        } else {
+          // Fallback to old method: allocate to outstanding debts
+          await this.fallbackPaymentAllocation(
+            paymentTx.customerId,
+            paymentTransaction.id,
+            paymentTx.amount,
+            applyToOldest
           );
-
-          // Update the debt transaction
-          await this.db.runAsync(
-            `UPDATE transactions 
-             SET remainingAmount = remainingAmount - ?, 
-                 status = CASE WHEN remainingAmount - ? = 0 THEN 'completed' ELSE 'partial' END 
-             WHERE id = ?`,
-            [allocateAmount, allocateAmount, debt.id]
-          );
-
-          // Log the allocation
-          await this.auditService.logEntry({
-            tableName: "transactions",
-            operation: "UPDATE",
-            recordId: debt.id,
-            newValues: {
-              allocatedPayment: allocateAmount,
-              paymentId: createdPayment.id,
-            },
-          });
-
-          remainingToAllocate -= allocateAmount;
         }
 
-        // Update customer's outstanding balance
-        const allocatedAmount = paymentTx.amount - remainingToAllocate;
-        await this.customerRepo.decreaseOutstandingBalance(
-          paymentTx.customerId,
-          allocatedAmount
-        );
+        // Ensure customer totals are updated after allocation
+        await this.customerRepo.updateTotals([paymentTx.customerId]);
       });
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NotFoundError) {
@@ -1100,156 +1161,71 @@ export class TransactionRepository implements ITransactionRepository {
   }
 
   /**
-   * Allocate mixed payment (partial immediate payment + remaining debt)
+   * Fallback payment allocation method when PaymentService is not available
    */
-  async allocateMixedPayment(
-    saleTxId: string,
-    paidNow: number,
-    remainingAsDebt: number
-  ): Promise<void> {
-    if (!saleTxId?.trim()) {
-      throw new ValidationError("Sale transaction ID is required");
-    }
-    if (paidNow < 0 || remainingAsDebt < 0) {
-      throw new ValidationError("Payment amounts cannot be negative");
-    }
-
-    try {
-      const saleTx = await this.findById(saleTxId);
-      if (!saleTx) {
-        throw new NotFoundError("Transaction", saleTxId);
-      }
-
-      if (saleTx.type !== "sale") {
-        throw new ValidationError("Transaction must be of type 'sale'");
-      }
-
-      await this.db.withTransactionAsync(async () => {
-        // Update the sale transaction with mixed payment details
-        await this.update(saleTxId, {
-          paymentMethod: "mixed",
-          paidAmount: paidNow,
-          remainingAmount: remainingAsDebt,
-          status: remainingAsDebt > 0 ? "partial" : "completed",
-        });
-
-        // Update customer's outstanding balance
-        if (remainingAsDebt > 0) {
-          await this.customerRepo.increaseOutstandingBalance(
-            saleTx.customerId,
-            remainingAsDebt
-          );
-        }
-      });
-    } catch (error) {
-      if (error instanceof ValidationError || error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new DatabaseError("allocateMixedPayment", error as Error);
-    }
-  }
-
-  /**
-   * Get customer's outstanding balance
-   */
-  async getOutstandingBalance(customerId: string): Promise<number> {
-    return this.customerRepo.getOutstandingBalance(customerId);
-  }
-
-  /**
-   * Get customer statement with transaction history and balance
-   */
-  async getCustomerStatement(
+  private async fallbackPaymentAllocation(
     customerId: string,
-    startDate?: string,
-    endDate?: string
-  ): Promise<{
-    transactions: Transaction[];
-    openingBalance: number;
-    closingBalance: number;
-  }> {
-    if (!customerId?.trim()) {
-      throw new ValidationError("Customer ID is required");
-    }
-
-    try {
-      let query =
-        "SELECT * FROM transactions WHERE customerId = ? AND isDeleted = 0";
-      const params: any[] = [customerId];
-
-      if (startDate) {
-        query += " AND date >= ?";
-        params.push(startDate);
-      }
-
-      if (endDate) {
-        query += " AND date <= ?";
-        params.push(endDate);
-      }
-
-      query += " ORDER BY date ASC";
-
-      const transactions = await this.db.getAllAsync<Transaction>(
-        query,
-        params
-      );
-      const outstandingBalance = await this.getOutstandingBalance(customerId);
-
-      // Calculate opening balance (outstanding balance minus transactions in period)
-      let periodBalanceChange = 0;
-      for (const tx of transactions) {
-        switch (tx.type) {
-          case "sale":
-          case "credit":
-            periodBalanceChange += tx.remainingAmount || tx.amount;
-            break;
-          case "payment":
-          case "refund":
-            periodBalanceChange -= tx.amount;
-            break;
-        }
-      }
-
-      const openingBalance = outstandingBalance - periodBalanceChange;
-
-      return {
-        transactions,
-        openingBalance,
-        closingBalance: outstandingBalance,
-      };
-    } catch (error) {
-      throw new DatabaseError("getCustomerStatement", error as Error);
-    }
-  }
-
-  /**
-   * Handle debt management updates when transaction is modified
-   */
-  private async handleDebtUpdate(
-    oldTx: Transaction,
-    newTx: Transaction
+    paymentId: string,
+    amount: number,
+    applyToOldest: boolean = true
   ): Promise<void> {
-    const oldDebtChange = this.calculateDebtChange(oldTx);
-    const newDebtChange = this.calculateDebtChange(newTx);
-    const debtDifference = newDebtChange - oldDebtChange;
+    // Get outstanding debts ordered by date
+    const outstandingDebts = await this.db.getAllAsync<{
+      id: string;
+      remainingAmount: number;
+      date: string;
+    }>(
+      `SELECT id, remainingAmount, date FROM transactions 
+       WHERE customerId = ? AND type IN ('sale', 'credit') 
+       AND remainingAmount > 0 AND isDeleted = 0 
+       ORDER BY date ${applyToOldest ? "ASC" : "DESC"}`,
+      [customerId]
+    );
 
-    if (debtDifference !== 0) {
-      if (debtDifference > 0) {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
-          [debtDifference, new Date().toISOString(), newTx.customerId]
-        );
-      } else {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
-        );
-      }
+    let remainingToAllocate = amount;
+
+    for (const debt of outstandingDebts) {
+      if (remainingToAllocate <= 0) break;
+
+      const allocateAmount = Math.min(
+        remainingToAllocate,
+        debt.remainingAmount
+      );
+
+      await this.db.runAsync(
+        `UPDATE transactions 
+         SET remainingAmount = remainingAmount - ?, 
+             status = CASE WHEN remainingAmount - ? = 0 THEN 'completed' ELSE 'partial' END 
+         WHERE id = ?`,
+        [allocateAmount, allocateAmount, debt.id]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "transactions",
+        operation: "UPDATE",
+        recordId: debt.id,
+        newValues: {
+          allocatedPayment: allocateAmount,
+          paymentId: paymentId,
+        },
+      });
+
+      remainingToAllocate -= allocateAmount;
+    }
+
+    // Update customer's outstanding balance
+    const allocatedAmount = amount - remainingToAllocate;
+    if (allocatedAmount > 0) {
+      await this.customerRepo.decreaseOutstandingBalance(
+        customerId,
+        allocatedAmount
+      );
     }
   }
 
   /**
    * Handle debt management logic within a transaction context
+   * (updates customers table directly for atomic operations)
    */
   private async handleDebtManagementInTransaction(
     transaction: Transaction
@@ -1278,11 +1254,43 @@ export class TransactionRepository implements ITransactionRepository {
         break;
 
       case "payment":
-        // Payment received: decrease customer's outstanding balance
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-          [transaction.amount, new Date().toISOString(), transaction.customerId]
-        );
+        // Payment received: use PaymentService to handle allocation only if appliedToDebt is true
+        if (this.paymentService && transaction.appliedToDebt) {
+          try {
+            // Use PaymentService to handle proper payment allocation
+            await this.paymentService.handlePaymentAllocation(
+              transaction.customerId,
+              transaction.id,
+              transaction.amount,
+              true // withinExistingTransaction = true
+            );
+          } catch (error) {
+            console.warn(
+              "PaymentService allocation failed, using fallback:",
+              error
+            );
+            // Fallback to old method if PaymentService fails
+            await this.db.runAsync(
+              `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+              [
+                transaction.amount,
+                new Date().toISOString(),
+                transaction.customerId,
+              ]
+            );
+          }
+        } else if (transaction.appliedToDebt) {
+          // Fallback to old method if PaymentService not available but appliedToDebt is true
+          await this.db.runAsync(
+            `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+            [
+              transaction.amount,
+              new Date().toISOString(),
+              transaction.customerId,
+            ]
+          );
+        }
+        // If appliedToDebt is false, don't reduce outstanding balance (future service deposit)
         break;
 
       case "credit":
@@ -1300,6 +1308,32 @@ export class TransactionRepository implements ITransactionRepository {
           [transaction.amount, new Date().toISOString(), transaction.customerId]
         );
         break;
+    }
+  }
+
+  /**
+   * Handle debt management updates when transaction is modified (non-transactional)
+   */
+  private async handleDebtUpdate(
+    oldTx: Transaction,
+    newTx: Transaction
+  ): Promise<void> {
+    const oldDebtChange = this.calculateDebtChange(oldTx);
+    const newDebtChange = this.calculateDebtChange(newTx);
+    const debtDifference = newDebtChange - oldDebtChange;
+
+    if (debtDifference !== 0) {
+      if (debtDifference > 0) {
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
+          [debtDifference, new Date().toISOString(), newTx.customerId]
+        );
+      } else {
+        await this.db.runAsync(
+          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
+        );
+      }
     }
   }
 

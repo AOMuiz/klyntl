@@ -204,11 +204,13 @@ export const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "center",
   },
-  amountText: {
-    fontSize: fontSize(17),
-    fontWeight: "700",
-    // marginBottom: hp(2),
-    lineHeight: hp(22),
+  quickDebtBadge: {
+    paddingHorizontal: wp(8),
+    paddingVertical: hp(4),
+    borderRadius: wp(10),
+    marginBottom: hp(6),
+    alignItems: "center",
+    justifyContent: "center",
   },
   timeText: {
     fontSize: fontSize(12),
@@ -264,5 +266,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: wp(16),
     paddingVertical: hp(8),
     alignItems: "center",
+  },
+  amountText: {
+    fontSize: fontSize(16),
+    fontWeight: "700",
+    lineHeight: hp(22),
   },
 });

@@ -586,6 +586,98 @@ const migration009: Migration = {
 };
 
 /**
+ * Migration 10: Reconcile outstanding balances, transaction statuses and generate legacy payment_audit records
+ */
+const migration010: Migration = {
+  version: 10,
+  name: "reconcile_debt_and_audit",
+  up: async (db: SQLiteDatabase) => {
+    console.log(
+      "Running reconciliation: updating customers.outstandingBalance from transactions, fixing transaction statuses, generating legacy payment_audit records"
+    );
+
+    // 1) Recompute paidAmount for transactions from payment_audit
+    // We consider two ways an audit can reference a debt:
+    // - metadata.debtId = transactions.id (when PaymentService inserted debtId)
+    // - credit-related audits that use source_transaction_id = transaction.id (credit applied to sale)
+    await db.runAsync(`
+      UPDATE transactions
+      SET paidAmount = COALESCE((
+        SELECT COALESCE(SUM(pa.amount), 0)
+        FROM payment_audit pa
+        WHERE (json_extract(pa.metadata, '$.debtId') = transactions.id)
+          OR (pa.type IN ('credit_applied_to_sale','credit_used') AND pa.source_transaction_id = transactions.id)
+      ), 0)
+    `);
+
+    // 2) Recompute remainingAmount for debt-bearing transactions
+    await db.runAsync(`
+      UPDATE transactions
+      SET remainingAmount = CASE
+        WHEN type IN ('sale','credit') THEN MAX(0, amount - COALESCE((
+          SELECT COALESCE(SUM(pa.amount), 0)
+          FROM payment_audit pa
+          WHERE (json_extract(pa.metadata, '$.debtId') = transactions.id)
+            OR (pa.type IN ('credit_applied_to_sale','credit_used') AND pa.source_transaction_id = transactions.id)
+        ), 0))
+        ELSE 0
+      END
+    `);
+
+    // 3) Normalize any negative remainingAmount just in case
+    await db.runAsync(`
+      UPDATE transactions SET remainingAmount = 0 WHERE remainingAmount < 0
+    `);
+
+    // 4) Set deterministic status for debt-bearing transactions
+    await db.runAsync(`
+      UPDATE transactions
+      SET status = CASE
+        WHEN type IN ('sale','credit') AND COALESCE(remainingAmount,0) = 0 THEN 'completed'
+        WHEN type IN ('sale','credit') AND COALESCE(remainingAmount,0) = amount THEN 'pending'
+        WHEN type IN ('sale','credit') AND COALESCE(remainingAmount,0) > 0 THEN 'partial'
+        ELSE status
+      END
+      WHERE type IN ('sale','credit')
+    `);
+
+    // 5) Recompute outstandingBalance per customer from transactions (sale/credit)
+    const customers = await db.getAllAsync<{ id: string }>(
+      "SELECT id FROM customers"
+    );
+
+    for (const c of customers) {
+      const res = await db.getFirstAsync<{ outstanding: number }>(
+        `SELECT COALESCE(SUM(remainingAmount),0) as outstanding FROM transactions WHERE customerId = ? AND type IN ('sale','credit') AND isDeleted = 0`,
+        [c.id]
+      );
+      const outstanding = res?.outstanding ?? 0;
+
+      await db.runAsync(
+        `UPDATE customers SET outstandingBalance = ?, updatedAt = ? WHERE id = ?`,
+        [outstanding, new Date().toISOString(), c.id]
+      );
+    }
+
+    // 6) Create payment_audit records for legacy payments that were applied to debt but lack an audit record
+    await db.runAsync(`
+      INSERT INTO payment_audit (id, customer_id, source_transaction_id, type, amount, currency, metadata, created_at)
+      SELECT lower(hex(randomblob(8))), customerId, id, 'payment', amount, 'NGN', json_object('legacy_allocation', 1), datetime('now')
+      FROM transactions t
+      WHERE t.type = 'payment' AND t.appliedToDebt = 1
+        AND NOT EXISTS (SELECT 1 FROM payment_audit p WHERE p.source_transaction_id = t.id)
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Remove only the legacy audit records created by this migration
+    await db.runAsync(`
+      DELETE FROM payment_audit
+      WHERE metadata = json_object('legacy_allocation', 1)
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -599,6 +691,7 @@ export const migrations: Migration[] = [
   migration007,
   migration008,
   migration009, // Add credit balance and payment audit migration
+  migration010, // Reconciliation for debt/audit
 ];
 
 /**

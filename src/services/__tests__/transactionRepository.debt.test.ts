@@ -429,4 +429,60 @@ describe("TransactionRepository - Debt Management", () => {
       expect(result[1].appliedToDebt).toBe(true);
     });
   });
+
+  describe("applyPaymentToDebt - allocation", () => {
+    it("should allocate payment across outstanding debts and mark them completed when fully paid", async () => {
+      // Prepare outstanding debts: two debts with remaining amounts 10000 and 5000
+      const outstandingDebts = [
+        { id: "debt1", remainingAmount: 10000, date: "2024-01-10T00:00:00Z" },
+        { id: "debt2", remainingAmount: 5000, date: "2024-01-12T00:00:00Z" },
+      ];
+
+      // When applyPaymentToDebt queries outstanding debts, return our debts
+      mockDb.getAllAsync.mockResolvedValueOnce(outstandingDebts as any);
+
+      const paymentTx: CreateTransactionInput = {
+        customerId: "cust_1",
+        amount: 15000,
+        date: "2024-01-20T00:00:00Z",
+        type: "payment",
+        paymentMethod: "cash",
+      } as any;
+
+      await transactionRepository.applyPaymentToDebt(paymentTx, true);
+
+      // Expect two updates to debt transactions (debt1 then debt2)
+      const updateCalls = mockDb.runAsync.mock.calls.filter(
+        (c: any[]) =>
+          typeof c[0] === "string" && c[0].includes("UPDATE transactions")
+      );
+
+      expect(updateCalls.length).toBeGreaterThanOrEqual(2);
+
+      // First allocation should be 10000 for debt1
+      expect(updateCalls[0][0]).toContain("UPDATE transactions");
+      expect(updateCalls[0][1]).toEqual(
+        expect.arrayContaining([10000, 10000, "debt1"])
+      );
+
+      // Second allocation should be 5000 for debt2
+      expect(updateCalls[1][0]).toContain("UPDATE transactions");
+      expect(updateCalls[1][1]).toEqual(
+        expect.arrayContaining([5000, 5000, "debt2"])
+      );
+
+      // Audit log entry should be created for each allocation
+      expect(mockAudit.logEntry).toHaveBeenCalled();
+      const auditUpdateCalls = mockAudit.logEntry.mock.calls.filter(
+        (c: any[]) => c[0] && c[0].operation === "UPDATE"
+      );
+      expect(auditUpdateCalls.length).toBeGreaterThanOrEqual(2);
+
+      // Customer outstanding balance should be decreased by total allocated (15000)
+      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
+        "cust_1",
+        15000
+      );
+    });
+  });
 });

@@ -1,6 +1,6 @@
-import { getFilterLabel } from "@/app/(tabs)/transactions";
 import { styles } from "@/screens/transaction/TransactionsScreen.styles";
 import { TransactionFilterType } from "@/types/transaction";
+import { getFilterLabel } from "@/utils/transactionUtils";
 import { ScrollView, TouchableOpacity } from "react-native";
 import { ThemedText } from "../ThemedText";
 import { IconSymbol } from "../ui/IconSymbol";
@@ -60,7 +60,14 @@ export const TransactionFilterChips = ({
         onPress={() => setActiveFilter("date")}
       >
         <ThemedText style={[styles.filterChipText, styles.inactiveChipText]}>
-          {getFilterLabel("date", dateFilter, statusFilter, customers)}
+          {getFilterLabel(
+            "date",
+            statusFilter,
+            dateFilter,
+            debtStatusFilter,
+            "",
+            customers
+          )}
         </ThemedText>
         <IconSymbol
           name="chevron.down"
@@ -78,7 +85,14 @@ export const TransactionFilterChips = ({
         onPress={() => setActiveFilter("status")}
       >
         <ThemedText style={[styles.filterChipText, styles.inactiveChipText]}>
-          {getFilterLabel("status", dateFilter, statusFilter, customers)}
+          {getFilterLabel(
+            "status",
+            statusFilter,
+            dateFilter,
+            debtStatusFilter,
+            "",
+            customers
+          )}
         </ThemedText>
         <IconSymbol
           name="chevron.down"

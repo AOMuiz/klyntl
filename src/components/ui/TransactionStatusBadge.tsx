@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
+import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { StyleSheet, View } from "react-native";
 
@@ -17,7 +18,16 @@ export default function TransactionStatusBadge({
   amount,
 }: TransactionStatusBadgeProps) {
   const getStatusInfo = () => {
-    const { type, paymentMethod, remainingAmount, appliedToDebt } = transaction;
+    const { type, remainingAmount, appliedToDebt } = transaction;
+
+    // Primary: remainingAmount defines outstanding debt
+    if (remainingAmount && remainingAmount > 0) {
+      return {
+        label: `Due: ${formatCurrency(remainingAmount)}`,
+        color: "#FF8F00", // Orange
+        bgColor: "#FFF7ED",
+      };
+    }
 
     // Payment transactions
     if (type === "payment") {
@@ -29,49 +39,27 @@ export default function TransactionStatusBadge({
         };
       } else {
         return {
-          label: "Future Service",
+          label: "Payment",
           color: "#007AFF", // Blue
           bgColor: "#E3F2FD",
         };
       }
     }
 
-    // Sale transactions
+    // Sale transactions (no remainingAmount means paid in full)
     if (type === "sale") {
-      if (paymentMethod === "cash") {
-        return {
-          label: "Paid in Full",
-          color: "#34C759", // Green
-          bgColor: "#E8F5E8",
-        };
-      } else if (paymentMethod === "credit") {
-        return {
-          label: "Credit Sale",
-          color: "#FF9500", // Orange
-          bgColor: "#FFF3E0",
-        };
-      } else if (paymentMethod === "mixed") {
-        if (remainingAmount && remainingAmount > 0) {
-          return {
-            label: "Partial Payment",
-            color: "#FF9500", // Orange
-            bgColor: "#FFF3E0",
-          };
-        } else {
-          return {
-            label: "Paid in Full",
-            color: "#34C759", // Green
-            bgColor: "#E8F5E8",
-          };
-        }
-      }
+      return {
+        label: "Paid in Full",
+        color: "#34C759",
+        bgColor: "#E8F5E8",
+      };
     }
 
     // Credit transactions
     if (type === "credit") {
       return {
-        label: "Credit Issued",
-        color: "#FF3B30", // Red
+        label: "Credit",
+        color: "#FF3B30",
         bgColor: "#FFEBEE",
       };
     }
@@ -80,14 +68,14 @@ export default function TransactionStatusBadge({
     if (type === "refund") {
       return {
         label: "Refund",
-        color: "#FF3B30", // Red
+        color: "#FF3B30",
         bgColor: "#FFEBEE",
       };
     }
 
     return {
       label: type.charAt(0).toUpperCase() + type.slice(1),
-      color: "#8E8E93", // Gray
+      color: "#8E8E93",
       bgColor: "#F2F2F7",
     };
   };

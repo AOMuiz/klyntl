@@ -15,9 +15,9 @@ import { useTransactionFilters } from "@/hooks/business/useTransactionFilters";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { styles } from "@/screens/transaction/TransactionsScreen.styles";
-import { TransactionFilterType } from "@/types/transaction";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/helpers";
+import { getTransactionIcon } from "@/utils/transactionUtils";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -32,22 +32,7 @@ import {
 } from "react-native";
 import { useTheme } from "react-native-paper";
 
-// Utility functions
-
-export const getTransactionIcon = (type: string) => {
-  switch (type) {
-    case "sale":
-      return "arrow.down.circle.fill";
-    case "refund":
-      return "arrow.up.circle.fill";
-    case "payment":
-      return "arrow.down.circle.fill";
-    case "credit":
-      return "creditcard.fill";
-    default:
-      return "circle.fill";
-  }
-};
+// Utility functions - keep only the ones not moved to transactionUtils
 
 export const getTransactionIconBackground = (type: string, colors: any) => {
   switch (type) {
@@ -174,28 +159,6 @@ const getStatusBadge = (status?: string, dueDate?: string, colors?: any) => {
   );
 };
 
-export const getFilterLabel = (
-  filterType: TransactionFilterType,
-  dateFilter: string,
-  statusFilter: string,
-  customers: any[]
-) => {
-  switch (filterType) {
-    case "date":
-      if (dateFilter === "all") return "Date";
-      if (dateFilter === "today") return "Today";
-      if (dateFilter === "yesterday") return "Yesterday";
-      if (dateFilter === "this_month") return "This Month";
-      return "Date";
-    case "status":
-      return statusFilter === "all"
-        ? "Status"
-        : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
-    default:
-      return "All";
-  }
-};
-
 // Custom hooks for better separation of concerns
 
 export default function TransactionsScreen() {
@@ -248,6 +211,12 @@ export default function TransactionsScreen() {
   const handleAddTransaction = () => {
     router.push("/(modal)/transaction/add");
   };
+
+  console.log({
+    flashListData: JSON.stringify(flashListData),
+    transactions,
+    customers,
+  });
 
   const renderFilterModal = () => {
     if (!activeFilter) return null;
@@ -491,6 +460,16 @@ export default function TransactionsScreen() {
           </View>
 
           <View style={styles.transactionAmount}>
+            {/* Show quick debt indicator */}
+            {transaction.remainingAmount && transaction.remainingAmount > 0 && (
+              <View
+                style={[styles.quickDebtBadge, { backgroundColor: "#FFF7ED" }]}
+              >
+                <ThemedText style={{ color: "#FF8F00" }} type="caption">
+                  Due {formatCurrency(transaction.remainingAmount)}
+                </ThemedText>
+              </View>
+            )}
             {statusBadge && (
               <View
                 style={[
@@ -538,6 +517,7 @@ export default function TransactionsScreen() {
       contentStyle={styles.content}
       scrollable={false}
       withPadding={false}
+      useThemedView={false}
     >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.paper.surface }]}>
