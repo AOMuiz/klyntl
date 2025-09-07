@@ -17,6 +17,14 @@ export default function SettingsLayout() {
         }}
       />
       <Stack.Screen
+        name="account"
+        options={{
+          headerBackVisible: true,
+          //   headerShown: false, // Let the store layout handle its own header
+          title: "Account Settings",
+        }}
+      />
+      <Stack.Screen
         name="terms"
         options={{
           headerBackVisible: true,

@@ -50,7 +50,7 @@ export default function ModalTransactionLayout() {
         }}
       />
       <Stack.Screen
-        name="summary]"
+        name="summary"
         options={{
           title: "Transaction Summary",
           presentation: "modal",
