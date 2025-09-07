@@ -148,6 +148,53 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: wp(16),
   },
+  transactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(20),
+  },
+  transactionLeft: {
+    flex: 1,
+    marginRight: wp(12),
+  },
+  transactionDate: {
+    fontSize: wp(14),
+    fontWeight: "600",
+    marginBottom: hp(4),
+  },
+  transactionDescription: {
+    fontSize: wp(13),
+    marginBottom: hp(8),
+    lineHeight: hp(18),
+  },
+  transactionCenter: {
+    marginHorizontal: wp(8),
+  },
+  transactionRight: {
+    alignItems: "flex-end",
+    minWidth: wp(80),
+  },
+  quickActionsContainer: {
+    flexDirection: "row",
+    gap: wp(12),
+  },
+  quickActionButton: {
+    flex: 1,
+    borderRadius: wp(12),
+    padding: wp(16),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickActionText: {
+    fontSize: wp(14),
+    fontWeight: "600",
+    marginTop: hp(8),
+  },
+  quickActionSubtext: {
+    fontSize: wp(12),
+    marginTop: hp(2),
+  },
   viewAllButton: {
     marginVertical: 8,
     borderRadius: 0,

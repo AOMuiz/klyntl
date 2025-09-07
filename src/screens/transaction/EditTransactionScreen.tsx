@@ -1,12 +1,18 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { useTheme } from "react-native-paper";
+import { ActivityIndicator, ScrollView, View } from "react-native";
+import { Card, Text, useTheme } from "react-native-paper";
 
 import TransactionForm from "@/components/forms/transaction/TransactionForm";
-import ScreenContainer from "@/components/screen-container";
+import ScreenContainer, {
+  edgesHorizontal,
+} from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
+import DebtIndicator from "@/components/ui/DebtIndicator";
+import { useCustomers } from "@/hooks/useCustomers";
 import { useTransaction } from "@/hooks/useTransactions";
+import { formatCurrency } from "@/utils/currency";
+import { hp, wp } from "@/utils/responsive_dimensions_system";
 
 export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,6 +20,7 @@ export default function EditTransactionScreen() {
   const theme = useTheme();
 
   const { data: transaction, isLoading, error } = useTransaction(id);
+  const { customers } = useCustomers();
 
   useEffect(() => {
     if (error) {
@@ -49,6 +56,35 @@ export default function EditTransactionScreen() {
     );
   }
 
+  const customer = customers?.find((c) => c.id === transaction.customerId);
+
+  // Calculate current debt impact
+  const calculateCurrentDebtImpact = () => {
+    switch (transaction.type) {
+      case "sale":
+        if (transaction.paymentMethod === "credit") {
+          return transaction.amount;
+        } else if (transaction.paymentMethod === "mixed") {
+          return transaction.remainingAmount || 0;
+        }
+        return 0;
+      case "payment":
+        if (transaction.appliedToDebt) {
+          return -transaction.amount;
+        }
+        return 0;
+      case "credit":
+        return transaction.amount;
+      case "refund":
+        return -transaction.amount;
+      default:
+        return 0;
+    }
+  };
+
+  const currentDebtImpact = calculateCurrentDebtImpact();
+  const currentCustomerDebt = customer?.outstandingBalance || 0;
+
   // Convert transaction to form data
   const initialData = {
     customerId: transaction.customerId,
@@ -64,10 +100,96 @@ export default function EditTransactionScreen() {
   };
 
   return (
-    <TransactionForm
-      customerId={transaction.customerId}
-      initialData={initialData}
-      transactionId={id}
-    />
+    <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Debt Change Preview */}
+        <View style={{ padding: wp(20), paddingBottom: 0 }}>
+          <Card style={{ borderRadius: wp(12), marginBottom: hp(16) }}>
+            <Card.Content style={{ padding: wp(16) }}>
+              <Text
+                variant="titleMedium"
+                style={{
+                  fontWeight: "600",
+                  marginBottom: hp(12),
+                  color: theme.colors.onSurface,
+                }}
+              >
+                Debt Impact Preview
+              </Text>
+
+              <View style={{ marginBottom: hp(12) }}>
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    marginBottom: hp(4),
+                  }}
+                >
+                  Current debt impact:
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <DebtIndicator
+                    transaction={transaction}
+                    debtImpact={currentDebtImpact}
+                  />
+                  <Text
+                    variant="bodyLarge"
+                    style={{
+                      marginLeft: wp(12),
+                      fontWeight: "600",
+                      color: theme.colors.onSurface,
+                    }}
+                  >
+                    {formatCurrency(Math.abs(currentDebtImpact))}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ marginBottom: hp(8) }}>
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    marginBottom: hp(4),
+                  }}
+                >
+                  Current customer balance:
+                </Text>
+                <Text
+                  variant="bodyLarge"
+                  style={{
+                    fontWeight: "600",
+                    color:
+                      currentCustomerDebt > 0
+                        ? "#FF9500"
+                        : currentCustomerDebt < 0
+                        ? "#34C759"
+                        : "#34C759",
+                  }}
+                >
+                  {formatCurrency(currentCustomerDebt)}
+                </Text>
+              </View>
+
+              <Text
+                variant="bodySmall"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  fontStyle: "italic",
+                }}
+              >
+                Edit the transaction below to see how it will affect the debt
+              </Text>
+            </Card.Content>
+          </Card>
+        </View>
+
+        <TransactionForm
+          customerId={transaction.customerId}
+          initialData={initialData}
+          transactionId={id}
+        />
+      </ScrollView>
+    </ScreenContainer>
   );
 }

@@ -2,6 +2,10 @@ import ScreenContainer, {
   edgesHorizontal,
 } from "@/components/screen-container";
 import { ThemedText } from "@/components/ThemedText";
+import DebtIndicator from "@/components/ui/DebtIndicator";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import RunningDebtBalance from "@/components/ui/RunningDebtBalance";
+import TransactionStatusBadge from "@/components/ui/TransactionStatusBadge";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useContactActions } from "@/hooks/useContactActions";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
@@ -9,12 +13,11 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { getCustomerInitials } from "@/utils/helpers";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 import { useRouter } from "expo-router";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import {
   Button,
   Card,
   Divider,
-  List,
   SegmentedButtons,
   Surface,
   Text,
@@ -99,6 +102,79 @@ export default function CustomerDetailScreen({
   const handleAddTransaction = () => {
     router.push(`/transaction/add?customerId=${customerId}`);
   };
+
+  const handleRecordPayment = () => {
+    if (!customer || customer.outstandingBalance <= 0) {
+      Alert.alert(
+        "No Outstanding Debt",
+        "This customer has no outstanding balance to pay."
+      );
+      return;
+    }
+    router.push(
+      `/transaction/add?customerId=${customerId}&type=payment&amount=${customer.outstandingBalance}`
+    );
+  };
+
+  const handleSendDebtReminder = () => {
+    if (!customer || customer.outstandingBalance <= 0) {
+      Alert.alert(
+        "No Outstanding Debt",
+        "This customer has no outstanding balance to remind about."
+      );
+      return;
+    }
+
+    handleWhatsApp();
+  };
+
+  // Calculate debt impact for each transaction
+  const calculateDebtImpact = (transaction: any) => {
+    const { type, paymentMethod, remainingAmount, appliedToDebt, amount } =
+      transaction;
+
+    switch (type) {
+      case "sale":
+        if (paymentMethod === "credit") {
+          return amount; // Full amount becomes debt
+        } else if (paymentMethod === "mixed") {
+          return remainingAmount || 0; // Only the unpaid portion
+        }
+        return 0; // Cash sales don't create debt
+
+      case "payment":
+        if (appliedToDebt) {
+          return -amount; // Reduces debt
+        }
+        return 0; // Future service doesn't affect debt
+
+      case "credit":
+        return amount; // Increases debt
+
+      case "refund":
+        return -amount; // Reduces debt
+
+      default:
+        return 0;
+    }
+  };
+
+  // Calculate running debt balance for transactions
+  const calculateRunningBalances = () => {
+    let runningBalance = 0;
+    const transactionsWithBalance = transactions.map((transaction) => {
+      const debtImpact = calculateDebtImpact(transaction);
+      runningBalance += debtImpact;
+      return {
+        ...transaction,
+        debtImpact,
+        runningBalance,
+      };
+    });
+    return transactionsWithBalance;
+  };
+
+  const transactionsWithBalances = calculateRunningBalances();
 
   if (loading) {
     return (
@@ -507,50 +583,81 @@ export default function CustomerDetailScreen({
                 mode="elevated"
                 elevation={0}
               >
-                {transactions.slice(0, 5).map((transaction, index) => (
-                  <View key={transaction.id}>
-                    <List.Item
-                      title={formatDate(transaction.date)}
-                      description={
-                        transaction.description ||
-                        transaction.type.charAt(0).toUpperCase() +
-                          transaction.type.slice(1)
-                      }
-                      right={() => (
-                        <Text
-                          variant="titleMedium"
-                          style={[
-                            styles.transactionAmount,
-                            {
-                              color:
-                                transaction.type === "refund"
-                                  ? colors.error
-                                  : "#34C759",
-                            },
-                          ]}
-                        >
-                          {transaction.type === "refund" ? "-" : "+"}
-                          {formatCurrency(transaction.amount)}
-                        </Text>
+                {transactionsWithBalances
+                  .slice(0, 5)
+                  .map((transaction, index) => (
+                    <View key={transaction.id}>
+                      <View style={styles.transactionRow}>
+                        {/* Left side - Date and Description */}
+                        <View style={styles.transactionLeft}>
+                          <Text
+                            variant="bodyMedium"
+                            style={[
+                              styles.transactionDate,
+                              { color: colors.paper.onBackground },
+                            ]}
+                          >
+                            {formatDate(transaction.date)}
+                          </Text>
+                          <Text
+                            variant="bodySmall"
+                            style={[
+                              styles.transactionDescription,
+                              { color: colors.neutral[600] },
+                            ]}
+                          >
+                            {transaction.description ||
+                              transaction.type.charAt(0).toUpperCase() +
+                                transaction.type.slice(1)}
+                          </Text>
+
+                          {/* Status Badge */}
+                          <TransactionStatusBadge
+                            transaction={transaction}
+                            amount={transaction.amount}
+                          />
+                        </View>
+
+                        {/* Center - Debt Indicator */}
+                        <View style={styles.transactionCenter}>
+                          <DebtIndicator
+                            transaction={transaction}
+                            debtImpact={transaction.debtImpact}
+                          />
+                        </View>
+
+                        {/* Right side - Amount and Running Balance */}
+                        <View style={styles.transactionRight}>
+                          <Text
+                            variant="titleMedium"
+                            style={[
+                              styles.transactionAmount,
+                              {
+                                color:
+                                  transaction.type === "refund"
+                                    ? colors.error
+                                    : "#34C759",
+                              },
+                            ]}
+                          >
+                            {transaction.type === "refund" ? "-" : "+"}
+                            {formatCurrency(transaction.amount)}
+                          </Text>
+
+                          <RunningDebtBalance
+                            balance={transaction.runningBalance}
+                          />
+                        </View>
+                      </View>
+
+                      {index <
+                        transactionsWithBalances.slice(0, 5).length - 1 && (
+                        <Divider
+                          style={{ backgroundColor: colors.paper.outline }}
+                        />
                       )}
-                      titleStyle={{
-                        color: colors.paper.onBackground,
-                        fontWeight: "600",
-                        fontSize: 16,
-                      }}
-                      descriptionStyle={{
-                        color: colors.neutral[600],
-                        fontSize: 14,
-                      }}
-                      style={{ paddingVertical: 16, paddingHorizontal: 20 }}
-                    />
-                    {index < transactions.slice(0, 5).length - 1 && (
-                      <Divider
-                        style={{ backgroundColor: colors.paper.outline }}
-                      />
-                    )}
-                  </View>
-                ))}
+                    </View>
+                  ))}
                 {transactions.length > 5 && (
                   <>
                     <Divider
@@ -660,6 +767,86 @@ export default function CustomerDetailScreen({
               </Card.Content>
             </Card>
           </View>
+
+          {/* Quick Debt Actions */}
+          {customer.outstandingBalance > 0 && (
+            <View style={styles.section}>
+              <Text
+                variant="headlineSmall"
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.paper.onBackground },
+                ]}
+              >
+                Quick Actions
+              </Text>
+              <View style={styles.quickActionsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.quickActionButton,
+                    { backgroundColor: colors.success[50] },
+                  ]}
+                  onPress={handleRecordPayment}
+                >
+                  <IconSymbol
+                    name="creditcard.fill"
+                    size={20}
+                    color={colors.success[700]}
+                  />
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.quickActionText,
+                      { color: colors.success[700] },
+                    ]}
+                  >
+                    Record Payment
+                  </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={[
+                      styles.quickActionSubtext,
+                      { color: colors.success[600] },
+                    ]}
+                  >
+                    {formatCurrency(customer.outstandingBalance)}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.quickActionButton,
+                    { backgroundColor: colors.primary[50] },
+                  ]}
+                  onPress={handleSendDebtReminder}
+                >
+                  <IconSymbol
+                    name="message.fill"
+                    size={20}
+                    color={colors.primary[700]}
+                  />
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.quickActionText,
+                      { color: colors.primary[700] },
+                    ]}
+                  >
+                    Send Reminder
+                  </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={[
+                      styles.quickActionSubtext,
+                      { color: colors.primary[600] },
+                    ]}
+                  >
+                    WhatsApp
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Action Buttons */}
           <View style={styles.bottomActions}>

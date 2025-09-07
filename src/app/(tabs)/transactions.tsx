@@ -518,7 +518,7 @@ export default function TransactionsScreen() {
         key={`transaction-${transaction.id}`}
         activeOpacity={0.7}
         onPress={() =>
-          router.push(`/(modal)/transaction/edit/${transaction.id}`)
+          router.push(`/(modal)/transaction/view/${transaction.id}`)
         }
         style={[
           styles.transactionCard,
