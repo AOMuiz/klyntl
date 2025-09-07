@@ -2,7 +2,7 @@ import { useContactImport } from "@/hooks/useContactImport";
 import { useContactPicker } from "@/hooks/useContactPicker";
 import { useDatabase } from "@/services/database";
 import { createDatabaseService } from "@/services/database/service";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Alert, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "react-native-paper";
 import { IconSymbol } from "./ui/IconSymbol";
@@ -46,25 +46,6 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   const databaseService = React.useMemo(() => createDatabaseService(db), [db]);
   const { showContactPicker, ContactPickerComponent } = useContactPicker();
 
-  const [existingPhones, setExistingPhones] = useState<string[]>([]);
-
-  // Load existing phone numbers when component mounts
-  useEffect(() => {
-    const loadExistingPhones = async () => {
-      try {
-        const customers = await databaseService.customers.findWithFilters();
-        const phones = customers
-          .filter((c) => c.phone)
-          .map((c) => c.phone.replace(/\D/g, ""));
-        setExistingPhones(phones);
-      } catch (error) {
-        console.error("Failed to load existing phones:", error);
-      }
-    };
-
-    loadExistingPhones();
-  }, [databaseService]);
-
   const handleContactsSelected = async (selectedContacts: any[]) => {
     try {
       if (selectedContacts.length === 0) {
@@ -95,12 +76,28 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
     }
   };
 
-  const openContactPicker = () => {
-    showContactPicker({
-      existingPhones,
-      maxSelection: maxImportCount,
-      onContactsSelected: handleContactsSelected,
-    });
+  const openContactPicker = async () => {
+    try {
+      // Load existing phone numbers when needed instead of in effect
+      const customers = await databaseService.customers.findWithFilters();
+      const existingPhones = customers
+        .filter((c) => c.phone)
+        .map((c) => c.phone.replace(/\D/g, ""));
+
+      showContactPicker({
+        existingPhones,
+        maxSelection: maxImportCount,
+        onContactsSelected: handleContactsSelected,
+      });
+    } catch (error) {
+      console.error("Failed to load existing phones:", error);
+      // Still show picker even if loading existing phones fails
+      showContactPicker({
+        existingPhones: [],
+        maxSelection: maxImportCount,
+        onContactsSelected: handleContactsSelected,
+      });
+    }
   };
 
   const handleImportContacts = async () => {

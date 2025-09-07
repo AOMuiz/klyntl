@@ -1,5 +1,5 @@
-import { act, renderHook } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook } from "@testing-library/react-native";
 import React from "react";
 import { useTransactionForm } from "../useTransactionForm";
 
@@ -13,6 +13,7 @@ jest.mock("@/hooks/useCustomers", () => ({
         phone: "1234567890",
         totalSpent: 0,
         outstandingBalance: 0,
+        creditBalance: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -22,6 +23,7 @@ jest.mock("@/hooks/useCustomers", () => ({
         phone: "0987654321",
         totalSpent: 0,
         outstandingBalance: 0,
+        creditBalance: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -50,13 +52,16 @@ describe("useTransactionForm", () => {
   const mockSetSearchQuery = jest.fn();
 
   it("initializes with correct default values", () => {
-    const { result } = renderHook(() =>
-      useTransactionForm({
-        customerId: mockCustomerId,
-        customers: [],
-        searchQuery: mockSearchQuery,
-        setSearchQuery: mockSetSearchQuery,
-      })
+    const wrapper = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useTransactionForm({
+          customerId: mockCustomerId,
+          customers: [],
+          searchQuery: mockSearchQuery,
+          setSearchQuery: mockSetSearchQuery,
+        }),
+      { wrapper }
     );
 
     expect(result.current.watchedValues.customerId).toBe(mockCustomerId);
@@ -65,32 +70,37 @@ describe("useTransactionForm", () => {
   });
 
   it("filters customers based on search query", () => {
-    const { result } = renderHook(() =>
-      useTransactionForm({
-        customerId: undefined,
-        customers: [
-          {
-            id: "1",
-            name: "John Doe",
-            phone: "1234567890",
-            totalSpent: 0,
-            outstandingBalance: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            name: "Jane Smith",
-            phone: "0987654321",
-            totalSpent: 0,
-            outstandingBalance: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-        searchQuery: "John",
-        setSearchQuery: mockSetSearchQuery,
-      })
+    const wrapper = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useTransactionForm({
+          customerId: undefined,
+          customers: [
+            {
+              id: "1",
+              name: "John Doe",
+              phone: "1234567890",
+              totalSpent: 0,
+              outstandingBalance: 0,
+              creditBalance: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: "2",
+              name: "Jane Smith",
+              phone: "0987654321",
+              totalSpent: 0,
+              outstandingBalance: 0,
+              creditBalance: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+          searchQuery: "John",
+          setSearchQuery: mockSetSearchQuery,
+        }),
+      { wrapper }
     );
 
     expect(result.current.filteredCustomers).toHaveLength(1);
@@ -98,13 +108,16 @@ describe("useTransactionForm", () => {
   });
 
   it("updates form values correctly", () => {
-    const { result } = renderHook(() =>
-      useTransactionForm({
-        customerId: mockCustomerId,
-        customers: [],
-        searchQuery: mockSearchQuery,
-        setSearchQuery: mockSetSearchQuery,
-      })
+    const wrapper = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useTransactionForm({
+          customerId: mockCustomerId,
+          customers: [],
+          searchQuery: mockSearchQuery,
+          setSearchQuery: mockSetSearchQuery,
+        }),
+      { wrapper }
     );
 
     act(() => {
@@ -115,13 +128,16 @@ describe("useTransactionForm", () => {
   });
 
   it("resets form correctly", () => {
-    const { result } = renderHook(() =>
-      useTransactionForm({
-        customerId: mockCustomerId,
-        customers: [],
-        searchQuery: mockSearchQuery,
-        setSearchQuery: mockSetSearchQuery,
-      })
+    const wrapper = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useTransactionForm({
+          customerId: mockCustomerId,
+          customers: [],
+          searchQuery: mockSearchQuery,
+          setSearchQuery: mockSetSearchQuery,
+        }),
+      { wrapper }
     );
 
     act(() => {

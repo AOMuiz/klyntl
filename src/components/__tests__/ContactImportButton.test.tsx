@@ -65,7 +65,7 @@ describe("ContactImportButton", () => {
   const mockOnImportComplete = jest.fn();
 
   beforeAll(() => {
-    jest.setTimeout(30000); // Increase global timeout
+    jest.setTimeout(10000); // Reduce timeout to reasonable amount
   });
 
   afterAll(() => {
@@ -168,7 +168,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount(); // Clean up
-    }, 10000);
+    }, 5000);
 
     it("should handle limited contact access", async () => {
       mockCheckContactAccess.mockResolvedValue({
@@ -202,7 +202,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount();
-    }, 10000);
+    }, 5000);
 
     it("should call importFromContacts when confirmed", async () => {
       const importResult = {
@@ -246,7 +246,7 @@ describe("ContactImportButton", () => {
       expect(mockOnImportComplete).toHaveBeenCalledWith(importResult);
 
       unmount();
-    }, 10000);
+    }, 5000);
 
     it("should show success alert after import", async () => {
       const importResult = {
@@ -290,7 +290,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount();
-    }, 10000);
+    }, 5000);
 
     it("should show error alert on import failure", async () => {
       const error = new Error("Permission denied");
@@ -327,7 +327,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount();
-    }, 10000);
+    }, 5000);
 
     it("should be disabled when disabled prop is true", async () => {
       const { getByTestId, unmount } = render(
@@ -425,7 +425,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount();
-    }, 10000);
+    }, 5000);
   });
 
   describe('variant="fab"', () => {
@@ -538,7 +538,7 @@ describe("ContactImportButton", () => {
       });
 
       unmount();
-    }, 10000);
+    }, 5000);
   });
 
   describe("props", () => {
