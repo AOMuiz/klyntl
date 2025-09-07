@@ -1,16 +1,27 @@
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
 import { AuditLogEntry, DatabaseConfig } from "../types";
-import { DatabaseError } from "./utilService";
 
-// ===== AUDIT LOG SERVICE =====
+// ===== SIMPLE AUDIT LOG SERVICE =====
 export class AuditLogService {
   constructor(private db: SQLiteDatabase, private config: DatabaseConfig) {}
 
   async logEntry(
     entry: Omit<AuditLogEntry, "id" | "timestamp">
   ): Promise<void> {
+    // Only log if audit is enabled and it's a critical operation
     if (!this.config.enableAuditLog) return;
+
+    // Only log critical operations to reduce complexity
+    const criticalOperations = ["CREATE", "DELETE"];
+    const criticalTables = ["transactions", "customers", "products"];
+
+    if (
+      !criticalOperations.includes(entry.operation) ||
+      !criticalTables.includes(entry.tableName)
+    ) {
+      return;
+    }
 
     try {
       const auditEntry: AuditLogEntry = {
@@ -33,43 +44,22 @@ export class AuditLogService {
         ]
       );
     } catch (error) {
+      // Don't throw - audit logging shouldn't break main operations
       console.warn("Failed to log audit entry:", error);
     }
   }
 
-  async getAuditLog(
-    tableName?: string,
-    recordId?: string,
-    limit: number = 100,
-    offset: number = 0
-  ): Promise<AuditLogEntry[]> {
+  // Simplified audit retrieval - just get recent entries
+  async getRecentAuditEntries(limit: number = 50): Promise<AuditLogEntry[]> {
     if (!this.config.enableAuditLog) {
       return [];
     }
 
     try {
-      let sql = "SELECT * FROM audit_log";
-      const params: any[] = [];
-      const conditions: string[] = [];
-
-      if (tableName) {
-        conditions.push("tableName = ?");
-        params.push(tableName);
-      }
-
-      if (recordId) {
-        conditions.push("recordId = ?");
-        params.push(recordId);
-      }
-
-      if (conditions.length > 0) {
-        sql += ` WHERE ${conditions.join(" AND ")}`;
-      }
-
-      sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
-      params.push(limit, offset);
-
-      const results = await this.db.getAllAsync<any>(sql, params);
+      const results = await this.db.getAllAsync<any>(
+        "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?",
+        [limit]
+      );
 
       return results.map((result) => ({
         ...result,
@@ -77,7 +67,8 @@ export class AuditLogService {
         newValues: result.newValues ? JSON.parse(result.newValues) : undefined,
       }));
     } catch (error) {
-      throw new DatabaseError("getAuditLog", error as Error);
+      console.warn("Failed to get audit entries:", error);
+      return [];
     }
   }
 }

@@ -15,9 +15,7 @@ import type {
 } from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
-import { AuditManagementService } from "../../audit/AuditManagementService";
-import { TransactionCalculationService } from "../../calculations/TransactionCalculationService";
-import { DatabaseTransactionIntegrityService } from "../DatabaseTransactionIntegrityService";
+import { SimpleTransactionCalculator } from "../../calculations/SimpleTransactionCalculator";
 import { AnalyticsRepository } from "../repositories/AnalyticsRepository";
 import { CustomerRepository } from "../repositories/CustomerRepository";
 import { ProductCategoryRepository } from "../repositories/ProductCategoryRepository";
@@ -57,10 +55,8 @@ export class DatabaseService {
   // ===== LAZY-LOADED REPOSITORIES =====
   private _analytics?: AnalyticsRepository;
 
-  // ===== CENTRALIZED CALCULATION & AUDIT SERVICES =====
-  public readonly calculationService: TransactionCalculationService;
-  public readonly auditManagementService: AuditManagementService;
-  public readonly integrityService: DatabaseTransactionIntegrityService;
+  // ===== CENTRALIZED CALCULATION SERVICE =====
+  public readonly calculationService: typeof SimpleTransactionCalculator;
 
   constructor(
     private db: SQLiteDatabase,
@@ -114,10 +110,8 @@ export class DatabaseService {
     //   this.auditService
     // );
 
-    // ===== INITIALIZE CENTRALIZED CALCULATION & AUDIT SERVICES =====
-    this.calculationService = new TransactionCalculationService();
-    this.auditManagementService = new AuditManagementService(this.db);
-    this.integrityService = new DatabaseTransactionIntegrityService(this.db);
+    // ===== INITIALIZE CENTRALIZED CALCULATION SERVICE =====
+    this.calculationService = SimpleTransactionCalculator;
   }
 
   // ===== COMMON DATABASE OPERATIONS =====
@@ -453,56 +447,38 @@ export class DatabaseService {
   // ===== CENTRALIZED CALCULATION & AUDIT METHODS =====
 
   /**
-   * Calculate transaction status using centralized service
+   * Calculate transaction status using simplified service
    */
   calculateTransactionStatus(
     type: string,
     paymentMethod: string,
     totalAmount: number,
     paidAmount: number,
-    remainingAmount: number,
-    dueDate?: string
+    remainingAmount: number
   ) {
-    return TransactionCalculationService.calculateTransactionStatus(
+    return SimpleTransactionCalculator.calculateStatus(
       type,
-      paymentMethod,
       totalAmount,
       paidAmount,
-      remainingAmount,
-      dueDate
+      remainingAmount
     );
   }
 
   /**
    * Calculate initial amounts for transaction creation
    */
-  calculateInitialAmounts(type: string, paymentMethod: string, amount: number) {
-    return TransactionCalculationService.calculateInitialAmounts(
+  calculateInitialAmounts(
+    type: string,
+    paymentMethod: string,
+    amount: number,
+    providedPaidAmount?: number
+  ) {
+    return SimpleTransactionCalculator.calculateInitialAmounts(
       type,
       paymentMethod,
-      amount
+      amount,
+      providedPaidAmount
     );
-  }
-
-  /**
-   * Get customer audit history using centralized service
-   */
-  async getCustomerAuditHistory(customerId: string) {
-    return this.auditManagementService.getCustomerAuditHistory(customerId);
-  }
-
-  /**
-   * Perform database integrity check using centralized service
-   */
-  async performIntegrityCheck() {
-    return this.integrityService.performFullIntegrityCheck();
-  }
-
-  /**
-   * Repair inconsistent debt calculations
-   */
-  async repairDebtCalculations() {
-    return this.integrityService.repairCustomerDebtCalculations();
   }
 
   /**
