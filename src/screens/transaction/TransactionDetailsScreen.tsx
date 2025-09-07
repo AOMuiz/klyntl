@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { Alert, ScrollView, Share, TouchableOpacity, View } from "react-native";
@@ -125,10 +126,16 @@ export default function TransactionDetailsScreen() {
 
   const onCopyInvoice = async () => {
     try {
-      // Open share sheet as an alternative so the user can copy the invoice id
+      // Try direct clipboard first
+      if (Clipboard && Clipboard.setStringAsync) {
+        await Clipboard.setStringAsync(transaction.id);
+        Alert.alert("Copied", "Invoice ID copied to clipboard");
+        return;
+      }
+      // Fallback to share sheet
       await Share.share({ message: `Invoice: #${transaction.id}` });
-    } catch (e) {
-      console.error("Failed to open share for invoice id", e);
+    } catch (err) {
+      console.error("Failed to copy/share invoice id", err);
       Alert.alert("Error", "Failed to copy or share invoice ID");
     }
   };

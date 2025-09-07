@@ -159,21 +159,22 @@ export const styles = StyleSheet.create({
     marginRight: wp(12),
   },
   transactionDate: {
-    fontSize: wp(14),
-    fontWeight: "600",
+    fontSize: wp(13),
     marginBottom: hp(4),
   },
   transactionDescription: {
-    fontSize: wp(13),
+    fontSize: wp(14),
+    fontWeight: "600",
     marginBottom: hp(8),
     lineHeight: hp(18),
   },
   transactionCenter: {
-    marginHorizontal: wp(8),
+    // marginHorizontal: wp(8),
   },
   transactionRight: {
     alignItems: "flex-end",
     minWidth: wp(80),
+    gap: wp(8),
   },
   quickActionsContainer: {
     flexDirection: "row",

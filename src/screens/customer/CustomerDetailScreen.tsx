@@ -505,6 +505,7 @@ export default function CustomerDetailScreen({
                 </Text>
                 <Text
                   variant="bodySmall"
+                  numberOfLines={1}
                   style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
                   Outstanding Balance
@@ -592,15 +593,7 @@ export default function CustomerDetailScreen({
                         <View style={styles.transactionLeft}>
                           <Text
                             variant="bodyMedium"
-                            style={[
-                              styles.transactionDate,
-                              { color: colors.paper.onBackground },
-                            ]}
-                          >
-                            {formatDate(transaction.date)}
-                          </Text>
-                          <Text
-                            variant="bodySmall"
+                            numberOfLines={1}
                             style={[
                               styles.transactionDescription,
                               { color: colors.neutral[600] },
@@ -610,6 +603,15 @@ export default function CustomerDetailScreen({
                               transaction.type.charAt(0).toUpperCase() +
                                 transaction.type.slice(1)}
                           </Text>
+                          <Text
+                            variant="bodySmall"
+                            style={[
+                              styles.transactionDate,
+                              { color: colors.paper.onBackground },
+                            ]}
+                          >
+                            {formatDate(transaction.date)}
+                          </Text>
 
                           {/* Status Badge */}
                           <TransactionStatusBadge
@@ -618,16 +620,16 @@ export default function CustomerDetailScreen({
                           />
                         </View>
 
-                        {/* Center - Debt Indicator */}
-                        <View style={styles.transactionCenter}>
-                          <DebtIndicator
-                            transaction={transaction}
-                            debtImpact={transaction.debtImpact}
-                          />
-                        </View>
-
                         {/* Right side - Amount and Running Balance */}
                         <View style={styles.transactionRight}>
+                          {/* Center - Debt Indicator */}
+                          <View style={styles.transactionCenter}>
+                            <DebtIndicator
+                              transaction={transaction}
+                              debtImpact={transaction.debtImpact}
+                            />
+                          </View>
+
                           <Text
                             variant="titleMedium"
                             style={[

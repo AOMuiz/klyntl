@@ -108,6 +108,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: wp(11),
-    fontWeight: "600",
+    fontWeight: "500",
   },
 });

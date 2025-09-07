@@ -13,8 +13,8 @@ export default function RunningDebtBalance({
   isIncrease = false,
 }: RunningDebtBalanceProps) {
   const getBalanceColor = () => {
-    if (balance === 0) return "#34C759"; // Green for zero balance
-    if (balance > 0) return "#FF9500"; // Orange for debt
+    if (balance === 0) return "#4d544fff"; // Green for zero balance
+    if (balance > 0) return "#ff4800ff"; // Orange for debt
     return "#34C759"; // Green for credit balance
   };
 
@@ -25,14 +25,8 @@ export default function RunningDebtBalance({
 
   return (
     <View style={styles.container}>
-      <ThemedText style={[styles.label, { color: "#6B7280" }]} type="caption">
-        Balance
-      </ThemedText>
-      <ThemedText
-        style={[styles.amount, { color: getBalanceColor() }]}
-        type="caption"
-      >
-        {balance < 0 ? "-" : balance > 0 ? "+" : ""}
+      <ThemedText style={[{ color: getBalanceColor() }]} type="caption">
+        Bal:{balance < 0 ? "-" : balance > 0 ? "+" : ""}
         {getBalanceText()}
       </ThemedText>
     </View>
@@ -48,9 +42,5 @@ const styles = StyleSheet.create({
     fontSize: wp(10),
     fontWeight: "500",
     marginBottom: hp(2),
-  },
-  amount: {
-    fontSize: wp(12),
-    fontWeight: "700",
   },
 });
