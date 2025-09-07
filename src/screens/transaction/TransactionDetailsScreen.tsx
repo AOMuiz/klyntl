@@ -186,18 +186,18 @@ export default function TransactionDetailsScreen() {
   };
 
   // Parse metadata safely for display
-  const parsedMetadata = (() => {
-    if (!transaction.metadata) return null;
+  let parsedMetadata: any = null;
+  if (transaction.metadata) {
     try {
-      return JSON.parse(transaction.metadata);
+      parsedMetadata = JSON.parse(transaction.metadata);
     } catch (err) {
       console.warn(
         "Failed to parse transaction.metadata in parsedMetadata",
         err
       );
-      return { raw: transaction.metadata };
+      parsedMetadata = { raw: transaction.metadata };
     }
-  })();
+  }
 
   return (
     <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>

@@ -37,7 +37,7 @@ export function useContactActions(phone?: string | null) {
     const waUrl = `whatsapp://send?phone=${phoneNumber}`;
     const waWeb = `https://wa.me/${phoneNumber}`;
 
-    (async () => {
+    const openWhatsApp = async () => {
       try {
         const supported = await Linking.canOpenURL(waUrl);
         if (supported) {
@@ -60,7 +60,9 @@ export function useContactActions(phone?: string | null) {
         console.error("Failed to open WhatsApp:", error);
         Alert.alert("Error", "Unable to open WhatsApp.");
       }
-    })();
+    };
+
+    void openWhatsApp();
   }, [phone]);
 
   return { handleCall, handleSMS, handleWhatsApp };

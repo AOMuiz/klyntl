@@ -30,6 +30,14 @@ export function groupByDatePeriods<T extends { date: string }>(
   const now = new Date();
   const sections: GroupedData<T> = {};
 
+  // Helper to compare local YMD (avoids toDateString/timezone edge cases)
+  const toLocalYMD = (d: Date) => ({
+    y: d.getFullYear(),
+    m: d.getMonth(),
+    d: d.getDate(),
+  });
+  const nowYMD = toLocalYMD(now);
+
   // Sort items by date (newest first)
   const sortedItems = [...items].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -37,24 +45,28 @@ export function groupByDatePeriods<T extends { date: string }>(
 
   sortedItems.forEach((item) => {
     const itemDate = new Date(item.date);
-    const itemDateString = itemDate.toDateString();
-    const nowDateString = now.toDateString();
+    const itemYMD = toLocalYMD(itemDate);
 
     let sectionKey: string;
 
-    if (itemDateString === nowDateString) {
+    if (
+      itemYMD.y === nowYMD.y &&
+      itemYMD.m === nowYMD.m &&
+      itemYMD.d === nowYMD.d
+    ) {
       sectionKey = todayLabel;
     } else {
       const yesterday = new Date(now);
       yesterday.setDate(now.getDate() - 1);
-      const yesterdayString = yesterday.toDateString();
+      const yYMD = toLocalYMD(yesterday);
 
-      if (itemDateString === yesterdayString) {
-        sectionKey = yesterdayLabel;
-      } else if (
-        itemDate.getMonth() === now.getMonth() &&
-        itemDate.getFullYear() === now.getFullYear()
+      if (
+        itemYMD.y === yYMD.y &&
+        itemYMD.m === yYMD.m &&
+        itemYMD.d === yYMD.d
       ) {
+        sectionKey = yesterdayLabel;
+      } else if (itemYMD.m === nowYMD.m && itemYMD.y === nowYMD.y) {
         sectionKey = thisMonthLabel;
       } else {
         // Group by month and year

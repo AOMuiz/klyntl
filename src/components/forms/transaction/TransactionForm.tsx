@@ -179,6 +179,19 @@ export default function TransactionForm({
     }
   };
 
+  // Pre-return computations: determine if the current amount will cause an overpayment
+  const appliedToDebtFlag = watch("appliedToDebt");
+  const amountNumeric = watchedValues.amount
+    ? parseFloat(watchedValues.amount)
+    : 0;
+  const overpaymentAmount =
+    watchedValues.type === "payment" &&
+    appliedToDebtFlag === true &&
+    !isNaN(amountNumeric) &&
+    amountNumeric > currentCustomerDebt
+      ? amountNumeric - currentCustomerDebt
+      : 0;
+
   return (
     <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -347,6 +360,38 @@ export default function TransactionForm({
                             This payment will be recorded as a deposit / future
                             service and will not reduce outstanding debt.
                           </ThemedText>
+                        )}
+
+                        {/* Overpayment visual explanation: when the payment amount (applied to debt)
+                            exceeds the customer's current debt, show a clear notice explaining
+                            that the extra will be recorded as customer credit. */}
+                        {overpaymentAmount > 0 && (
+                          <View
+                            style={{
+                              marginTop: hp(8),
+                              padding: hp(10),
+                              borderRadius: 8,
+                              backgroundColor:
+                                theme.colors.elevation?.level1 || "#f4f4f4",
+                            }}
+                          >
+                            <ThemedText
+                              style={{
+                                fontWeight: "700",
+                                marginBottom: hp(4),
+                                color: theme.colors.primary,
+                              }}
+                            >
+                              Overpayment
+                            </ThemedText>
+                            <ThemedText
+                              style={{ color: theme.colors.onSurfaceVariant }}
+                            >
+                              {`${formatCurrency(
+                                overpaymentAmount
+                              )} will be recorded as customer credit and can be applied to future purchases or refunded.`}
+                            </ThemedText>
+                          </View>
                         )}
                       </View>
                     )}

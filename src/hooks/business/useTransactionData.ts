@@ -10,15 +10,16 @@ export const useTransactionData = (
   dateFilter: string,
   debtStatusFilter: string
 ) => {
+  const trimmedQuery = (searchQuery || "").trim();
   // Filtering logic
   const filteredTransactions = transactions.filter((t) => {
     // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (trimmedQuery) {
+      const q = trimmedQuery.toLowerCase();
       const customer = customers.find((c) => c.id === t.customerId);
       const customerName = customer?.name?.toLowerCase() || "";
       const inName = customerName.includes(q);
-      const inDesc = t.description?.toLowerCase().includes(q);
+      const inDesc = (t.description || "").toLowerCase().includes(q);
       if (!inName && !inDesc) return false;
     }
 

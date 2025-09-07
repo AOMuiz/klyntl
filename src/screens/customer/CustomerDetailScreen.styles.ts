@@ -210,7 +210,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   detailLabel: {
-    fontSize: wp(15),
+    fontSize: wp(13),
     fontWeight: "500",
   },
   detailValue: {

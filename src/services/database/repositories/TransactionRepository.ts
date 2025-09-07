@@ -89,6 +89,9 @@ export class TransactionRepository implements ITransactionRepository {
         // Handle debt management within the same transaction
         await this.handleDebtManagementInTransaction(transaction);
 
+        // Ensure customer totals (totalSpent and lastPurchase) are updated atomically
+        await this.customerRepo.updateTotals([transaction.customerId]);
+
         await this.auditService.logEntry({
           tableName: "transactions",
           operation: "CREATE",
@@ -174,6 +177,9 @@ export class TransactionRepository implements ITransactionRepository {
           currentTransaction,
           updatedTransaction
         );
+
+        // Ensure customer totals reflect the updated transaction
+        await this.customerRepo.updateTotals([updatedTransaction.customerId]);
 
         // Handle total spent changes for sale transactions
         if (
