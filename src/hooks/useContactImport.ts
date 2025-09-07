@@ -143,7 +143,7 @@ export function useContactImport() {
       const contactOptions = {
         fields: [Contacts.Fields.FirstName, Contacts.Fields.LastName],
         pageSize: 0,
-        sort: Contacts.SortTypes?.FirstName || "firstName",
+        sort: "firstName" as const,
       };
 
       const { data } = await Contacts.getContactsAsync(contactOptions);
@@ -213,7 +213,7 @@ export function useContactImport() {
           Contacts.Fields.Emails,
         ],
         pageSize: 0, // Get all contacts
-        sort: Contacts.SortTypes?.FirstName || "firstName",
+        sort: "firstName" as const,
       };
 
       let contactsResult = await Contacts.getContactsAsync(contactOptions);
@@ -305,7 +305,8 @@ export function useContactImport() {
 
             // Clean phone number and check if it's Nigerian
             const cleanPhone = phoneNumber.number.replace(/\D/g, "");
-            if (!validateNigerianPhone(cleanPhone)) {
+            const validation = validateNigerianPhone(cleanPhone);
+            if (!validation.isValid) {
               skipped++;
               continue;
             }

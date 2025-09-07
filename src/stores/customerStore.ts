@@ -15,6 +15,7 @@ import {
   SortOptions,
   getFilterDescription,
 } from "../types/filters";
+import { validateNigerianPhone } from "../utils/helpers";
 
 // Create database service instance
 const databaseService = new DatabaseService(db);
@@ -350,7 +351,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
           Contacts.Fields.Emails,
         ],
         pageSize: 0, // Get all contacts
-        sort: Contacts.SortTypes?.FirstName || "firstName", // Fallback for older versions
+        sort: "firstName" as const, // Use proper sort type
       };
 
       let contactsResult = await Contacts.getContactsAsync(contactOptions);
@@ -523,9 +524,9 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
           formattedPhone = "+234" + phoneNumber;
         }
 
-        // Validate Nigerian phone number format
-        const nigerianPhoneRegex = /^(\+234)[789][01]\d{8}$/;
-        if (!nigerianPhoneRegex.test(formattedPhone)) {
+        // Validate Nigerian phone number format using proper validation function
+        const phoneValidation = validateNigerianPhone(formattedPhone);
+        if (!phoneValidation.isValid) {
           skipped++;
           continue;
         }
@@ -612,7 +613,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
       const contactOptions = {
         fields: [Contacts.Fields.FirstName, Contacts.Fields.LastName],
         pageSize: 0,
-        sort: Contacts.SortTypes?.FirstName || "firstName",
+        sort: "firstName" as const,
       };
 
       const { data } = await Contacts.getContactsAsync(contactOptions);

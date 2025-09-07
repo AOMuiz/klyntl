@@ -4,6 +4,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomers } from "@/hooks/useCustomers";
 import { CreateCustomerInput } from "@/types/customer";
+import { validateNigerianPhone } from "@/utils/helpers";
 import { useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -61,12 +62,8 @@ export default function AddCustomerScreen() {
   const watchedCompany = watch("company");
 
   const validatePhone = (phone: string) => {
-    // Nigerian phone number validation
-    const nigerianPhoneRegex = /^(\+234|0)[789][01]\d{8}$/;
-    return (
-      nigerianPhoneRegex.test(phone) ||
-      "Please enter a valid Nigerian phone number"
-    );
+    const validation = validateNigerianPhone(phone);
+    return validation.isValid || validation.error || "Invalid phone number";
   };
 
   const validateEmail = (email?: string) => {

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react-native";
 import * as Contacts from "expo-contacts";
 import { DatabaseService } from "../../services/database/service";
+import { validateNigerianPhone } from "../../utils/helpers";
 import { useCustomerStore } from "../customerStore";
 
 // Mock the database db import
@@ -373,20 +374,18 @@ describe("Contact Import Functionality", () => {
     const invalidPrefixes = ["612", "522", "413", "320", "600", "500"]; // These don't start with 7,8,9
 
     it("should accept valid Nigerian prefixes", () => {
-      const nigerianPhoneRegex = /^(\+234)[789][01]\d{8}$/;
-
       validPrefixes.forEach((prefix) => {
         const phoneNumber = `+234${prefix}1234567`;
-        expect(nigerianPhoneRegex.test(phoneNumber)).toBe(true);
+        const validation = validateNigerianPhone(phoneNumber);
+        expect(validation.isValid).toBe(true);
       });
     });
 
     it("should reject invalid Nigerian prefixes", () => {
-      const nigerianPhoneRegex = /^(\+234)[789][01]\d{8}$/;
-
       invalidPrefixes.forEach((prefix) => {
         const phoneNumber = `+234${prefix}1234567`;
-        expect(nigerianPhoneRegex.test(phoneNumber)).toBe(false);
+        const validation = validateNigerianPhone(phoneNumber);
+        expect(validation.isValid).toBe(false);
       });
     });
   });

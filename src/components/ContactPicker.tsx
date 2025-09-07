@@ -196,7 +196,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
           Contacts.Fields.PhoneNumbers,
           Contacts.Fields.Emails,
         ],
-        sort: Contacts.SortTypes?.FirstName || "firstName",
+        sort: "firstName" as const,
       });
 
       // Check for limited access and set state

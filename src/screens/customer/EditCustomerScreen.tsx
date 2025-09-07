@@ -1,6 +1,7 @@
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { UpdateCustomerInput } from "@/types/customer";
+import { validateNigerianPhone } from "@/utils/helpers";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -78,12 +79,8 @@ export default function EditCustomerScreen({
   }, [customer, customerLoading, customerId, router]);
 
   const validatePhone = (phone: string) => {
-    // Nigerian phone number validation
-    const nigerianPhoneRegex = /^(\+234|0)[789][01]\d{8}$/;
-    return (
-      nigerianPhoneRegex.test(phone) ||
-      "Please enter a valid Nigerian phone number"
-    );
+    const validation = validateNigerianPhone(phone);
+    return validation.isValid || validation.error || "Invalid phone number";
   };
 
   const validateEmail = (email?: string) => {

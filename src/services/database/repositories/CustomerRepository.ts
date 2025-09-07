@@ -115,10 +115,18 @@ export class CustomerRepository
   }
 
   protected augmentEntity(customer: Customer): Customer {
-    return {
-      ...customer,
-      // Add any computed properties or transformations here
-    };
+    // Map snake_case database columns to camelCase properties
+    const mappedCustomer = { ...customer };
+
+    // Map credit_balance to creditBalance
+    if ("credit_balance" in mappedCustomer) {
+      (mappedCustomer as any).creditBalance = (
+        mappedCustomer as any
+      ).credit_balance;
+      delete (mappedCustomer as any).credit_balance;
+    }
+
+    return mappedCustomer;
   }
 
   // ===== CUSTOMER-SPECIFIC METHODS =====
@@ -1027,5 +1035,65 @@ export class CustomerRepository
         error as Error
       );
     }
+  }
+
+  protected buildInsertQuery(entity: Customer): {
+    columns: string;
+    values: any[];
+    placeholders: string;
+  } {
+    // Map camelCase properties to snake_case database columns
+    const columnMapping: Record<string, string> = {
+      creditBalance: "credit_balance",
+    };
+
+    const mappedEntity = { ...entity };
+    for (const [camelCase, snakeCase] of Object.entries(columnMapping)) {
+      if (camelCase in mappedEntity) {
+        (mappedEntity as any)[snakeCase] = (mappedEntity as any)[camelCase];
+        delete (mappedEntity as any)[camelCase];
+      }
+    }
+
+    const entries = Object.entries(mappedEntity as Record<string, any>).filter(
+      ([_, value]) => value !== undefined
+    );
+
+    const columns = entries.map(([key]) => key).join(", ");
+    const values = entries.map(([_, value]) => value);
+    const placeholders = entries.map(() => "?").join(", ");
+
+    return { columns, values, placeholders };
+  }
+
+  protected buildUpdateQuery(data: Partial<Customer>): {
+    setClause: string;
+    values: any[];
+  } {
+    // Map camelCase properties to snake_case database columns
+    const columnMapping: Record<string, string> = {
+      creditBalance: "credit_balance",
+    };
+
+    const mappedData = { ...data };
+    for (const [camelCase, snakeCase] of Object.entries(columnMapping)) {
+      if (camelCase in mappedData) {
+        (mappedData as any)[snakeCase] = (mappedData as any)[camelCase];
+        delete (mappedData as any)[camelCase];
+      }
+    }
+
+    const entries = Object.entries(mappedData as Record<string, any>).filter(
+      ([key, value]) => key !== "id" && value !== undefined
+    );
+
+    if (entries.length === 0) {
+      return { setClause: "", values: [] };
+    }
+
+    const setClause = entries.map(([key]) => `${key} = ?`).join(", ");
+    const values = entries.map(([_, value]) => value);
+
+    return { setClause, values };
   }
 }
