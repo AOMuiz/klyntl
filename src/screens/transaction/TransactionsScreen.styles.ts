@@ -1,0 +1,263 @@
+import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: wp(20),
+    paddingTop: hp(20),
+    paddingBottom: hp(12),
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: hp(24),
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: fontSize(32),
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
+  addButton: {
+    width: wp(50),
+    height: wp(50),
+    borderRadius: wp(28),
+    backgroundColor: "#34C759", // iOS green
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: fontSize(16),
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(20),
+    borderRadius: wp(12),
+    marginBottom: hp(20),
+    borderWidth: 1,
+    borderColor: "#E5E5E7",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: fontSize(16),
+    paddingLeft: wp(12),
+    paddingVertical: 0,
+    fontWeight: "400",
+  },
+  filtersContent: {
+    paddingVertical: hp(8),
+    alignItems: "center",
+    gap: wp(12),
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: hp(12),
+    paddingHorizontal: wp(20),
+    borderRadius: wp(24),
+    gap: wp(8),
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  activeChip: {
+    backgroundColor: "#34C759", // iOS green
+  },
+  inactiveChip: {
+    backgroundColor: "#F2F2F7", // Light gray
+    borderColor: "#E5E5E7",
+  },
+  activeFilterChip: {
+    borderColor: "#34C759",
+    borderWidth: 2,
+  },
+  filterChipText: {
+    fontSize: fontSize(13),
+    fontWeight: "600",
+  },
+  activeChipText: {
+    color: "white",
+  },
+  inactiveChipText: {
+    color: "#1C1C1E",
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: wp(20),
+  },
+  listContent: {
+    paddingBottom: hp(40),
+    paddingTop: hp(8),
+  },
+  sectionHeader: {
+    fontSize: fontSize(13),
+    fontWeight: "700",
+    marginBottom: hp(12),
+    marginTop: hp(20),
+    letterSpacing: 1.0,
+    opacity: 0.7,
+    paddingHorizontal: wp(4),
+  },
+  transactionCard: {
+    marginBottom: hp(12),
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(20),
+    borderRadius: wp(16),
+    borderWidth: 1,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  transactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wp(16),
+  },
+  transactionIcon: {
+    width: wp(44),
+    height: wp(44),
+    borderRadius: wp(22),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  customerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: hp(4),
+  },
+  customerName: {
+    fontSize: fontSize(17),
+    fontWeight: "600",
+    flex: 1,
+    lineHeight: hp(22),
+  },
+  statusBadge: {
+    paddingHorizontal: wp(8),
+    paddingVertical: hp(2),
+    borderRadius: wp(12),
+    marginLeft: wp(8),
+    alignSelf: "center",
+  },
+  statusText: {
+    fontSize: fontSize(9),
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  debtInfo: {
+    marginTop: hp(8),
+    gap: hp(4),
+  },
+  debtText: {
+    fontSize: fontSize(12),
+    fontWeight: "500",
+    lineHeight: hp(18),
+  },
+  paymentMethod: {
+    fontSize: fontSize(10),
+    fontWeight: "500",
+    letterSpacing: 0.5,
+    marginTop: hp(6),
+    paddingHorizontal: wp(6),
+    paddingVertical: hp(2),
+    borderRadius: wp(8),
+    alignSelf: "flex-start",
+  },
+  description: {
+    fontSize: fontSize(13),
+    lineHeight: hp(20),
+    marginBottom: hp(4),
+    opacity: 0.8,
+    fontWeight: "400",
+  },
+  transactionAmount: {
+    gap: hp(3),
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  amountText: {
+    fontSize: fontSize(17),
+    fontWeight: "700",
+    // marginBottom: hp(2),
+    lineHeight: hp(22),
+  },
+  timeText: {
+    fontSize: fontSize(12),
+    fontWeight: "500",
+    opacity: 0.7,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: wp(32),
+  },
+  emptyTitle: {
+    textAlign: "center",
+    marginTop: hp(20),
+    marginBottom: hp(12),
+    fontSize: fontSize(20),
+    fontWeight: "600",
+  },
+  emptySubtitle: {
+    textAlign: "center",
+    opacity: 0.7,
+    marginBottom: hp(32),
+    fontSize: fontSize(16),
+    lineHeight: hp(24),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterModal: {
+    width: "80%",
+    maxHeight: "60%",
+    borderRadius: wp(12),
+    padding: wp(8),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: hp(2) },
+    shadowOpacity: 0.25,
+    shadowRadius: wp(4),
+    elevation: 5,
+  },
+  filterOption: {
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(16),
+    borderRadius: wp(8),
+  },
+  filterOptionText: {
+    fontSize: fontSize(16),
+  },
+  resultsInfo: {
+    paddingHorizontal: wp(16),
+    paddingVertical: hp(8),
+    alignItems: "center",
+  },
+});

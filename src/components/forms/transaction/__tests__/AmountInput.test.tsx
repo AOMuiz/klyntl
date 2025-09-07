@@ -20,7 +20,7 @@ describe("AmountInput", () => {
       />
     );
 
-    expect(screen.getByText("Amount *")).toBeTruthy();
+    // Label is provided by FormField in parent; verify placeholder instead
     expect(screen.getByPlaceholderText("0.00")).toBeTruthy();
   });
 
@@ -92,6 +92,7 @@ describe("AmountInput", () => {
       />
     );
 
-    expect(screen.getByText("Payment Received")).toBeTruthy();
+    // Component displays "Payment Amount" preview label for payments
+    expect(screen.getByText("Payment Amount")).toBeTruthy();
   });
 });

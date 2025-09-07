@@ -339,9 +339,11 @@ describe("TransactionRepository", () => {
         expect.stringContaining("UPDATE transactions SET"),
         expect.any(Array)
       );
-      expect(mockCustomerRepo.updateTotalSpent).toHaveBeenCalledWith(
-        "cust_1",
-        5000
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET totalSpent = totalSpent + ?"
+        ),
+        expect.arrayContaining([5000, expect.any(String), "cust_1"])
       );
       expect(mockAudit.logEntry).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -215,15 +215,15 @@ export const styles = StyleSheet.create({
   },
   detailValue: {
     fontWeight: "600",
-    fontSize: 13,
+    fontSize: wp(11),
     textAlign: "right",
     flex: 1,
-    marginLeft: 20,
+    marginLeft: wp(20),
   },
   bottomActions: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingBottom: 120, // Space for FAB
+    paddingHorizontal: wp(20),
+    paddingBottom: hp(120), // Space for FAB
     gap: 16,
   },
   editButton: {

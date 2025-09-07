@@ -587,7 +587,15 @@ export default function CustomerDetailScreen({
                 {transactionsWithBalances
                   .slice(0, 5)
                   .map((transaction, index) => (
-                    <View key={transaction.id}>
+                    <TouchableOpacity
+                      key={transaction.id}
+                      onPress={() =>
+                        router.push(
+                          `/(modal)/transaction/view/${transaction.id}`
+                        )
+                      }
+                      activeOpacity={0.7}
+                    >
                       <View style={styles.transactionRow}>
                         {/* Left side - Date and Description */}
                         <View style={styles.transactionLeft}>
@@ -658,7 +666,7 @@ export default function CustomerDetailScreen({
                           style={{ backgroundColor: colors.paper.outline }}
                         />
                       )}
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 {transactions.length > 5 && (
                   <>
@@ -667,7 +675,9 @@ export default function CustomerDetailScreen({
                     />
                     <Button
                       mode="text"
-                      onPress={() => {}} // TODO: Navigate to all transactions
+                      onPress={() =>
+                        router.push(`/transactions?customerId=${customer.id}`)
+                      }
                       style={styles.viewAllButton}
                       contentStyle={{ paddingVertical: 12 }}
                     >
@@ -711,7 +721,7 @@ export default function CustomerDetailScreen({
                     Customer ID:
                   </Text>
                   <Text
-                    variant="bodyMedium"
+                    variant="bodySmall"
                     style={[
                       styles.detailValue,
                       { color: colors.paper.onBackground },
@@ -734,7 +744,7 @@ export default function CustomerDetailScreen({
                     Created:
                   </Text>
                   <Text
-                    variant="bodyMedium"
+                    variant="bodySmall"
                     style={[
                       styles.detailValue,
                       { color: colors.paper.onBackground },
@@ -757,7 +767,7 @@ export default function CustomerDetailScreen({
                     Last Updated:
                   </Text>
                   <Text
-                    variant="bodyMedium"
+                    variant="bodySmall"
                     style={[
                       styles.detailValue,
                       { color: colors.paper.onBackground },

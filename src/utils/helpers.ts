@@ -254,3 +254,12 @@ export const blurhash =
 export const isIOS = (): boolean => Platform.OS === "ios";
 export const isAndroid = (): boolean => Platform.OS === "android";
 export const isWeb = (): boolean => Platform.OS === "web";
+
+export const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};

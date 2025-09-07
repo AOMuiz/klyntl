@@ -77,6 +77,7 @@ describe("AnalyticsRepository", () => {
         totalCustomers: 100,
         totalTransactions: 250,
         totalRevenue: 500000,
+        totalOutstandingDebts: 0,
         topCustomers: [
           {
             id: "cust_1",
@@ -95,7 +96,7 @@ describe("AnalyticsRepository", () => {
         ],
       });
 
-      expect(mockDb.getFirstAsync).toHaveBeenCalledTimes(3);
+      expect(mockDb.getFirstAsync).toHaveBeenCalledTimes(4);
       expect(mockDb.getAllAsync).toHaveBeenCalledTimes(1);
     });
 
@@ -109,6 +110,7 @@ describe("AnalyticsRepository", () => {
         totalCustomers: 0,
         totalTransactions: 0,
         totalRevenue: 0,
+        totalOutstandingDebts: 0,
         topCustomers: [],
       });
     });

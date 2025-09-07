@@ -42,7 +42,8 @@ export const ContactImportButton: React.FC<ContactImportButtonProps> = ({
   } = useContactImport();
 
   const { db } = useDatabase();
-  const databaseService = createDatabaseService(db);
+  // Memoize database service so the reference is stable across renders
+  const databaseService = React.useMemo(() => createDatabaseService(db), [db]);
   const { showContactPicker, ContactPickerComponent } = useContactPicker();
 
   const [existingPhones, setExistingPhones] = useState<string[]>([]);

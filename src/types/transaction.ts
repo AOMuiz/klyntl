@@ -36,6 +36,17 @@ export interface Transaction {
   isDeleted?: boolean;
 }
 
+export interface TransactionWithCustomer extends Transaction {
+  customerName?: string;
+}
+
+export type TransactionFilterType =
+  | "all"
+  | "date"
+  | "customer"
+  | "status"
+  | "debtStatus";
+
 export interface CreateTransactionInput {
   customerId: string;
   productId?: string;

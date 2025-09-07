@@ -18,7 +18,11 @@ import {
 import { validateNigerianPhone } from "../utils/helpers";
 
 // Create database service instance
-const databaseService = new DatabaseService(db);
+let databaseService: DatabaseService = new DatabaseService(db);
+// Export a setter so tests can inject a mocked DatabaseService instance
+export const setDatabaseService = (svc: DatabaseService) => {
+  databaseService = svc;
+};
 
 // Helper function to invalidate analytics cache
 const invalidateAnalyticsCache = () => {

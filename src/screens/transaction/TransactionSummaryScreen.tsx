@@ -347,7 +347,7 @@ export default function TransactionSummaryScreen() {
             >
               <ThemedText
                 type="caption"
-                numberOfLines={2}
+                numberOfLines={3}
                 ellipsizeMode="tail"
                 style={[styles.badgeText, { color: theme.colors.primary }]}
               >
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    fontSize: fontSize(14),
+    fontSize: fontSize(13),
     marginBottom: hp(4),
     fontWeight: "500",
   },
@@ -1032,13 +1032,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(6),
     paddingVertical: hp(2),
     borderRadius: wp(7),
-    maxWidth: wp(160),
+    maxWidth: wp(170),
     justifyContent: "center",
     alignItems: "center",
   },
   badgeText: {
-    fontSize: fontSize(12),
-    fontWeight: "600",
+    fontSize: fontSize(11),
+    fontWeight: "500",
     flexShrink: 1,
   },
   descriptionContainer: {
