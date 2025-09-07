@@ -249,10 +249,9 @@ export class PaymentService {
   private calculateDebtStatus(remainingAmount: number): string {
     if (remainingAmount <= 0) {
       return "completed";
-    } else if (remainingAmount > 0) {
-      return "partial";
+    } else {
+      return "partial"; // If there's still debt remaining, it's partial
     }
-    return "pending";
   }
 
   /**

@@ -534,7 +534,7 @@ export default function TransactionSummaryScreen() {
           <ThemedText
             style={[styles.impactTitle, { color: theme.colors.onSurface }]}
           >
-            What will happen:
+            💡 What happens next:
           </ThemedText>
 
           <View style={styles.impactList}>
@@ -560,7 +560,7 @@ export default function TransactionSummaryScreen() {
                         { color: theme.colors.onSurface },
                       ]}
                     >
-                      Revenue increases by{" "}
+                      ✅ Revenue increases by{" "}
                       {formatCurrency(parseFloat(transactionData.amount))}
                     </ThemedText>
                   </View>
@@ -587,7 +587,7 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        Revenue increases by{" "}
+                        ✅ Revenue increases by{" "}
                         {formatCurrency(parseFloat(transactionData.amount))}
                       </ThemedText>
                     </View>
@@ -610,7 +610,7 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        Customer debt increases by{" "}
+                        ⚠️ Customer debt increases by{" "}
                         {formatCurrency(parseFloat(transactionData.amount))}
                       </ThemedText>
                     </View>
@@ -633,7 +633,8 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        New debt balance: {formatCurrency(calculateNewDebt())}
+                        📊 New customer balance:{" "}
+                        {formatCurrency(calculateNewDebt())}
                       </ThemedText>
                     </View>
                   </>
@@ -660,7 +661,7 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        Revenue increases by{" "}
+                        ✅ Revenue increases by{" "}
                         {formatCurrency(
                           parseFloat(transactionData.paidAmount || "0")
                         )}
@@ -685,7 +686,7 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        Customer debt increases by{" "}
+                        ⚠️ Customer debt increases by{" "}
                         {formatCurrency(
                           parseFloat(transactionData.amount) -
                             parseFloat(transactionData.paidAmount || "0")
@@ -711,7 +712,8 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        New debt balance: {formatCurrency(calculateNewDebt())}
+                        📊 New customer balance:{" "}
+                        {formatCurrency(calculateNewDebt())}
                       </ThemedText>
                     </View>
                   </>
@@ -742,7 +744,7 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        Customer debt decreases by{" "}
+                        ✅ Customer debt decreases by{" "}
                         {formatCurrency(parseFloat(transactionData.amount))}
                       </ThemedText>
                     </View>
@@ -765,7 +767,8 @@ export default function TransactionSummaryScreen() {
                           { color: theme.colors.onSurface },
                         ]}
                       >
-                        New debt balance: {formatCurrency(calculateNewDebt())}
+                        📊 New customer balance:{" "}
+                        {formatCurrency(calculateNewDebt())}
                       </ThemedText>
                     </View>
                   </>
@@ -789,7 +792,7 @@ export default function TransactionSummaryScreen() {
                         { color: theme.colors.onSurface },
                       ]}
                     >
-                      Future service deposit recorded:{" "}
+                      💰 Future service deposit recorded:{" "}
                       {formatCurrency(parseFloat(transactionData.amount))}
                     </ThemedText>
                   </View>
@@ -815,18 +818,18 @@ export default function TransactionSummaryScreen() {
                       { color: theme.colors.onSurface },
                     ]}
                   >
-                    Revenue decreases by{" "}
+                    📉 Revenue decreases by{" "}
                     {formatCurrency(parseFloat(transactionData.amount))}
                   </ThemedText>
                 </View>
                 <View style={styles.impactItem}>
                   <View
-                    style={[styles.impactIcon, { backgroundColor: "#E3F2FD" }]}
+                    style={[styles.impactIcon, { backgroundColor: "#FFF3E0" }]}
                   >
                     <IconSymbol
-                      name="arrow.right.circle.fill"
+                      name="exclamationmark.triangle.fill"
                       size={16}
-                      color="#007AFF"
+                      color="#FF9500"
                     />
                   </View>
                   <ThemedText
@@ -835,8 +838,8 @@ export default function TransactionSummaryScreen() {
                       { color: theme.colors.onSurface },
                     ]}
                   >
-                    Customer credit balance:{" "}
-                    {formatCurrency(calculateNewDebt())}
+                    ⚠️ Customer credit balance increases by{" "}
+                    {formatCurrency(parseFloat(transactionData.amount))}
                   </ThemedText>
                 </View>
               </>
@@ -856,7 +859,7 @@ export default function TransactionSummaryScreen() {
                 <ThemedText
                   style={[styles.impactText, { color: theme.colors.onSurface }]}
                 >
-                  Revenue decreases by{" "}
+                  📉 Revenue decreases by{" "}
                   {formatCurrency(parseFloat(transactionData.amount))}
                 </ThemedText>
               </View>

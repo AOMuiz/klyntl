@@ -234,18 +234,46 @@ export default function TransactionDetailsScreen() {
   const usingAudit =
     computedPaidFromAudit > 0 || computedRemainingFromAudit !== remainingStored;
 
-  const isInconsistent =
-    Math.abs(paidStored + remainingStored - Number(transaction.amount || 0)) >
-      0 ||
-    Math.abs(
-      displayedPaid + displayedRemaining - Number(transaction.amount || 0)
-    ) > 0;
+  // Enhanced inconsistency detection with better explanations
+  const inconsistencyDetails = (() => {
+    const totalAmount = Number(transaction.amount || 0);
+    const storedTotal = paidStored + remainingStored;
+    const computedTotal = displayedPaid + displayedRemaining;
+
+    const storedInconsistent = Math.abs(storedTotal - totalAmount) > 0.01; // Allow for small floating point differences
+    const computedInconsistent = Math.abs(computedTotal - totalAmount) > 0.01;
+
+    if (!storedInconsistent && !computedInconsistent) {
+      return null; // No inconsistency
+    }
+
+    return {
+      storedInconsistent,
+      computedInconsistent,
+      storedTotal,
+      computedTotal,
+      totalAmount,
+      difference: Math.max(
+        Math.abs(storedTotal - totalAmount),
+        Math.abs(computedTotal - totalAmount)
+      ),
+    };
+  })();
+
+  const isInconsistent = !!inconsistencyDetails;
+
+  console.log({
+    inconsistencyDetails,
+    auditHistory,
+    parsedMetadata,
+    transaction,
+  });
 
   const safeFormat = (val: any) => {
     const n = Number(val || 0);
     try {
       return formatCurrency(n);
-    } catch (e) {
+    } catch {
       return String(val ?? "-");
     }
   };
@@ -383,32 +411,65 @@ export default function TransactionDetailsScreen() {
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                Breakdown
+                Payment Breakdown
               </Text>
               <View style={{ marginTop: hp(6) }}>
                 {displayedPaid ? (
                   <Text variant="bodyMedium">
-                    Paid now: {safeFormat(displayedPaid)}
+                    💰 Amount Paid: {safeFormat(displayedPaid)}
                     {usingAudit && displayedPaid !== paidStored
-                      ? " (computed)"
+                      ? " (calculated from history)"
                       : ""}
                   </Text>
                 ) : null}
                 {displayedRemaining ? (
                   <Text variant="bodyMedium">
-                    Remaining: {safeFormat(displayedRemaining)}
+                    ⏳ Amount Due: {safeFormat(displayedRemaining)}
                     {usingAudit && displayedRemaining !== remainingStored
-                      ? " (computed)"
+                      ? " (calculated from history)"
                       : ""}
                   </Text>
                 ) : null}
                 {isInconsistent ? (
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.error }}
-                  >
-                    Data inconsistent: paid + remaining ≠ total
-                  </Text>
+                  <View style={{ marginTop: hp(8) }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.error, fontWeight: "600" }}
+                    >
+                      ⚠️ Data Verification Issue
+                    </Text>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.error, marginTop: hp(4) }}
+                    >
+                      {inconsistencyDetails?.storedInconsistent
+                        ? `Database records show ${formatCurrency(
+                            inconsistencyDetails.storedTotal
+                          )} total vs ${formatCurrency(
+                            inconsistencyDetails.totalAmount
+                          )} expected`
+                        : ""}
+                      {inconsistencyDetails?.computedInconsistent
+                        ? `${
+                            inconsistencyDetails?.storedInconsistent ? "\n" : ""
+                          }Payment history shows ${formatCurrency(
+                            inconsistencyDetails.computedTotal
+                          )} total vs ${formatCurrency(
+                            inconsistencyDetails.totalAmount
+                          )} expected`
+                        : ""}
+                      {inconsistencyDetails &&
+                      inconsistencyDetails.difference > 0.01
+                        ? `\n• Difference: ${formatCurrency(
+                            inconsistencyDetails.difference
+                          )}`
+                        : ""}
+                      {"\n• This may indicate a data synchronization issue"}
+                      {
+                        "\n• Using payment history for most accurate information"
+                      }
+                    </Text>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -419,14 +480,36 @@ export default function TransactionDetailsScreen() {
               variant="bodySmall"
               style={{ color: theme.colors.onSurfaceVariant }}
             >
-              Running Balance
+              Customer Balance Impact
             </Text>
             <View style={{ marginTop: hp(6) }}>
               <Text variant="bodyMedium">
-                Before: {formatCurrency(balanceBefore)}
+                📊 Balance before: {formatCurrency(balanceBefore)}
               </Text>
               <Text variant="bodyMedium">
-                After: {formatCurrency(balanceAfter)}
+                📈 Balance after: {formatCurrency(balanceAfter)}
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={{
+                  color:
+                    balanceAfter > balanceBefore
+                      ? theme.colors.error
+                      : balanceAfter < balanceBefore
+                      ? "#4CAF50"
+                      : theme.colors.onSurfaceVariant,
+                  marginTop: hp(4),
+                }}
+              >
+                {balanceAfter > balanceBefore
+                  ? `📈 Customer debt increased by ${formatCurrency(
+                      balanceAfter - balanceBefore
+                    )}`
+                  : balanceAfter < balanceBefore
+                  ? `📉 Customer debt decreased by ${formatCurrency(
+                      balanceBefore - balanceAfter
+                    )}`
+                  : "✅ No change in customer balance"}
               </Text>
             </View>
           </View>

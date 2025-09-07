@@ -34,8 +34,8 @@ export const getDefaultValuesForTransactionType = (
   switch (type) {
     case "credit":
       return {
-        paidAmount: currentAmount,
-        remainingAmount: "0",
+        paidAmount: "0", // Fixed: Credit means no payment received, so paidAmount should be 0
+        remainingAmount: currentAmount, // Full amount becomes debt
         appliedToDebt: false,
         paymentMethod: "credit" as PaymentMethod,
       };

@@ -94,9 +94,16 @@ export function useCustomers(
         }
       );
 
+      // Invalidate all customer-related queries
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.all(),
+      });
+
+      // Also invalidate specific customer queries
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.customers.count({ searchQuery, filters }),
       });
+
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.all() });
     },
   });

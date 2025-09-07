@@ -67,7 +67,7 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = React.memo(
         onInit={handleInit}
         onError={handleError}
         options={{
-          enableChangeListener: false, // Enable if you need real-time updates
+          enableChangeListener: true, // Enable real-time database change notifications
           useNewConnection: false,
         }}
       >

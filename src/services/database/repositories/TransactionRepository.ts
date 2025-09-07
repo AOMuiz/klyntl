@@ -1,5 +1,6 @@
 import {
   CreateTransactionInput,
+  PaymentMethod,
   Transaction,
   TransactionStatus,
   UpdateTransactionInput,
@@ -38,6 +39,41 @@ export class TransactionRepository implements ITransactionRepository {
       }
 
       const id = generateId("txn");
+
+      // Calculate proper paidAmount and remainingAmount based on transaction type and payment method
+      let paidAmount: number;
+      let remainingAmount: number;
+      let paymentMethod: PaymentMethod;
+
+      if (transactionData.type === "credit") {
+        // Credit transactions: no payment received, full amount becomes debt
+        paidAmount = 0;
+        remainingAmount = transactionData.amount;
+        paymentMethod = "credit"; // Credit transactions always use credit payment method
+      } else if (transactionData.type === "payment") {
+        // Payment transactions: full amount is paid, no remaining
+        paidAmount = transactionData.amount;
+        remainingAmount = 0;
+        paymentMethod = transactionData.paymentMethod || "cash";
+      } else if (transactionData.paymentMethod === "credit") {
+        // Sale with credit payment: no payment received, full amount becomes debt
+        paidAmount = 0;
+        remainingAmount = transactionData.amount;
+        paymentMethod = "credit";
+      } else if (transactionData.paymentMethod === "mixed") {
+        // Mixed payment: use provided amounts
+        paidAmount = transactionData.paidAmount || 0;
+        remainingAmount =
+          transactionData.remainingAmount ||
+          transactionData.amount - paidAmount;
+        paymentMethod = "mixed";
+      } else {
+        // Cash, bank transfer, POS card: full payment received
+        paidAmount = transactionData.amount;
+        remainingAmount = 0;
+        paymentMethod = transactionData.paymentMethod || "cash";
+      }
+
       const transaction: Transaction = {
         id,
         customerId: transactionData.customerId,
@@ -46,10 +82,16 @@ export class TransactionRepository implements ITransactionRepository {
         description: transactionData.description || undefined,
         date: transactionData.date,
         type: transactionData.type,
-        paymentMethod: transactionData.paymentMethod || "cash",
-        paidAmount: transactionData.paidAmount || transactionData.amount,
-        remainingAmount: transactionData.remainingAmount || 0,
-        status: this.calculateTransactionStatus(transactionData),
+        paymentMethod: paymentMethod, // Use calculated payment method
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount,
+        status: this.calculateTransactionStatusWithValues(
+          transactionData.type,
+          paymentMethod,
+          transactionData.amount,
+          paidAmount,
+          remainingAmount
+        ),
         linkedTransactionId: transactionData.linkedTransactionId,
         appliedToDebt: transactionData.appliedToDebt,
         dueDate: transactionData.dueDate,
@@ -73,8 +115,8 @@ export class TransactionRepository implements ITransactionRepository {
             transaction.date,
             transaction.type,
             transaction.paymentMethod || "cash",
-            transaction.paidAmount || transaction.amount,
-            transaction.remainingAmount || 0,
+            paidAmount, // Use calculated paidAmount directly
+            remainingAmount, // Use calculated remainingAmount directly
             transaction.status || "completed",
             transaction.linkedTransactionId || null,
             transaction.appliedToDebt ? 1 : 0,
@@ -1008,7 +1050,52 @@ export class TransactionRepository implements ITransactionRepository {
   }
 
   /**
-   * Calculate transaction status based on payment details
+   * Calculate transaction status based on transaction type, payment method, and amounts
+   */
+  private calculateTransactionStatusWithValues(
+    type: string,
+    paymentMethod: PaymentMethod,
+    amount: number,
+    paidAmount: number,
+    remainingAmount: number
+  ): TransactionStatus {
+    // Use PaymentService for accurate status calculation if available
+    if (this.paymentService) {
+      return this.paymentService.calculateTransactionStatus(
+        type,
+        paymentMethod,
+        amount,
+        paidAmount,
+        remainingAmount
+      ) as TransactionStatus;
+    }
+
+    // Fallback to original logic with calculated values
+    if (type === "payment") {
+      return "completed";
+    }
+
+    if (type === "credit") {
+      return remainingAmount > 0 ? "pending" : "completed";
+    }
+
+    if (paymentMethod === "cash" || paidAmount >= amount) {
+      return "completed";
+    }
+
+    if (paymentMethod === "mixed") {
+      return remainingAmount > 0 ? "partial" : "completed";
+    }
+
+    if (paymentMethod === "credit" || remainingAmount > 0) {
+      return "pending";
+    }
+
+    return "completed";
+  }
+
+  /**
+   * Calculate transaction status based on input data (legacy method)
    */
   private calculateTransactionStatus(
     data: CreateTransactionInput
@@ -1294,7 +1381,8 @@ export class TransactionRepository implements ITransactionRepository {
         break;
 
       case "credit":
-        // Credit/loan issued: increase customer's outstanding balance
+        // Credit/loan issued: increase customer's outstanding balance by the full amount
+        // Since credit transactions have paidAmount = 0 and remainingAmount = amount
         await this.db.runAsync(
           `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
           [transaction.amount, new Date().toISOString(), transaction.customerId]

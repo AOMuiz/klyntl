@@ -192,6 +192,14 @@ export const styles = StyleSheet.create({
     borderRadius: wp(8),
     alignSelf: "flex-start",
   },
+  paymentStatus: {
+    marginTop: hp(6),
+  },
+  paymentStatusText: {
+    fontSize: fontSize(12),
+    fontWeight: "500",
+    lineHeight: hp(18),
+  },
   description: {
     fontSize: fontSize(13),
     lineHeight: hp(20),

@@ -51,6 +51,13 @@ export function useTransactions(customerId?: string) {
           queryKey: QUERY_KEYS.transactions.all(),
         });
       }
+
+      // Also invalidate the specific customer's transaction list to ensure consistency
+      if (customerId) {
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.transactions.list(customerId),
+        });
+      }
     },
     onError: (error) => {
       console.error("Failed to create transaction:", error);

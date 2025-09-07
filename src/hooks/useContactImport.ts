@@ -1,10 +1,13 @@
+import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useDatabase } from "@/services/database";
 import { createDatabaseService } from "@/services/database/service";
 import { Customer } from "@/types/customer";
 import { validateNigerianPhone } from "@/utils/helpers";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Contacts from "expo-contacts";
 import { useState } from "react";
+
 // Helper interface for contact import results
 
 interface ContactImportResult {
@@ -31,6 +34,7 @@ interface ContactImportOptions {
 export function useContactImport() {
   const { db } = useDatabase();
   const databaseService = createDatabaseService(db);
+  const queryClient = useQueryClient();
 
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -354,6 +358,11 @@ export function useContactImport() {
         `Contact import completed. Imported: ${imported}, Skipped: ${skipped}, Total Processed: ${totalProcessed}`
       );
 
+      // Invalidate customer queries to trigger UI updates
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.all(),
+      });
+
       return {
         imported,
         skipped,
@@ -444,6 +453,11 @@ export function useContactImport() {
       console.log(
         `Selected contact import completed. Imported: ${imported}, Skipped: ${skipped}, Total Processed: ${totalProcessed}`
       );
+
+      // Invalidate customer queries to trigger UI updates
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.customers.all(),
+      });
 
       return {
         imported,

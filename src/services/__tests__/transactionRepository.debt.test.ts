@@ -103,8 +103,8 @@ describe("TransactionRepository - Debt Management", () => {
         date: "2024-01-15T10:30:00Z",
         type: "sale" as const,
         paymentMethod: "credit",
-        paidAmount: 20000, // ₦200 paid immediately
-        remainingAmount: 30000, // ₦300 as debt
+        // Note: For credit payment method, no paidAmount/remainingAmount should be provided
+        // as they will be calculated automatically based on the payment method
         dueDate: "2024-02-15T00:00:00Z",
       };
 
@@ -119,10 +119,11 @@ describe("TransactionRepository - Debt Management", () => {
         date: "2024-01-15T10:30:00Z",
         type: "sale",
         paymentMethod: "credit",
-        paidAmount: 20000,
-        remainingAmount: 30000,
+        paidAmount: 0, // Fixed: Credit means no payment received
+        remainingAmount: 50000, // Fixed: Full amount becomes debt
         status: "pending",
         linkedTransactionId: undefined,
+        appliedToDebt: undefined,
         dueDate: "2024-02-15T00:00:00Z",
         currency: "NGN",
         exchangeRate: 1,
@@ -141,7 +142,49 @@ describe("TransactionRepository - Debt Management", () => {
         expect.stringContaining(
           "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
         ),
-        expect.arrayContaining([30000, expect.any(String), "cust_1"])
+        expect.arrayContaining([50000, expect.any(String), "cust_1"]) // Fixed: Should be full amount, not partial
+      );
+    });
+
+    it("should create a pure credit/loan transaction", async () => {
+      const creditLoanData: CreateTransactionInput = {
+        customerId: "cust_1",
+        amount: 25000, // ₦250 loan/credit
+        description: "Loan to customer",
+        date: "2024-01-15T10:30:00Z",
+        type: "credit" as const, // Pure credit transaction type
+        dueDate: "2024-02-15T00:00:00Z",
+      };
+
+      const result = await transactionRepository.create(creditLoanData);
+
+      expect(result).toEqual({
+        id: "txn_debt_test_123",
+        customerId: "cust_1",
+        productId: undefined,
+        amount: 25000,
+        description: "Loan to customer",
+        date: "2024-01-15T10:30:00Z",
+        type: "credit",
+        paymentMethod: "credit",
+        paidAmount: 0, // Credit transactions have no immediate payment
+        remainingAmount: 25000, // Full amount becomes outstanding debt
+        status: "pending",
+        linkedTransactionId: undefined,
+        appliedToDebt: undefined,
+        dueDate: "2024-02-15T00:00:00Z",
+        currency: "NGN",
+        exchangeRate: 1,
+        metadata: undefined,
+        isDeleted: false,
+      });
+
+      // Verify that outstanding balance is increased by full amount
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
+        ),
+        expect.arrayContaining([25000, expect.any(String), "cust_1"])
       );
     });
 

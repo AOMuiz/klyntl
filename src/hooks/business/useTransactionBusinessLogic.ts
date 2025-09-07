@@ -1,7 +1,11 @@
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { createDatabaseService } from "@/services/database";
 import { useDatabase } from "@/services/database/hooks";
-import { PaymentMethod, TransactionType } from "@/types/transaction";
+import {
+  PaymentMethod,
+  TransactionStatus,
+  TransactionType,
+} from "@/types/transaction";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
@@ -22,15 +26,15 @@ export const useTransactionBusinessLogic = ({
 }: UseTransactionBusinessLogicProps) => {
   const { db } = useDatabase();
   const queryClient = useQueryClient();
+  const databaseService = db ? createDatabaseService(db) : undefined;
 
   // Get current customer debt from backend
   const { data: currentCustomerDebt = 0 } = useQuery({
     queryKey: QUERY_KEYS.customerDebt.detail(customerId),
     queryFn: async () => {
-      if (!customerId || !db) return 0;
+      if (!customerId || !db || !databaseService) return 0;
 
       try {
-        const databaseService = createDatabaseService(db);
         return await databaseService.customers.getOutstandingBalance(
           customerId
         );
@@ -39,13 +43,20 @@ export const useTransactionBusinessLogic = ({
         return 0;
       }
     },
-    enabled: !!customerId && !!db,
+    enabled: !!customerId && !!db && !!databaseService,
     staleTime: 30 * 1000, // Cache for 30 seconds
   });
 
+  // Use PaymentService for debt calculations
   const calculateNewDebt = () => {
-    if (type === "payment" && appliedToDebt && amount) {
-      return Math.max(0, currentCustomerDebt - parseFloat(amount || "0"));
+    if (!databaseService?.payment || !amount) return currentCustomerDebt;
+
+    if (type === "payment" && appliedToDebt) {
+      const paymentAmount = parseFloat(amount || "0");
+      if (paymentAmount <= 0) return currentCustomerDebt;
+
+      // Use PaymentService logic for debt calculation
+      return Math.max(0, currentCustomerDebt - paymentAmount);
     }
     return currentCustomerDebt;
   };
@@ -58,28 +69,30 @@ export const useTransactionBusinessLogic = ({
     return type === "payment" && appliedToDebt === false;
   };
 
+  // Enhanced transaction data formatting with PaymentService validation
   const formatTransactionData = (data: any) => {
-    // Handle credit transactions differently - no payment received
-    let finalPaymentMethod: PaymentMethod;
-    let paidAmount: number | undefined;
-    let remainingAmount: number | undefined;
-
     // Validate and parse amount
     const parsedAmount = parseFloat(data.amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       throw new Error("Invalid amount provided");
     }
 
+    // Handle credit transactions differently - no payment received
+    let finalPaymentMethod: PaymentMethod;
+    let paidAmount: number | undefined;
+    let remainingAmount: number | undefined;
+
     if (data.type === "credit") {
       // For credit transactions, no payment is received
       finalPaymentMethod = "credit";
-      paidAmount = 0;
-      remainingAmount = parsedAmount;
+      paidAmount = 0; // Fixed: Credit transactions should have 0 paid amount
+      remainingAmount = parsedAmount; // Full amount becomes outstanding debt
     } else {
       finalPaymentMethod = data.paymentMethod;
 
       // Set paidAmount and remainingAmount based on payment method
       if (finalPaymentMethod === "cash") {
+        // For cash payments, automatically set paidAmount to full amount
         paidAmount = parsedAmount;
         remainingAmount = 0;
       } else if (finalPaymentMethod === "mixed") {
@@ -97,6 +110,18 @@ export const useTransactionBusinessLogic = ({
       }
     }
 
+    // Use PaymentService to calculate proper transaction status
+    let calculatedStatus: TransactionStatus = "pending";
+    if (databaseService?.payment) {
+      calculatedStatus = databaseService.payment.calculateTransactionStatus(
+        data.type,
+        finalPaymentMethod,
+        parsedAmount,
+        paidAmount || 0,
+        remainingAmount || 0
+      ) as TransactionStatus;
+    }
+
     return {
       customerId: data.customerId,
       amount: parsedAmount,
@@ -108,6 +133,7 @@ export const useTransactionBusinessLogic = ({
       remainingAmount: remainingAmount,
       dueDate: data.dueDate ? format(data.dueDate, "yyyy-MM-dd") : undefined,
       appliedToDebt: data.appliedToDebt,
+      status: calculatedStatus, // Now properly typed as TransactionStatus
     };
   };
 
@@ -136,6 +162,16 @@ export const useTransactionBusinessLogic = ({
     // Invalidate customer lists (to update totals)
     queryClient.invalidateQueries({
       queryKey: QUERY_KEYS.customers.all(),
+    });
+
+    // Invalidate transaction lists for this customer
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.transactions.list(targetCustomerId),
+    });
+
+    // Invalidate all transactions (for global lists)
+    queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.transactions.all(),
     });
 
     // Invalidate analytics

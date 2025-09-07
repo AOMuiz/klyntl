@@ -159,7 +159,42 @@ const getStatusBadge = (status?: string, dueDate?: string, colors?: any) => {
   );
 };
 
-// Custom hooks for better separation of concerns
+// Enhanced payment status information function
+const getPaymentStatusInfo = (transaction: any) => {
+  const { type, paymentMethod, paidAmount, remainingAmount } = transaction;
+
+  // For sales with mixed payments
+  if (type === "sale" && paymentMethod === "mixed") {
+    if (paidAmount > 0 && remainingAmount > 0) {
+      return {
+        text: `${formatCurrency(paidAmount)} paid, ${formatCurrency(
+          remainingAmount
+        )} due`,
+        color: "#FF8F00", // Orange for partial
+      };
+    }
+  }
+
+  // For credit transactions
+  if (type === "credit") {
+    if (remainingAmount > 0) {
+      return {
+        text: `${formatCurrency(remainingAmount)} outstanding`,
+        color: "#FF8F00", // Orange for debt
+      };
+    }
+  }
+
+  // For payments applied to debt
+  if (type === "payment" && paidAmount > 0) {
+    return {
+      text: `Applied to debt`,
+      color: "#4CAF50", // Green for payment
+    };
+  }
+
+  return null;
+};
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -211,12 +246,6 @@ export default function TransactionsScreen() {
   const handleAddTransaction = () => {
     router.push("/(modal)/transaction/add");
   };
-
-  console.log({
-    flashListData: JSON.stringify(flashListData),
-    transactions,
-    customers,
-  });
 
   const renderFilterModal = () => {
     if (!activeFilter) return null;
@@ -358,6 +387,15 @@ export default function TransactionsScreen() {
       transaction.type === "credit" &&
       (transaction.paidAmount || transaction.remainingAmount);
 
+    // Extract payment method style computation
+    const paymentMethodStyle =
+      transaction.paymentMethod && transaction.paymentMethod !== "cash"
+        ? getPaymentMethodStyle(transaction.paymentMethod, isDark)
+        : null;
+
+    // Extract payment status info
+    const paymentInfo = getPaymentStatusInfo(transaction);
+
     return (
       <TouchableOpacity
         key={`transaction-${transaction.id}`}
@@ -435,28 +473,34 @@ export default function TransactionsScreen() {
             )}
 
             {/* Payment method for transactions that have it */}
-            {transaction.paymentMethod &&
-              transaction.paymentMethod !== "cash" &&
-              (() => {
-                const style = getPaymentMethodStyle(
-                  transaction.paymentMethod!,
-                  isDark
-                );
-                return (
-                  <ThemedText
-                    type="button"
-                    style={[
-                      styles.paymentMethod,
-                      {
-                        color: style.color,
-                        backgroundColor: style.backgroundColor,
-                      },
-                    ]}
-                  >
-                    {transaction.paymentMethod!.replace("_", " ").toUpperCase()}
-                  </ThemedText>
-                );
-              })()}
+            {paymentMethodStyle && (
+              <ThemedText
+                type="button"
+                style={[
+                  styles.paymentMethod,
+                  {
+                    color: paymentMethodStyle.color,
+                    backgroundColor: paymentMethodStyle.backgroundColor,
+                  },
+                ]}
+              >
+                {transaction.paymentMethod!.replace("_", " ").toUpperCase()}
+              </ThemedText>
+            )}
+
+            {/* Enhanced status and payment info */}
+            {paymentInfo && (
+              <View style={styles.paymentStatus}>
+                <ThemedText
+                  style={[
+                    styles.paymentStatusText,
+                    { color: paymentInfo.color },
+                  ]}
+                >
+                  {paymentInfo.text}
+                </ThemedText>
+              </View>
+            )}
           </View>
 
           <View style={styles.transactionAmount}>
@@ -507,6 +551,8 @@ export default function TransactionsScreen() {
     );
   };
 
+  console.log({ transactions });
+
   return (
     <ScreenContainer
       containerStyle={[
@@ -517,7 +563,7 @@ export default function TransactionsScreen() {
       contentStyle={styles.content}
       scrollable={false}
       withPadding={false}
-      useThemedView={false}
+      useThemedView={true}
     >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.paper.surface }]}>
