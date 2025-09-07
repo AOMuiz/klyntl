@@ -66,14 +66,14 @@ export const styles = StyleSheet.create({
     fontWeight: "400",
   },
   filtersContent: {
-    paddingVertical: hp(8),
+    // paddingVertical: hp(8),
     alignItems: "center",
     gap: wp(12),
   },
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: hp(12),
+    paddingVertical: hp(10),
     paddingHorizontal: wp(20),
     borderRadius: wp(24),
     gap: wp(8),
@@ -92,8 +92,8 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
   },
   filterChipText: {
-    fontSize: fontSize(13),
-    fontWeight: "600",
+    fontSize: fontSize(12),
+    fontWeight: "500",
   },
   activeChipText: {
     color: "white",

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller } from "react-hook-form";
 import {
   ScrollView,
@@ -21,7 +21,7 @@ import { useTransactionBusinessLogic } from "@/hooks/business/useTransactionBusi
 import { useTransactionForm } from "@/hooks/forms/useTransactionForm";
 import { useCustomers } from "@/hooks/useCustomers";
 import { formatCurrency } from "@/utils/currency";
-import { hp, wp } from "@/utils/responsive_dimensions_system";
+import { hp, spacing, wp } from "@/utils/responsive_dimensions_system";
 
 import {
   TransactionFormData,
@@ -137,9 +137,42 @@ export default function TransactionForm({
     });
   };
 
-  const selectedCustomer = customers?.find(
-    (c) => c.id === watchedValues.customerId
+  const selectedCustomer = useMemo(
+    () => customers?.find((c) => c.id === watchedValues.customerId),
+    [customers, watchedValues.customerId]
   );
+
+  // When a customer is selected after opening the form without one,
+  // initialize only the fields that are truly missing to avoid infinite loops.
+  useEffect(() => {
+    if (!watchedValues.customerId) return;
+
+    // Only set appliedToDebt when it's currently undefined.
+    if (watchedValues.type === "payment") {
+      const currentApplied = watch("appliedToDebt");
+      if (currentApplied === undefined) {
+        setValue("appliedToDebt", true);
+      }
+    }
+
+    // Ensure paidAmount exists (avoid repeatedly setting the same value)
+    if (
+      selectedCustomer &&
+      typeof selectedCustomer.outstandingBalance === "number"
+    ) {
+      const currentPaid = watch("paidAmount");
+      if (currentPaid === undefined) {
+        setValue("paidAmount", "");
+      }
+    }
+    // Note: do NOT re-set 'amount' to itself — that can cause rerenders in a loop.
+  }, [
+    watchedValues.customerId,
+    watchedValues.type,
+    selectedCustomer,
+    setValue,
+    watch,
+  ]);
 
   const getSubmitButtonText = (
     type: TransactionType,
@@ -193,9 +226,13 @@ export default function TransactionForm({
       : 0;
 
   return (
-    <ScreenContainer withPadding={false} edges={[...edgesHorizontal, "bottom"]}>
+    <ScreenContainer
+      withPadding={false}
+      keyboardShouldAvoidView
+      edges={[...edgesHorizontal, "bottom"]}
+    >
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={{ padding: 16 }}>
+        <View style={{ padding: spacing(16) }}>
           <View
             style={{
               alignItems: "center",
