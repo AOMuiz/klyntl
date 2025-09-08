@@ -678,6 +678,43 @@ const migration010: Migration = {
 };
 
 /**
+ * Migration 11: Add simple_payment_audit table for SimplePaymentService
+ */
+const migration011: Migration = {
+  version: 11,
+  name: "simple_payment_audit_table",
+  up: async (db: SQLiteDatabase) => {
+    // Create simple_payment_audit table for SimplePaymentService
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS simple_payment_audit (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('payment', 'overpayment', 'credit_used')),
+        amount INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        description TEXT,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Add indexes for simple_payment_audit
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_customer ON simple_payment_audit(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_type ON simple_payment_audit(type);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_created ON simple_payment_audit(created_at);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_simple_payment_audit_created;
+      DROP INDEX IF EXISTS idx_simple_payment_audit_type;
+      DROP INDEX IF EXISTS idx_simple_payment_audit_customer;
+      DROP TABLE IF EXISTS simple_payment_audit;
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -692,6 +729,7 @@ export const migrations: Migration[] = [
   migration008,
   migration009, // Add credit balance and payment audit migration
   migration010, // Reconciliation for debt/audit
+  migration011, // Add simple_payment_audit table migration
 ];
 
 /**

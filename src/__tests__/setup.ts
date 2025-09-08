@@ -43,6 +43,28 @@ jest.mock("expo-sqlite", () => {
     const tables = new Map();
     let nextRowId = 1;
 
+    // Initialize common tables that services expect
+    const initializeTables = () => {
+      // Create customers table
+      if (!tables.has("customers")) {
+        tables.set("customers", []);
+      }
+      // Create transactions table
+      if (!tables.has("transactions")) {
+        tables.set("transactions", []);
+      }
+      // Create simple_payment_audit table
+      if (!tables.has("simple_payment_audit")) {
+        tables.set("simple_payment_audit", []);
+      }
+      // Create payment_audit table
+      if (!tables.has("payment_audit")) {
+        tables.set("payment_audit", []);
+      }
+    };
+
+    initializeTables();
+
     const mockDb: any = {
       runAsync: jest.fn(async (sql: string, params: any[] = []) => {
         const sqlLower = sql.toLowerCase().trim();
@@ -109,6 +131,21 @@ jest.mock("expo-sqlite", () => {
                     customer.lastPurchase = row.date;
                   }
                 }
+              }
+
+              // If this is simple_payment_audit, store the audit record
+              if (tableName === "simple_payment_audit") {
+                // The columns are: id, customer_id, type, amount, created_at, description
+                // Map them from the params
+                const auditRow = {
+                  id: params[0],
+                  customer_id: params[1],
+                  type: params[2],
+                  amount: params[3],
+                  created_at: params[4],
+                  description: params[5],
+                };
+                tables.get(tableName).push(auditRow);
               }
 
               return { changes: 1, lastInsertRowId: nextRowId++ };
@@ -288,6 +325,41 @@ jest.mock("expo-sqlite", () => {
                 }
               }
 
+              // Handle simple_payment_audit queries
+              if (tableName === "simple_payment_audit") {
+                let auditResults = [...tables.get("simple_payment_audit")];
+
+                // Apply WHERE conditions for audit queries
+                if (
+                  sql.includes("WHERE customer_id = ?") &&
+                  params.length > 0
+                ) {
+                  auditResults = auditResults.filter(
+                    (row: any) => row.customer_id === params[0]
+                  );
+                }
+
+                // Apply ORDER BY for audit queries
+                if (sql.toLowerCase().includes("order by created_at desc")) {
+                  auditResults.sort(
+                    (a, b) =>
+                      new Date(b.created_at).getTime() -
+                      new Date(a.created_at).getTime()
+                  );
+                }
+
+                // Apply LIMIT for audit queries
+                if (
+                  sql.toLowerCase().includes("limit ?") &&
+                  params.length > 1
+                ) {
+                  const limit = params[params.length - 1];
+                  auditResults = auditResults.slice(0, limit);
+                }
+
+                return auditResults;
+              }
+
               // Apply WHERE conditions (simplified)
               if (sql.toLowerCase().includes("where")) {
                 // For business customers
@@ -429,8 +501,16 @@ jest.mock("expo-sqlite", () => {
           executeSql: jest.fn(
             (sql: any, params: any, success: any, error: any) => {
               // Mock successful database operations
-              if (success) {
-                success(tx, { rows: { length: 0, item: jest.fn() } });
+              if (sql.startsWith("CREATE TABLE")) {
+                success();
+              } else if (sql.startsWith("INSERT")) {
+                success({ insertId: 1 });
+              } else if (sql.startsWith("UPDATE")) {
+                success({ rowsAffected: 1 });
+              } else if (sql.startsWith("DELETE")) {
+                success({ rowsAffected: 1 });
+              } else {
+                error("SQL error");
               }
             }
           ),
@@ -438,52 +518,5 @@ jest.mock("expo-sqlite", () => {
         callback(tx);
       }),
     })),
-    // Mock useSQLiteContext hook
-    useSQLiteContext: jest.fn(() => createMockDb("test.db")),
   };
 });
-
-// Mock expo-contacts
-jest.mock("expo-contacts", () => ({
-  getPermissionsAsync: jest.fn(() =>
-    Promise.resolve({
-      status: "granted",
-      accessPrivileges: "all",
-    })
-  ),
-  requestPermissionsAsync: jest.fn(() =>
-    Promise.resolve({
-      status: "granted",
-      accessPrivileges: "all",
-    })
-  ),
-  getContactsAsync: jest.fn(() =>
-    Promise.resolve({
-      data: [
-        {
-          id: "contact_1",
-          firstName: "John",
-          lastName: "Doe",
-          phoneNumbers: [{ number: "+2348012345678" }],
-          emails: [{ email: "john@example.com" }],
-        },
-        {
-          id: "contact_2",
-          firstName: "Jane",
-          lastName: "Smith",
-          phoneNumbers: [{ number: "+2348012345679" }],
-          emails: [{ email: "jane@example.com" }],
-        },
-      ],
-    })
-  ),
-  Fields: {
-    FirstName: "firstName",
-    LastName: "lastName",
-    PhoneNumbers: "phoneNumbers",
-    Emails: "emails",
-  },
-  SortTypes: {
-    FirstName: "firstName",
-  },
-}));

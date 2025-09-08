@@ -25,6 +25,7 @@ import { DatabaseConfig } from "../types";
 import { AuditLogService } from "./AuditLogService";
 import { PaymentService } from "./PaymentService";
 import { QueryBuilderService } from "./QueryBuilderService";
+import { SimplePaymentService } from "./SimplePaymentService";
 import { DatabaseError } from "./utilService";
 import { ValidationService } from "./ValidationService";
 
@@ -35,6 +36,7 @@ export class DatabaseService {
   private readonly queryBuilder: QueryBuilderService;
   private readonly validationService: ValidationService;
   public readonly paymentService: PaymentService;
+  public readonly simplePaymentService: SimplePaymentService;
   public readonly customers: CustomerRepository;
   public readonly transactions: TransactionRepository;
   public readonly products: ProductRepository;
@@ -80,6 +82,10 @@ export class DatabaseService {
       this.queryBuilder
     );
     this.paymentService = new PaymentService(this.db, this.customers);
+    this.simplePaymentService = new SimplePaymentService(
+      this.db,
+      this.customers
+    );
     this.transactions = new TransactionRepository(
       this.db,
       this.auditService,
@@ -252,6 +258,11 @@ export class DatabaseService {
   // Payment service access
   get payment() {
     return this.paymentService;
+  }
+
+  // Simple payment service access
+  get simplePayment() {
+    return this.simplePaymentService;
   }
 
   // Helper method for customer data augmentation

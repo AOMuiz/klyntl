@@ -9,6 +9,7 @@ import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
 import { AuditLogService } from "../service/AuditLogService";
 import { PaymentService } from "../service/PaymentService";
+import { SimplePaymentService } from "../service/SimplePaymentService";
 import {
   DatabaseError,
   NotFoundError,
@@ -24,7 +25,8 @@ export class TransactionRepository implements ITransactionRepository {
     private db: SQLiteDatabase,
     private auditService: AuditLogService,
     private customerRepo: CustomerRepository,
-    private paymentService?: PaymentService
+    private paymentService?: PaymentService,
+    private simplePaymentService?: SimplePaymentService
   ) {}
 
   async create(transactionData: CreateTransactionInput): Promise<Transaction> {
@@ -56,16 +58,45 @@ export class TransactionRepository implements ITransactionRepository {
         remainingAmount = 0;
         paymentMethod = transactionData.paymentMethod || "cash";
       } else if (transactionData.paymentMethod === "credit") {
-        // Sale with credit payment: no payment received, full amount becomes debt
-        paidAmount = 0;
-        remainingAmount = transactionData.amount;
+        // Sale with credit payment: check if customer has credit to apply
+        if (this.simplePaymentService && customer.creditBalance > 0) {
+          // Use SimplePaymentService to apply credit
+          const creditResult =
+            await this.simplePaymentService.applyCreditToSale(
+              transactionData.customerId,
+              transactionData.amount,
+              id
+            );
+          paidAmount = creditResult.creditUsed;
+          remainingAmount = creditResult.remainingAmount;
+        } else {
+          // No credit available or service not available
+          paidAmount = 0;
+          remainingAmount = transactionData.amount;
+        }
         paymentMethod = "credit";
       } else if (transactionData.paymentMethod === "mixed") {
-        // Mixed payment: use provided amounts
+        // Mixed payment: use provided amounts and apply credit to remaining
         paidAmount = transactionData.paidAmount || 0;
-        remainingAmount =
-          transactionData.remainingAmount ||
-          transactionData.amount - paidAmount;
+        const remainingAfterCash = transactionData.amount - paidAmount;
+
+        if (
+          this.simplePaymentService &&
+          customer.creditBalance > 0 &&
+          remainingAfterCash > 0
+        ) {
+          // Apply credit to remaining amount after cash payment
+          const creditResult =
+            await this.simplePaymentService.applyCreditToSale(
+              transactionData.customerId,
+              remainingAfterCash,
+              id
+            );
+          paidAmount += creditResult.creditUsed;
+          remainingAmount = creditResult.remainingAmount;
+        } else {
+          remainingAmount = remainingAfterCash;
+        }
         paymentMethod = "mixed";
       } else {
         // Cash, bank transfer, POS card: full payment received
@@ -105,7 +136,7 @@ export class TransactionRepository implements ITransactionRepository {
         // Insert the transaction
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             transaction.id,
             transaction.customerId,
@@ -970,7 +1001,37 @@ export class TransactionRepository implements ITransactionRepository {
           debtAmount > 0
         ) {
           // For credit/mixed payments, check if customer has available credit first
-          if (this.paymentService) {
+          if (this.simplePaymentService) {
+            try {
+              const creditResult =
+                await this.simplePaymentService.applyCreditToSale(
+                  transaction.customerId,
+                  debtAmount,
+                  transaction.id
+                );
+
+              // If credit was applied, reduce the debt amount
+              const remainingDebt = creditResult.remainingAmount;
+
+              if (remainingDebt > 0) {
+                // Only create debt for the remaining amount after credit application
+                await this.customerRepo.increaseOutstandingBalance(
+                  transaction.customerId,
+                  remainingDebt
+                );
+              }
+            } catch (error) {
+              console.warn(
+                "SimplePaymentService credit application failed, using fallback:",
+                error
+              );
+              // Fallback to old method if SimplePaymentService fails
+              await this.customerRepo.increaseOutstandingBalance(
+                transaction.customerId,
+                debtAmount
+              );
+            }
+          } else if (this.paymentService) {
             const creditResult = await this.paymentService.applyCreditToSale(
               transaction.customerId,
               debtAmount,
@@ -989,7 +1050,7 @@ export class TransactionRepository implements ITransactionRepository {
               );
             }
           } else {
-            // Fallback to old method if PaymentService not available
+            // Fallback to old method if no payment service available
             await this.customerRepo.increaseOutstandingBalance(
               transaction.customerId,
               debtAmount
@@ -1059,7 +1120,19 @@ export class TransactionRepository implements ITransactionRepository {
     paidAmount: number,
     remainingAmount: number
   ): TransactionStatus {
-    // Use PaymentService for accurate status calculation if available
+    // Use SimpleTransactionCalculator for accurate status calculation
+    if (this.simplePaymentService) {
+      // For now, use a simple calculation - we'll integrate SimpleTransactionCalculator properly
+      if (type === "payment") {
+        return "completed";
+      }
+      if (remainingAmount > 0) {
+        return paymentMethod === "mixed" ? "partial" : "pending";
+      }
+      return "completed";
+    }
+
+    // Fallback to PaymentService if available
     if (this.paymentService) {
       return this.paymentService.calculateTransactionStatus(
         type,
@@ -1100,7 +1173,19 @@ export class TransactionRepository implements ITransactionRepository {
   private calculateTransactionStatus(
     data: CreateTransactionInput
   ): TransactionStatus {
-    // Use PaymentService for accurate status calculation if available
+    // Use SimpleTransactionCalculator for accurate status calculation if available
+    if (this.simplePaymentService) {
+      // For now, use a simple calculation - we'll integrate SimpleTransactionCalculator properly
+      if (data.type === "payment") {
+        return "completed";
+      }
+      if ((data.remainingAmount || 0) > 0) {
+        return data.paymentMethod === "mixed" ? "partial" : "pending";
+      }
+      return "completed";
+    }
+
+    // Fallback to PaymentService if available
     if (this.paymentService) {
       return this.paymentService.calculateTransactionStatus(
         data.type,
@@ -1174,7 +1259,7 @@ export class TransactionRepository implements ITransactionRepository {
 
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             paymentTransaction.id,
             paymentTransaction.customerId,
@@ -1184,7 +1269,7 @@ export class TransactionRepository implements ITransactionRepository {
             paymentTransaction.date,
             paymentTransaction.type,
             paymentTransaction.paymentMethod || "cash",
-            paymentTransaction.paidAmount || paymentTransaction.amount,
+            paymentTransaction.paidAmount || paymentTx.amount,
             paymentTransaction.remainingAmount || 0,
             paymentTransaction.status || "completed",
             paymentTransaction.linkedTransactionId || null,
