@@ -42,6 +42,10 @@ describe("CustomerRepository", () => {
       mockAuditService as any,
       mockQueryBuilder as any
     );
+
+    // Mock findByPhone to return null for new phone numbers
+    repository.findByPhone = jest.fn().mockResolvedValue(null);
+    repository.findByEmail = jest.fn().mockResolvedValue(null);
   });
 
   describe("createCustomer", () => {
@@ -69,7 +73,9 @@ describe("CustomerRepository", () => {
         company: customerInput.company,
         contactSource: customerInput.contactSource,
         preferredContactMethod: customerInput.preferredContactMethod,
-        birthday: customerInput.birthday ? new Date(customerInput.birthday).toISOString() : undefined,
+        birthday: customerInput.birthday
+          ? new Date(customerInput.birthday).toISOString()
+          : undefined,
         totalSpent: 0,
         outstandingBalance: 0,
         creditBalance: 0,

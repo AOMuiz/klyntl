@@ -46,6 +46,7 @@ describe("TransactionRepository - Debt Management", () => {
     // Create mock instances
     mockCustomerRepo = {
       findById: jest.fn(),
+      update: jest.fn(),
       updateTotalSpent: jest.fn(),
       updateTotals: jest.fn(),
       increaseOutstandingBalance: jest.fn(),
@@ -77,10 +78,21 @@ describe("TransactionRepository - Debt Management", () => {
       updatedAt: "2024-01-01T00:00:00Z",
     });
 
+    mockCustomerRepo.update.mockResolvedValue(undefined);
     mockCustomerRepo.updateTotalSpent.mockResolvedValue(undefined);
     mockCustomerRepo.updateTotals.mockResolvedValue(undefined);
-    mockCustomerRepo.increaseOutstandingBalance.mockResolvedValue(undefined);
-    mockCustomerRepo.decreaseOutstandingBalance.mockResolvedValue(undefined);
+    mockCustomerRepo.increaseOutstandingBalance.mockImplementation(
+      async (customerId: string, amount: number) => {
+        // Mock implementation - just return resolved promise
+        return Promise.resolve();
+      }
+    );
+    mockCustomerRepo.decreaseOutstandingBalance.mockImplementation(
+      async (customerId: string, amount: number) => {
+        // Mock implementation - just return resolved promise
+        return Promise.resolve();
+      }
+    );
     mockAudit.logEntry.mockResolvedValue(undefined);
     mockGenerateId.mockReturnValue("txn_debt_test_123");
 
@@ -179,12 +191,10 @@ describe("TransactionRepository - Debt Management", () => {
         isDeleted: false,
       });
 
-      // Verify that outstanding balance is increased by full amount
-      expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "UPDATE customers SET outstandingBalance = outstandingBalance + ?"
-        ),
-        expect.arrayContaining([25000, expect.any(String), "cust_1"])
+      // Verify that CustomerRepository method is called for credit transactions
+      expect(mockCustomerRepo.increaseOutstandingBalance).toHaveBeenCalledWith(
+        "cust_1",
+        25000
       );
     });
 
@@ -348,6 +358,12 @@ describe("TransactionRepository - Debt Management", () => {
         ),
         expect.arrayContaining([10000, expect.any(String), "cust_1"])
       );
+
+      // Verify CustomerRepository method is called for refund reducing outstanding balance
+      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
+        "cust_1",
+        10000
+      );
     });
   });
 
@@ -422,11 +438,9 @@ describe("TransactionRepository - Debt Management", () => {
       await transactionRepository.update("txn_1", updateData);
 
       // Should reduce outstanding balance by 30000 (remaining amount)
-      expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?)"
-        ),
-        expect.arrayContaining([30000, expect.any(String), "cust_1"])
+      expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
+        "cust_1",
+        30000
       );
     });
   });
@@ -522,6 +536,7 @@ describe("TransactionRepository - Debt Management", () => {
       expect(auditUpdateCalls.length).toBeGreaterThanOrEqual(2);
 
       // Customer outstanding balance should be decreased by total allocated (15000)
+      // Note: The balance update happens during payment transaction creation, not directly in applyPaymentToDebt
       expect(mockCustomerRepo.decreaseOutstandingBalance).toHaveBeenCalledWith(
         "cust_1",
         15000

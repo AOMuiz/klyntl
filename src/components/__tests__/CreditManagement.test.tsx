@@ -1,11 +1,24 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { createDatabaseService } from "../../services/database";
 import { CreditManagement } from "../CreditManagement";
 
+// Mock the database hooks first
+jest.mock("../../services/database/hooks", () => ({
+  useDatabase: jest.fn(() => ({
+    db: {
+      runAsync: jest.fn(),
+      getAllAsync: jest.fn(),
+      getFirstAsync: jest.fn(),
+      withTransactionAsync: jest.fn(),
+      closeAsync: jest.fn(),
+    },
+    isReady: true,
+    error: null,
+  })),
+}));
+
 // Mock the database service
-jest.mock("@/services/database", () => ({
-  useDatabase: () => ({
-    db: {},
-  }),
+jest.mock("../../services/database", () => ({
   createDatabaseService: jest.fn(),
 }));
 
@@ -83,8 +96,7 @@ describe("CreditManagement", () => {
     );
 
     // Mock createDatabaseService
-    const mockCreateDbService = jest.fn().mockReturnValue(mockDatabaseService);
-    require("@/services/database").createDatabaseService = mockCreateDbService;
+    (createDatabaseService as jest.Mock).mockReturnValue(mockDatabaseService);
   });
 
   it("should render loading state initially", () => {

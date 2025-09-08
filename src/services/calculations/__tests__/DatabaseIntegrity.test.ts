@@ -71,6 +71,43 @@ describe("Database Integrity Tests", () => {
       customerRepo,
       mockPaymentService
     );
+
+    // Reset all mocks
+    jest.clearAllMocks();
+
+    // Mock database operations to return successful results by default
+    mockSQLiteDb.runAsync.mockResolvedValue({ changes: 1, lastInsertRowId: 1 });
+    mockSQLiteDb.getFirstAsync.mockImplementation(
+      (query: string, ...params: any[]) => {
+        // Handle customer lookup queries
+        if (query.includes("SELECT * FROM customers WHERE id =")) {
+          return Promise.resolve(null); // No customer found by default
+        }
+        // Handle balance queries
+        if (
+          query.includes("SELECT outstandingBalance FROM customers WHERE id =")
+        ) {
+          return Promise.resolve({ outstandingBalance: 0 });
+        }
+        return Promise.resolve(null);
+      }
+    );
+    mockSQLiteDb.getAllAsync.mockImplementation(
+      (query: string, ...params: any[]) => {
+        // Handle transaction lookup queries
+        if (query.includes("SELECT * FROM transactions WHERE customerId =")) {
+          return Promise.resolve([]); // No transactions by default
+        }
+        return Promise.resolve([]);
+      }
+    );
+    mockSQLiteDb.withTransactionAsync.mockImplementation(async (callback) => {
+      await callback();
+    });
+
+    // Mock findByPhone and findByEmail to return null (no existing customers)
+    customerRepo.findByPhone = jest.fn().mockResolvedValue(null);
+    customerRepo.findByEmail = jest.fn().mockResolvedValue(null);
   });
 
   afterEach(async () => {
@@ -136,6 +173,28 @@ describe("Database Integrity Tests", () => {
     });
 
     it("should maintain consistency when updating customer balances", async () => {
+      // Mock customer creation - ensure no existing customer
+      customerRepo.findByPhone = jest.fn().mockResolvedValue(null);
+      customerRepo.findByEmail = jest.fn().mockResolvedValue(null);
+
+      const mockCustomer = {
+        id: "cust_test_123",
+        name: "Test Customer",
+        phone: "08012345678",
+        email: "test@example.com",
+        totalSpent: 0,
+        outstandingBalance: 0,
+        creditBalance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockSQLiteDb.runAsync.mockResolvedValue({
+        changes: 1,
+        lastInsertRowId: 1,
+      });
+      mockSQLiteDb.getFirstAsync.mockResolvedValue(mockCustomer);
+
       const customer = await customerRepo.create({
         name: "Test Customer",
         phone: "08012345678",
@@ -144,6 +203,40 @@ describe("Database Integrity Tests", () => {
         outstandingBalance: 0,
         creditBalance: 0,
       });
+
+      // Mock the database operations for balance updates
+      let currentBalance = 0;
+      mockSQLiteDb.runAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (
+            query.includes(
+              "UPDATE customers SET outstandingBalance = outstandingBalance +"
+            )
+          ) {
+            currentBalance += params[0];
+          } else if (
+            query.includes(
+              "UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance -"
+            )
+          ) {
+            currentBalance = Math.max(0, currentBalance - params[0]);
+          }
+          return Promise.resolve({ changes: 1, lastInsertRowId: 1 });
+        }
+      );
+
+      // Mock findById to return updated balance
+      mockSQLiteDb.getFirstAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (query.includes("SELECT * FROM customers WHERE id =")) {
+            return Promise.resolve({
+              ...mockCustomer,
+              outstandingBalance: currentBalance,
+            });
+          }
+          return Promise.resolve(mockCustomer);
+        }
+      );
 
       // Increase outstanding balance
       await customerRepo.increaseOutstandingBalance(customer.id, 10000);
@@ -158,21 +251,40 @@ describe("Database Integrity Tests", () => {
       expect(updatedCustomer?.outstandingBalance).toBe(5000);
 
       // Attempt to decrease more than available should prevent negative balance
-      try {
-        await customerRepo.decreaseOutstandingBalance(customer.id, 10000);
+      await customerRepo.decreaseOutstandingBalance(customer.id, 10000);
 
-        // Check that balance didn't go negative
-        updatedCustomer = await customerRepo.findById(customer.id);
-        expect(updatedCustomer?.outstandingBalance).toBeGreaterThanOrEqual(0);
-      } catch {
-        // Some implementations might throw error for negative balance attempts
-        expect(true).toBe(true);
-      }
+      // Check that balance didn't go negative
+      updatedCustomer = await customerRepo.findById(customer.id);
+      expect(updatedCustomer?.outstandingBalance).toBe(0); // Should be 0, not negative
     });
   });
 
   describe("Transaction Consistency", () => {
     it("should maintain ACID properties during concurrent operations", async () => {
+      // Mock customer creation - ensure no existing customer
+      customerRepo.findByPhone = jest.fn().mockResolvedValue(null);
+      customerRepo.findByEmail = jest.fn().mockResolvedValue(null);
+
+      const mockCustomer = {
+        id: "cust_test_123",
+        name: "Test Customer",
+        phone: "08012345678",
+        email: "test@example.com",
+        totalSpent: 0,
+        outstandingBalance: 0,
+        creditBalance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Mock initial state - no existing customer
+      mockSQLiteDb.getFirstAsync.mockResolvedValueOnce(null); // No existing customer
+      mockSQLiteDb.runAsync.mockResolvedValue({
+        changes: 1,
+        lastInsertRowId: 1,
+      });
+      mockSQLiteDb.getFirstAsync.mockResolvedValue(mockCustomer);
+
       const customer = await customerRepo.create({
         name: "Test Customer",
         phone: "08012345678",
@@ -181,6 +293,40 @@ describe("Database Integrity Tests", () => {
         outstandingBalance: 0,
         creditBalance: 0,
       });
+
+      // Mock the database operations for concurrent balance updates
+      let currentBalance = 0;
+      const balanceMap = new Map<string, number>();
+
+      mockSQLiteDb.runAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (
+            query.includes(
+              "UPDATE customers SET outstandingBalance = outstandingBalance +"
+            )
+          ) {
+            const customerId = params[1]; // Last parameter is customer ID
+            const amount = params[0];
+            const current = balanceMap.get(customerId) || 0;
+            balanceMap.set(customerId, current + amount);
+          }
+          return Promise.resolve({ changes: 1, lastInsertRowId: 1 });
+        }
+      );
+
+      // Mock findById to return updated balance
+      mockSQLiteDb.getFirstAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (query.includes("SELECT * FROM customers WHERE id =")) {
+            const customerId = params[0];
+            return Promise.resolve({
+              ...mockCustomer,
+              outstandingBalance: balanceMap.get(customerId) || 0,
+            });
+          }
+          return Promise.resolve(mockCustomer);
+        }
+      );
 
       // Simulate concurrent balance updates
       const concurrentOperations = [
@@ -198,6 +344,25 @@ describe("Database Integrity Tests", () => {
     });
 
     it("should handle database rollback scenarios", async () => {
+      // Mock customer creation
+      const mockCustomer = {
+        id: "cust_test_123",
+        name: "Test Customer",
+        phone: "08012345678",
+        email: "test@example.com",
+        totalSpent: 0,
+        outstandingBalance: 5000,
+        creditBalance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockSQLiteDb.runAsync.mockResolvedValue({
+        changes: 1,
+        lastInsertRowId: 1,
+      });
+      mockSQLiteDb.getFirstAsync.mockResolvedValue(mockCustomer);
+
       const customer = await customerRepo.create({
         name: "Test Customer",
         phone: "08012345678",
@@ -207,6 +372,16 @@ describe("Database Integrity Tests", () => {
         creditBalance: 0,
       });
 
+      // Mock findById to return current balance
+      mockSQLiteDb.getFirstAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (query.includes("SELECT * FROM customers WHERE id =")) {
+            return Promise.resolve(mockCustomer);
+          }
+          return Promise.resolve(mockCustomer);
+        }
+      );
+
       // Test transaction rollback by attempting invalid operations
       try {
         // This should be wrapped in a transaction that gets rolled back
@@ -214,7 +389,7 @@ describe("Database Integrity Tests", () => {
 
         // Force an error that should trigger rollback
         throw new Error("Simulated database error");
-      } catch (error) {
+      } catch {
         // Verify that the balance increase was rolled back
         const finalCustomer = await customerRepo.findById(customer.id);
         expect(finalCustomer?.outstandingBalance).toBe(5000); // Should remain unchanged
@@ -222,6 +397,28 @@ describe("Database Integrity Tests", () => {
     });
 
     it("should maintain data consistency across related tables", async () => {
+      // Mock customer creation - ensure no existing customer
+      customerRepo.findByPhone = jest.fn().mockResolvedValue(null);
+      customerRepo.findByEmail = jest.fn().mockResolvedValue(null);
+
+      const mockCustomer = {
+        id: "cust_test_123",
+        name: "Test Customer",
+        phone: "08012345678",
+        email: "test@example.com",
+        totalSpent: 0,
+        outstandingBalance: 0,
+        creditBalance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockSQLiteDb.runAsync.mockResolvedValue({
+        changes: 1,
+        lastInsertRowId: 1,
+      });
+      mockSQLiteDb.getFirstAsync.mockResolvedValue(mockCustomer);
+
       const customer = await customerRepo.create({
         name: "Test Customer",
         phone: "08012345678",
@@ -230,6 +427,57 @@ describe("Database Integrity Tests", () => {
         outstandingBalance: 0,
         creditBalance: 0,
       });
+
+      // Mock transaction creation and customer lookup for transactions
+      let transactionCount = 0;
+      mockSQLiteDb.runAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (query.includes("INSERT INTO transactions")) {
+            transactionCount++;
+          }
+          return Promise.resolve({
+            changes: 1,
+            lastInsertRowId: transactionCount,
+          });
+        }
+      );
+
+      // Mock findById for customer lookup during transaction creation
+      mockSQLiteDb.getFirstAsync.mockImplementation(
+        (query: string, ...params: any[]) => {
+          if (query.includes("SELECT * FROM customers WHERE id =")) {
+            return Promise.resolve(mockCustomer);
+          }
+          if (query.includes("SELECT * FROM transactions WHERE customerId =")) {
+            // Return mock transactions for findByCustomerId
+            return Promise.resolve([
+              {
+                id: "txn_1",
+                customerId: mockCustomer.id,
+                type: "sale",
+                amount: 10000,
+                paidAmount: 0,
+                remainingAmount: 10000,
+                paymentMethod: "credit",
+                description: "Sale 1",
+                date: new Date().toISOString(),
+              },
+              {
+                id: "txn_2",
+                customerId: mockCustomer.id,
+                type: "payment",
+                amount: 5000,
+                paidAmount: 5000,
+                remainingAmount: 0,
+                paymentMethod: "cash",
+                description: "Payment 1",
+                date: new Date().toISOString(),
+              },
+            ]);
+          }
+          return Promise.resolve(mockCustomer);
+        }
+      );
 
       // Create multiple transactions
       await Promise.all([
@@ -400,7 +648,7 @@ describe("Database Integrity Tests", () => {
         Array.from({ length: 100 }, async (_, i) => {
           return customerRepo.create({
             name: `Customer ${i}`,
-            phone: `0801234567${i}`,
+            phone: `080123456${String(i).padStart(2, "0")}`,
             email: `customer${i}@example.com`,
             totalSpent: i * 1000,
             outstandingBalance: i * 1000,

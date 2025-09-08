@@ -48,6 +48,11 @@ export class PaymentService {
     private customerRepo: CustomerRepository
   ) {}
 
+  /**
+   * @deprecated Use SimplePaymentService.handlePaymentAllocation() instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * The new SimplePaymentService provides the same functionality with improved performance and simpler logic.
+   */
   async handlePaymentAllocation(
     customerId: string,
     paymentTxId: string,
@@ -323,7 +328,9 @@ export class PaymentService {
   }
 
   /**
-   * Update transaction status and amounts based on payment application
+   * @deprecated Use TransactionRepository.updateStatus() instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * Transaction status updates should be handled through the repository layer.
    */
   public async updateTransactionStatus(
     transactionId: string,
@@ -363,6 +370,11 @@ export class PaymentService {
 
     return { oldStatus, newStatus };
   }
+  /**
+   * @deprecated Use SimplePaymentService.getCreditBalance() instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * The new SimplePaymentService provides the same functionality with improved performance.
+   */
   async getCreditBalance(customerId: string): Promise<number> {
     const result = await this.db.getFirstAsync<{ credit_balance: number }>(
       "SELECT credit_balance FROM customers WHERE id = ?",
@@ -405,7 +417,9 @@ export class PaymentService {
   }
 
   /**
-   * Use customer credit for a purchase
+   * @deprecated Use SimplePaymentService.useCredit() instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * The new SimplePaymentService provides the same functionality with improved performance and simpler logic.
    */
   async useCredit(
     customerId: string,
@@ -442,7 +456,9 @@ export class PaymentService {
   }
 
   /**
-   * Apply customer credit to a sale transaction
+   * @deprecated Use SimplePaymentService.applyCreditToSale() instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * The new SimplePaymentService provides the same functionality with improved performance and simpler logic.
    */
   async applyCreditToSale(
     customerId: string,
@@ -540,7 +556,9 @@ export class PaymentService {
   }
 
   /**
-   * Get credit utilization summary for a customer
+   * @deprecated Use SimplePaymentService methods instead.
+   * This method is maintained for backward compatibility but will be removed in a future version.
+   * Credit summary functionality is available through SimplePaymentService methods.
    */
   async getCreditSummary(customerId: string): Promise<{
     currentBalance: number;

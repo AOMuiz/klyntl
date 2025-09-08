@@ -15,7 +15,7 @@ const CURRENCY = {
 
 export const VALIDATION_RULES = {
   PHONE: {
-    NIGERIAN_REGEX: /^(\+234|0)[789][01]\d{8}$/, // Strict Nigerian mobile format
+    NIGERIAN_REGEX: /^(\+234|0)[789]\d{2}\d{7}$/, // Fixed: Nigerian mobile format 0[789]XXYYYYYYY or +234[789]XXYYYYYYY
     INTERNATIONAL_REGEX: /^\+?[1-9]\d{7,14}$/, // General international format
     MIN_LENGTH: 11,
     MAX_LENGTH: 15,

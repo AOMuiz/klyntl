@@ -1426,10 +1426,58 @@ export class TransactionRepository implements ITransactionRepository {
         break;
 
       case "payment":
-        // Payment received: use PaymentService to handle allocation only if appliedToDebt is true
-        if (this.paymentService && transaction.appliedToDebt) {
+        // Payment received: use SimplePaymentService to handle allocation if appliedToDebt is true
+        if (this.simplePaymentService && transaction.appliedToDebt) {
           try {
-            // Use PaymentService to handle proper payment allocation
+            // Use SimplePaymentService to handle proper payment allocation
+            const allocationResult =
+              await this.simplePaymentService.handlePaymentAllocation(
+                transaction.customerId,
+                transaction.amount,
+                transaction.appliedToDebt
+              );
+
+            // Update customer balance based on allocation result
+            if (allocationResult.success) {
+              await this.db.runAsync(
+                `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+                [
+                  allocationResult.debtReduced,
+                  new Date().toISOString(),
+                  transaction.customerId,
+                ]
+              );
+
+              // If overpayment created credit, update credit balance
+              if (allocationResult.creditCreated > 0) {
+                await this.db.runAsync(
+                  `UPDATE customers SET creditBalance = creditBalance + ?, updatedAt = ? WHERE id = ?`,
+                  [
+                    allocationResult.creditCreated,
+                    new Date().toISOString(),
+                    transaction.customerId,
+                  ]
+                );
+              }
+            }
+          } catch (error) {
+            console.warn(
+              "SimplePaymentService allocation failed, using fallback:",
+              error
+            );
+            // Fallback to old method if SimplePaymentService fails
+            await this.db.runAsync(
+              `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+              [
+                transaction.amount,
+                new Date().toISOString(),
+                transaction.customerId,
+              ]
+            );
+          }
+        } else if (this.paymentService && transaction.appliedToDebt) {
+          try {
+            // Fallback to PaymentService if SimplePaymentService not available
             await this.paymentService.handlePaymentAllocation(
               transaction.customerId,
               transaction.id,
@@ -1452,7 +1500,7 @@ export class TransactionRepository implements ITransactionRepository {
             );
           }
         } else if (transaction.appliedToDebt) {
-          // Fallback to old method if PaymentService not available but appliedToDebt is true
+          // Fallback to old method if no payment service available but appliedToDebt is true
           await this.db.runAsync(
             `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
             [
@@ -1467,18 +1515,16 @@ export class TransactionRepository implements ITransactionRepository {
 
       case "credit":
         // Credit/loan issued: increase customer's outstanding balance by the full amount
-        // Since credit transactions have paidAmount = 0 and remainingAmount = amount
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
-          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        await this.customerRepo.increaseOutstandingBalance(
+          transaction.customerId,
+          transaction.amount
         );
         break;
-
       case "refund":
         // Refund: decrease customer's outstanding balance
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-          [transaction.amount, new Date().toISOString(), transaction.customerId]
+        await this.customerRepo.decreaseOutstandingBalance(
+          transaction.customerId,
+          transaction.amount
         );
         break;
     }
@@ -1497,14 +1543,14 @@ export class TransactionRepository implements ITransactionRepository {
 
     if (debtDifference !== 0) {
       if (debtDifference > 0) {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
-          [debtDifference, new Date().toISOString(), newTx.customerId]
+        await this.customerRepo.increaseOutstandingBalance(
+          newTx.customerId,
+          debtDifference
         );
       } else {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
+        await this.customerRepo.decreaseOutstandingBalance(
+          newTx.customerId,
+          Math.abs(debtDifference)
         );
       }
     }
@@ -1523,14 +1569,14 @@ export class TransactionRepository implements ITransactionRepository {
 
     if (debtDifference !== 0) {
       if (debtDifference > 0) {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = outstandingBalance + ?, updatedAt = ? WHERE id = ?`,
-          [debtDifference, new Date().toISOString(), newTx.customerId]
+        await this.customerRepo.increaseOutstandingBalance(
+          newTx.customerId,
+          debtDifference
         );
       } else {
-        await this.db.runAsync(
-          `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-          [Math.abs(debtDifference), new Date().toISOString(), newTx.customerId]
+        await this.customerRepo.decreaseOutstandingBalance(
+          newTx.customerId,
+          Math.abs(debtDifference)
         );
       }
     }

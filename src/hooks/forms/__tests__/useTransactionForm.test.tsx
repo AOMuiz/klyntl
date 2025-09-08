@@ -3,6 +3,30 @@ import { act, renderHook } from "@testing-library/react-native";
 import React from "react";
 import { useTransactionForm } from "../useTransactionForm";
 
+// Mock the database hooks
+jest.mock("@/services/database/hooks", () => ({
+  useDatabase: jest.fn(() => ({
+    db: {
+      runAsync: jest.fn(),
+      getAllAsync: jest.fn(),
+      getFirstAsync: jest.fn(),
+      withTransactionAsync: jest.fn(),
+      closeAsync: jest.fn(),
+    },
+    isReady: true,
+    error: null,
+  })),
+}));
+
+// Mock the database service
+jest.mock("@/services/database", () => ({
+  createDatabaseService: jest.fn(() => ({
+    payment: {
+      calculateTransactionStatus: jest.fn(() => "completed"),
+    },
+  })),
+}));
+
 // Mock the dependencies
 jest.mock("@/hooks/useCustomers", () => ({
   useCustomers: () => ({

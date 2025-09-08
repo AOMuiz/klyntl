@@ -46,18 +46,18 @@ export class ValidationService {
     }
 
     if ("phone" in data && data.phone) {
-      const cleanPhone = data.phone.replace(/\D/g, "");
-      const validationResult = validateNigerianPhone(cleanPhone);
+      const validationResult = validateNigerianPhone(data.phone);
       const isValid =
         typeof validationResult === "boolean"
           ? validationResult
           : validationResult.isValid;
 
       if (!isValid) {
-        throw new ValidationError(
-          "Invalid Nigerian phone number format",
-          "phone"
-        );
+        const errorMessage =
+          typeof validationResult === "object" && validationResult.error
+            ? validationResult.error
+            : "Invalid Nigerian phone number format";
+        throw new ValidationError(errorMessage, "phone");
       }
     }
 
