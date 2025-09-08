@@ -652,7 +652,9 @@ describe("SimpleTransactionCalculator", () => {
       });
     });
 
-    it("should reject when cash amount equals or exceeds total", () => {
+    it("should validate when cash amount equals total (all cash scenario)", () => {
+      // Nigerian SME Edge Case: "Mixed payment" validation should allow all cash (1000, 1000, 0)
+      // or all credit (1000, 0, 1000) - the "mixed" refers to the validation method, not requirement for both
       const result = SimpleTransactionCalculator.validateMixedPayment(
         1000,
         1000,
@@ -660,8 +662,7 @@ describe("SimpleTransactionCalculator", () => {
       );
 
       expect(result).toEqual({
-        isValid: false,
-        error: "For mixed payments, cash amount must be less than total",
+        isValid: true,
       });
     });
 

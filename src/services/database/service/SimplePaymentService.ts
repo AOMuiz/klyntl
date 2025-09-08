@@ -271,6 +271,81 @@ export class SimplePaymentService {
   }
 
   /**
+   * Process a payment with various payment methods
+   */
+  async processPayment(params: {
+    customerId: string;
+    amount: number;
+    paymentMethod: string;
+    description?: string;
+  }): Promise<{
+    success: boolean;
+    amountProcessed: number;
+    debtReduced: number;
+    creditCreated: number;
+  }> {
+    const { customerId, amount } = params;
+
+    if (amount <= 0) {
+      throw new Error("Payment amount must be greater than 0");
+    }
+
+    const result = await this.handlePaymentAllocation(customerId, amount, true);
+
+    return {
+      success: result.success,
+      amountProcessed: amount,
+      debtReduced: result.debtReduced,
+      creditCreated: result.creditCreated,
+    };
+  }
+
+  /**
+   * Process a mixed payment (cash + credit)
+   */
+  async processMixedPayment(params: {
+    customerId: string;
+    totalAmount: number;
+    cashAmount: number;
+    creditAmount: number;
+    description?: string;
+  }): Promise<{
+    success: boolean;
+    cashProcessed: number;
+    creditUsed: number;
+    totalProcessed: number;
+  }> {
+    const { customerId, totalAmount, cashAmount, creditAmount } = params;
+
+    // Validate mixed payment
+    if (Math.abs(cashAmount + creditAmount - totalAmount) > 0.01) {
+      throw new Error("Cash + credit amounts must equal total amount");
+    }
+
+    let actualCreditUsed = 0;
+
+    // Process credit portion first
+    if (creditAmount > 0) {
+      const creditResult = await this.useCredit(customerId, creditAmount);
+      actualCreditUsed = creditResult.used;
+    }
+
+    // Process cash portion
+    let cashProcessed = 0;
+    if (cashAmount > 0) {
+      await this.handlePaymentAllocation(customerId, cashAmount, true);
+      cashProcessed = cashAmount;
+    }
+
+    return {
+      success: true,
+      cashProcessed,
+      creditUsed: actualCreditUsed,
+      totalProcessed: cashProcessed + actualCreditUsed,
+    };
+  }
+
+  /**
    * Calculate transaction status - simplified
    */
   public calculateTransactionStatus(
