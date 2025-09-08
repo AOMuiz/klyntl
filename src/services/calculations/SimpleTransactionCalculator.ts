@@ -260,6 +260,13 @@ export class SimpleTransactionCalculator {
       };
     }
 
+    // if (cash >= total) {
+    //   return {
+    //     isValid: false,
+    //     error: "For mixed payments, cash amount must be less than total",
+    //   };
+    // }
+
     // Allow both all cash (5000, 5000, 0) and all credit (5000, 0, 5000) scenarios
     // The "mixed" designation just means we're checking both portions
     return { isValid: true };

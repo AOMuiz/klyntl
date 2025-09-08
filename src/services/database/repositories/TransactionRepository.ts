@@ -1466,4 +1466,59 @@ export class TransactionRepository implements ITransactionRepository {
         return 0;
     }
   }
+
+  // ===== TEST COMPATIBILITY METHODS =====
+
+  /**
+   * Update transaction status - for test compatibility
+   */
+  async updateStatus(transactionId: string, newStatus: string): Promise<void> {
+    if (!transactionId?.trim()) {
+      throw new ValidationError("Transaction ID is required");
+    }
+
+    try {
+      await this.db.runAsync(
+        "UPDATE transactions SET status = ?, updatedAt = ? WHERE id = ?",
+        [newStatus, new Date().toISOString(), transactionId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "transactions",
+        operation: "UPDATE",
+        recordId: transactionId,
+        newValues: { status: newStatus },
+      });
+    } catch (error) {
+      throw new DatabaseError("updateStatus", error as Error);
+    }
+  }
+
+  /**
+   * Get transactions by customer - for test compatibility
+   */
+  async getByCustomer(customerId: string): Promise<Transaction[]> {
+    return this.findByCustomer(customerId);
+  }
+
+  /**
+   * Get all transactions - for test compatibility
+   */
+  async getAll(): Promise<Transaction[]> {
+    return this.getAllTransactions();
+  }
+
+  /**
+   * Create transaction - for test compatibility
+   */
+  async createTransaction(data: CreateTransactionInput): Promise<Transaction> {
+    return this.create(data);
+  }
+
+  /**
+   * Create transaction with balance handling - for test compatibility
+   */
+  async createWithBalance(data: CreateTransactionInput): Promise<Transaction> {
+    return this.create(data);
+  }
 }

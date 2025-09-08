@@ -1096,4 +1096,47 @@ export class CustomerRepository
 
     return { setClause, values };
   }
+
+  /**
+   * Update customer's outstanding balance to a specific value
+   */
+  async updateBalance(customerId: string, newBalance: number): Promise<void> {
+    if (!customerId?.trim()) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "updateBalance",
+        "customerId",
+        "Customer ID is required"
+      );
+    }
+    if (newBalance < 0) {
+      throw new RepositoryValidationError(
+        "Customer",
+        "updateBalance",
+        "newBalance",
+        "Balance cannot be negative"
+      );
+    }
+
+    try {
+      await this.db.runAsync(
+        "UPDATE customers SET outstandingBalance = ?, updatedAt = ? WHERE id = ?",
+        [newBalance, new Date().toISOString(), customerId]
+      );
+
+      await this.auditService.logEntry({
+        tableName: "customers",
+        operation: "UPDATE",
+        recordId: customerId,
+        newValues: { outstandingBalance: newBalance },
+      });
+    } catch (error) {
+      throw new RepositoryError(
+        "Customer",
+        "updateBalance",
+        "Failed to update customer balance",
+        error as Error
+      );
+    }
+  }
 }

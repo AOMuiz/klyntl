@@ -41,6 +41,9 @@ describe("AnalyticsRepository", () => {
     const config: DatabaseConfig = {
       defaultPageSize: 10,
       customerActiveDays: 30,
+      defaultLowStockThreshold: 10,
+      enableAuditLog: true,
+      maxBatchSize: 100,
     };
 
     analyticsRepository = new AnalyticsRepository(
