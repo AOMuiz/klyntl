@@ -12,7 +12,10 @@
     "test": "npx jest",
     "test:watch": "npx jest --watch",
     "test:coverage": "npx jest --coverage",
-    "test:ci": "npx jest --ci --coverage --watchAll=false"
+    "test:ci": "npx jest --ci --coverage --watchAll=false",
+    "db:analyze": "node scripts/simple-db-analysis.js",
+    "db:debug": "node debug-balance-discrepancy.js",
+    "db:generate-test": "node scripts/generate-test-db.js"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.1",
@@ -41,6 +44,7 @@
     "expo-linear-gradient": "~14.1.5",
     "expo-linking": "~7.1.7",
     "expo-router": "~5.1.5",
+    "expo-sharing": "^13.1.5",
     "expo-splash-screen": "~0.30.10",
     "expo-sqlite": "~15.2.14",
     "expo-status-bar": "~2.2.3",
