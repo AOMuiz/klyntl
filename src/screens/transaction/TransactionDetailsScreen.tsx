@@ -352,20 +352,30 @@ export default function TransactionDetailsScreen() {
             </Text>
           </View>
 
-          {/* Credit Balance Display */}
+          {/* Credit Balance Display with clearer messaging */}
           {creditBalance > 0 && (
             <View style={{ marginTop: hp(12) }}>
               <Text
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                Customer Credit Balance
+                Stored Credit Balance
               </Text>
               <Text
                 variant="bodyMedium"
                 style={{ marginTop: hp(6), color: theme.colors.primary }}
               >
-                💳 Available Credit: {formatCurrency(creditBalance)}
+                💳 Unused Credit: {formatCurrency(creditBalance)}
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginTop: hp(4),
+                  fontStyle: "italic",
+                }}
+              >
+                (Money customer prepaid for future purchases)
               </Text>
             </View>
           )}
@@ -404,16 +414,17 @@ export default function TransactionDetailsScreen() {
               variant="bodySmall"
               style={{ color: theme.colors.onSurfaceVariant }}
             >
-              Customer Account Status
+              Transaction Impact on Customer Account
             </Text>
             <View style={{ marginTop: hp(6) }}>
               <Text variant="bodyMedium">
-                📊 Account before:{" "}
-                {balanceBefore < 0 ? `💳 Credit ` : `💰 Owes `}
+                📊 Running balance before:{" "}
+                {balanceBefore < 0 ? `💳 Customer had ` : `💰 Customer owed `}
                 {formatCurrency(Math.abs(balanceBefore))}
               </Text>
               <Text variant="bodyMedium">
-                📈 Account after: {balanceAfter < 0 ? `💳 Credit ` : `💰 Owes `}
+                📈 Running balance after:{" "}
+                {balanceAfter < 0 ? `💳 Customer has ` : `💰 Customer owes `}
                 {formatCurrency(Math.abs(balanceAfter))}
               </Text>
               {displayCreditCreated > 0 && (
@@ -437,17 +448,30 @@ export default function TransactionDetailsScreen() {
                 }}
               >
                 {balanceAfter > balanceBefore
-                  ? `📈 Debt increased by ${formatCurrency(
+                  ? `📈 This transaction increased debt by ${formatCurrency(
                       balanceAfter - balanceBefore
                     )}`
                   : balanceAfter < balanceBefore
-                  ? `📉 Debt reduced by ${formatCurrency(
+                  ? `📉 This transaction reduced debt by ${formatCurrency(
                       balanceBefore - balanceAfter
                     )}`
                   : balanceAfter < 0
-                  ? "💳 Customer has credit to use"
+                  ? "💳 Customer has running credit balance"
                   : "✅ Account unchanged"}
               </Text>
+              {creditBalance > 0 && (
+                <Text
+                  variant="bodySmall"
+                  style={{
+                    color: theme.colors.primary,
+                    marginTop: hp(4),
+                    fontStyle: "italic",
+                  }}
+                >
+                  ℹ️ Note: Customer also has {formatCurrency(creditBalance)} in
+                  unused prepaid credit
+                </Text>
+              )}
             </View>
           </View>
 

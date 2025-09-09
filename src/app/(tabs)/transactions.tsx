@@ -340,16 +340,18 @@ export default function TransactionsScreen() {
         color={colors.paper.onSurfaceVariant}
       />
       <ThemedText type="title" style={styles.emptyTitle}>
-        No transactions yet
+        🏪 Ready to record your first transaction?
       </ThemedText>
       <ThemedText style={styles.emptySubtitle}>
-        Start recording your first transaction
+        Track sales, payments, credits and refunds all in one place
       </ThemedText>
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: colors.primary }]}
         onPress={handleAddTransaction}
       >
-        <ThemedText style={styles.addButtonText}>Add Transaction</ThemedText>
+        <ThemedText style={styles.addButtonText}>
+          🚀 Record First Transaction
+        </ThemedText>
       </TouchableOpacity>
     </View>
   );
@@ -449,6 +451,10 @@ export default function TransactionsScreen() {
               ]}
             >
               {transaction.description ||
+                (transaction.type === "sale" && "🛒 Customer Purchase") ||
+                (transaction.type === "payment" && "💰 Payment Received") ||
+                (transaction.type === "credit" && "📝 Credit/Loan Given") ||
+                (transaction.type === "refund" && "↩️ Refund Processed") ||
                 `${
                   transaction.type.charAt(0).toUpperCase() +
                   transaction.type.slice(1)
@@ -551,7 +557,7 @@ export default function TransactionsScreen() {
     );
   };
 
-  console.log({ transactions });
+  console.log({ transactions, filteredTransactions });
 
   return (
     <ScreenContainer

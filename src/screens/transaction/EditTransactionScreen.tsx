@@ -104,7 +104,7 @@ export default function EditTransactionScreen() {
                   color: theme.colors.onSurface,
                 }}
               >
-                Debt Impact Preview
+                💡 Transaction Impact Preview
               </Text>
 
               <View style={{ marginBottom: hp(12) }}>
@@ -115,7 +115,7 @@ export default function EditTransactionScreen() {
                     marginBottom: hp(4),
                   }}
                 >
-                  Current debt impact:
+                  📊 How this transaction affects customer debt:
                 </Text>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <DebtIndicator
@@ -143,7 +143,7 @@ export default function EditTransactionScreen() {
                     marginBottom: hp(4),
                   }}
                 >
-                  Current customer balance:
+                  💰 Customer&apos;s current account balance:
                 </Text>
                 <Text
                   variant="bodyLarge"
@@ -157,7 +157,10 @@ export default function EditTransactionScreen() {
                         : "#34C759",
                   }}
                 >
-                  {formatCurrency(currentCustomerDebt)}
+                  {currentCustomerDebt > 0 && "Owes: "}
+                  {currentCustomerDebt < 0 && "Has Credit: "}
+                  {formatCurrency(Math.abs(currentCustomerDebt))}
+                  {currentCustomerDebt === 0 && "✅ Account Balanced"}
                 </Text>
               </View>
 
@@ -168,7 +171,8 @@ export default function EditTransactionScreen() {
                   fontStyle: "italic",
                 }}
               >
-                Edit the transaction below to see how it will affect the debt
+                ⚠️ Make changes below to update this transaction. The debt
+                impact will be recalculated automatically.
               </Text>
             </Card.Content>
           </Card>

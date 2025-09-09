@@ -608,6 +608,14 @@ export default function CustomerDetailScreen({
                             ]}
                           >
                             {transaction.description ||
+                              (transaction.type === "sale" &&
+                                "🛒 Sale Transaction") ||
+                              (transaction.type === "payment" &&
+                                "💰 Payment Received") ||
+                              (transaction.type === "credit" &&
+                                "📝 Credit/Loan Issued") ||
+                              (transaction.type === "refund" &&
+                                "↩️ Refund Processed") ||
                               transaction.type.charAt(0).toUpperCase() +
                                 transaction.type.slice(1)}
                           </Text>

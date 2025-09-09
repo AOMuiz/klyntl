@@ -1,20 +1,21 @@
 import { PaymentMethod, TransactionType } from "@/types/transaction";
 
 export const getTransactionTypeDescriptions = (): Record<string, string> => ({
-  sale: "Record a customer purchase or sale transaction",
+  sale: "🛒 Customer bought goods/services - Record what they purchased",
   payment:
-    "Record payment received from customer (can be applied to debt or saved for future service)",
-  credit: "Issue credit or loan to customer (no immediate payment required)",
-  refund: "Process a refund or return money to customer",
+    "💰 Customer gave you money - Can pay off debt or prepay for future purchases",
+  credit:
+    "📝 Customer borrowed goods/money - They will pay later (creates debt)",
+  refund:
+    "↩️ Return money to customer - For returns, cancellations, or overpayments",
 });
 
 export const getPaymentMethodDescriptions = (): Record<string, string> => ({
-  cash: "Full payment received in cash immediately",
-  bank_transfer: "Payment received via bank transfer or online banking",
-  pos_card: "Payment received via debit/credit card (POS terminal)",
-  credit:
-    "Payment deferred - customer will pay later (adds to outstanding balance)",
-  mixed: "Partial payment now, remaining amount added to customer's debt",
+  cash: "💵 Customer paid full amount in cash right now",
+  bank_transfer: "🏦 Customer sent money via bank transfer or mobile banking",
+  pos_card: "💳 Customer paid with debit/credit card using POS machine",
+  credit: "📝 Customer will pay later - No money received yet (creates debt)",
+  mixed: "🔄 Customer paid some cash now, owes the rest (partial payment)",
 });
 
 export const calculateRemainingAmount = (

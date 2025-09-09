@@ -214,15 +214,15 @@ export default function TransactionForm({
 
     switch (type) {
       case "sale":
-        return "Record Sale";
+        return "✅ Record This Sale";
       case "payment":
-        return "Record Payment";
+        return "💰 Record Payment Received";
       case "credit":
-        return "Issue Credit";
+        return "📝 Issue Credit/Loan";
       case "refund":
-        return "Process Refund";
+        return "↩️ Process Refund";
       default:
-        return "Add Transaction";
+        return "➕ Add Transaction";
     }
   };
 
@@ -232,15 +232,15 @@ export default function TransactionForm({
   ): string => {
     switch (type) {
       case "sale":
-        return `Record Sale for ${customerName}`;
+        return `🛒 Recording sale for ${customerName}`;
       case "payment":
-        return `Record Payment from ${customerName}`;
+        return `💰 Recording payment from ${customerName}`;
       case "credit":
-        return `Issue Credit to ${customerName}`;
+        return `📝 Issuing credit/loan to ${customerName}`;
       case "refund":
-        return `Process Refund for ${customerName}`;
+        return `↩️ Processing refund for ${customerName}`;
       default:
-        return `Record Transaction for ${customerName}`;
+        return `📋 Recording transaction for ${customerName}`;
     }
   };
 
@@ -278,60 +278,145 @@ export default function TransactionForm({
               color={getTypeColor(watchedValues.type)}
             />
             <ThemedText
-              style={{ marginTop: hp(12), opacity: 0.7, textAlign: "center" }}
+              style={{
+                marginTop: hp(12),
+                opacity: 0.7,
+                textAlign: "center",
+                fontSize: 18,
+                fontWeight: "600",
+              }}
             >
               {selectedCustomer
                 ? getTransactionHeaderText(
                     watchedValues.type,
                     selectedCustomer.name
                   )
-                : "Record a new transaction"}
+                : "🏪 Record New Transaction"}
             </ThemedText>
-            {selectedCustomer && currentCustomerDebt > 0 && (
-              <ThemedText
-                style={{
-                  marginTop: hp(6),
-                  color: Colors[isDark ? "dark" : "light"].error,
-                }}
-              >
-                Outstanding Debt: {formatCurrency(currentCustomerDebt)}
-              </ThemedText>
-            )}
-            {selectedCustomer && creditBalance > 0 && (
-              <ThemedText
-                style={{
-                  marginTop: hp(6),
-                  color: Colors[isDark ? "dark" : "light"].secondary,
-                }}
-              >
-                Available Credit: {formatCurrency(creditBalance)}
-              </ThemedText>
-            )}
-            {/* Real-time debt impact preview */}
+
+            {/* Customer Financial Status Summary */}
+            {selectedCustomer &&
+              (currentCustomerDebt > 0 || creditBalance > 0) && (
+                <View
+                  style={{
+                    marginTop: hp(12),
+                    padding: hp(12),
+                    backgroundColor: theme.colors.elevation.level1,
+                    borderRadius: 8,
+                    width: "100%",
+                    alignItems: "center",
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: theme.colors.onSurfaceVariant,
+                      marginBottom: hp(8),
+                    }}
+                  >
+                    💳 {selectedCustomer.name}&apos;s Account Status
+                  </ThemedText>
+
+                  {currentCustomerDebt > 0 && (
+                    <ThemedText
+                      style={{
+                        color: Colors[isDark ? "dark" : "light"].error,
+                        fontWeight: "600",
+                        marginBottom: hp(4),
+                      }}
+                    >
+                      💰 Owes: {formatCurrency(currentCustomerDebt)}
+                    </ThemedText>
+                  )}
+
+                  {creditBalance > 0 && (
+                    <ThemedText
+                      style={{
+                        color: Colors[isDark ? "dark" : "light"].success,
+                        fontWeight: "600",
+                        marginBottom: hp(4),
+                      }}
+                    >
+                      💳 Prepaid Credit: {formatCurrency(creditBalance)}
+                    </ThemedText>
+                  )}
+
+                  {currentCustomerDebt === 0 && creditBalance === 0 && (
+                    <ThemedText
+                      style={{
+                        color: Colors[isDark ? "dark" : "light"].success,
+                        fontWeight: "600",
+                      }}
+                    >
+                      ✅ Account Balanced
+                    </ThemedText>
+                  )}
+                </View>
+              )}
+
+            {/* Real-time transaction impact preview */}
             {selectedCustomer && realTimeDebtImpact && (
-              <ThemedText
+              <View
                 style={{
-                  marginTop: hp(6),
-                  color: realTimeDebtImpact.isIncrease
+                  marginTop: hp(8),
+                  padding: hp(10),
+                  backgroundColor: realTimeDebtImpact.isIncrease
+                    ? Colors[isDark ? "dark" : "light"].warning + "20"
+                    : Colors[isDark ? "dark" : "light"].success + "20",
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: realTimeDebtImpact.isIncrease
                     ? Colors[isDark ? "dark" : "light"].warning
                     : Colors[isDark ? "dark" : "light"].success,
-                  fontWeight: "600",
                 }}
               >
-                {realTimeDebtImpact.isIncrease
-                  ? "Debt Impact"
-                  : "Credit Impact"}
-                : {formatCurrency(realTimeDebtImpact.change)}
-              </ThemedText>
+                <ThemedText
+                  style={{
+                    color: realTimeDebtImpact.isIncrease
+                      ? Colors[isDark ? "dark" : "light"].warning
+                      : Colors[isDark ? "dark" : "light"].success,
+                    fontWeight: "600",
+                    textAlign: "center",
+                  }}
+                >
+                  {realTimeDebtImpact.isIncrease
+                    ? `📈 Will increase debt by ${formatCurrency(
+                        realTimeDebtImpact.change
+                      )}`
+                    : `📉 Will reduce debt by ${formatCurrency(
+                        realTimeDebtImpact.change
+                      )}`}
+                </ThemedText>
+              </View>
             )}
           </View>
 
-          {/* Transaction Type */}
+          {/* Transaction Type - Step 1 */}
           <FormField
-            label="Transaction Type"
+            label="Step 1: What type of transaction is this? *"
             required
             error={errors.type?.message}
           >
+            <View
+              style={{
+                padding: hp(8),
+                backgroundColor: theme.colors.elevation.level1,
+                borderRadius: 8,
+                marginBottom: hp(8),
+              }}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 12,
+                  color: theme.colors.onSurfaceVariant,
+                  marginBottom: hp(8),
+                  textAlign: "center",
+                }}
+              >
+                ℹ️ Choose the type that best describes what happened
+              </ThemedText>
+            </View>
             <TransactionTypeSelector
               value={watchedValues.type}
               onChange={(type) => setValue("type", type)}
@@ -339,9 +424,9 @@ export default function TransactionForm({
             />
           </FormField>
 
-          {/* Customer Selection */}
+          {/* Customer Selection - Step 2 */}
           <FormField
-            label="Customer"
+            label="Step 2: Who is the customer? *"
             required={!transactionId} // Not required in edit mode since it can't be changed
             error={errors.customerId?.message}
           >
@@ -375,8 +460,41 @@ export default function TransactionForm({
             )}
           </FormField>
 
-          {/* Amount Field */}
-          <FormField label="Amount" required error={errors.amount?.message}>
+          {/* Amount Field - Step 3 */}
+          <FormField
+            label={`Step 3: How much money is involved? *`}
+            required
+            error={errors.amount?.message}
+          >
+            <View
+              style={{
+                padding: hp(8),
+                backgroundColor:
+                  watchedValues.type === "credit"
+                    ? Colors[isDark ? "dark" : "light"].warning + "20"
+                    : theme.colors.elevation.level1,
+                borderRadius: 8,
+                marginBottom: hp(8),
+              }}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 12,
+                  color: theme.colors.onSurfaceVariant,
+                  textAlign: "center",
+                }}
+              >
+                {watchedValues.type === "sale" &&
+                  "💰 Enter the total value of goods/services sold"}
+                {watchedValues.type === "payment" &&
+                  "💵 Enter the amount of money you received"}
+                {watchedValues.type === "credit" &&
+                  "⚠️ Enter the amount you are lending to the customer"}
+                {watchedValues.type === "refund" &&
+                  "↩️ Enter the amount you need to return to customer"}
+                {!watchedValues.type && "Enter the transaction amount"}
+              </ThemedText>
+            </View>
             <Controller
               control={control}
               name="amount"
@@ -434,14 +552,35 @@ export default function TransactionForm({
               )}
           </FormField>
 
-          {/* Payment Method Field - Only show for non-credit and non-refund transactions */}
+          {/* Payment Method Field - Step 4 - Only show for non-credit and non-refund transactions */}
           {watchedValues.type !== "credit" &&
             watchedValues.type !== "refund" && (
               <FormField
-                label="Payment Method"
+                label="Step 4: How did the customer pay? *"
                 required
                 error={errors.paymentMethod?.message}
               >
+                <View
+                  style={{
+                    padding: hp(8),
+                    backgroundColor: theme.colors.elevation.level1,
+                    borderRadius: 8,
+                    marginBottom: hp(8),
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      fontSize: 12,
+                      color: theme.colors.onSurfaceVariant,
+                      textAlign: "center",
+                    }}
+                  >
+                    {watchedValues.type === "sale" &&
+                      "🛒 Choose how customer paid for their purchase"}
+                    {watchedValues.type === "payment" &&
+                      "💰 Choose how customer gave you the money"}
+                  </ThemedText>
+                </View>
                 <View>
                   {/* Show outstanding debt for payment received */}
                   {watchedValues.type === "payment" &&
@@ -672,13 +811,32 @@ export default function TransactionForm({
               </FormField>
             )}
 
-          {/* Apply to Debt Field - only show for payment transactions */}
+          {/* Apply to Debt Field - Step 5 for payments - only show for payment transactions */}
           {watchedValues.type === "payment" && (
             <FormField
-              label="Apply to Outstanding Debt?"
+              label="Step 5: What should we do with this payment? *"
               required
               error={errors.appliedToDebt?.message}
             >
+              <View
+                style={{
+                  padding: hp(8),
+                  backgroundColor: theme.colors.elevation.level1,
+                  borderRadius: 8,
+                  marginBottom: hp(8),
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 12,
+                    color: theme.colors.onSurfaceVariant,
+                    textAlign: "center",
+                  }}
+                >
+                  💡 Apply to debt if customer is paying for something they
+                  owed. Choose future service if they are prepaying.
+                </ThemedText>
+              </View>
               <Controller
                 control={control}
                 name="appliedToDebt"
@@ -792,7 +950,7 @@ export default function TransactionForm({
           )}
 
           {/* Description Field */}
-          <FormField label="Description">
+          <FormField label="Description (Optional - Add details about this transaction)">
             <Controller
               control={control}
               name="description"
@@ -814,7 +972,11 @@ export default function TransactionForm({
           </FormField>
 
           {/* Date Field */}
-          <FormField label="Date" required error={errors.date?.message}>
+          <FormField
+            label="Transaction Date *"
+            required
+            error={errors.date?.message}
+          >
             <Controller
               control={control}
               name="date"
