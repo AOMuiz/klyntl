@@ -90,6 +90,11 @@ describe("TransactionRepository", () => {
         debtReduced: 0,
         creditCreated: 0,
       }),
+      handlePaymentAllocationInTransaction: jest.fn().mockResolvedValue({
+        success: true,
+        debtReduced: 0,
+        creditCreated: 0,
+      }),
       consolidateCustomerBalance: jest.fn().mockResolvedValue({
         wasConsolidated: false,
         originalDebt: 0,

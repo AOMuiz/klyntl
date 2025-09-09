@@ -55,6 +55,7 @@ describe("Database Integrity Tests", () => {
     mockSimplePaymentService = {
       applyCreditToSale: jest.fn(),
       handlePaymentAllocation: jest.fn(),
+      handlePaymentAllocationInTransaction: jest.fn(),
       consolidateCustomerBalance: jest.fn(),
       getPaymentHistory: jest.fn(),
       processPayment: jest.fn(),

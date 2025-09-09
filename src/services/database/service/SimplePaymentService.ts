@@ -204,6 +204,94 @@ export class SimplePaymentService {
   }
 
   /**
+   * Handle payment allocation WITHOUT starting a new transaction
+   * Use this when already inside a transaction to avoid nesting
+   */
+  async handlePaymentAllocationInTransaction(
+    customerId: string,
+    paymentAmount: number,
+    applyToDebt: boolean = true
+  ): Promise<SimplePaymentResult> {
+    if (paymentAmount <= 0) {
+      throw new Error("Payment amount must be greater than 0");
+    }
+
+    if (!applyToDebt) {
+      // Payment for future service - create credit
+      await this.createCreditBalance(customerId, paymentAmount);
+      return {
+        debtReduced: 0,
+        creditCreated: paymentAmount,
+        success: true,
+      };
+    }
+
+    // Get current debt
+    const customer = await this.customerRepo.findById(customerId);
+    if (!customer) {
+      throw new Error(`Customer ${customerId} not found`);
+    }
+
+    const currentDebt = customer.outstandingBalance || 0;
+    let debtReduced = 0;
+    let creditCreated = 0;
+
+    // Execute logic WITHOUT withTransactionAsync since we're already in one
+    if (currentDebt === 0) {
+      // No debt - create credit balance
+      creditCreated = paymentAmount;
+      await this.createCreditBalance(customerId, paymentAmount);
+      await this.logSimpleAudit(
+        customerId,
+        "payment",
+        paymentAmount,
+        "Payment converted to credit (no existing debt)"
+      );
+    } else if (paymentAmount >= currentDebt) {
+      // Overpayment - clear debt and create credit
+      debtReduced = currentDebt;
+      creditCreated = paymentAmount - currentDebt;
+
+      // Clear debt
+      await this.customerRepo.decreaseOutstandingBalance(
+        customerId,
+        currentDebt
+      );
+
+      // Create credit for overpayment
+      if (creditCreated > 0) {
+        await this.createCreditBalance(customerId, creditCreated);
+      }
+
+      await this.logSimpleAudit(
+        customerId,
+        "overpayment",
+        paymentAmount,
+        `Cleared ₦${currentDebt.toLocaleString()} debt, created ₦${creditCreated.toLocaleString()} credit`
+      );
+    } else {
+      // Partial payment
+      debtReduced = paymentAmount;
+      await this.customerRepo.decreaseOutstandingBalance(
+        customerId,
+        paymentAmount
+      );
+      await this.logSimpleAudit(
+        customerId,
+        "payment",
+        paymentAmount,
+        "Partial debt payment"
+      );
+    }
+
+    return {
+      debtReduced,
+      creditCreated,
+      success: true,
+    };
+  }
+
+  /**
    * Get customer's credit balance
    */
   async getCreditBalance(customerId: string): Promise<number> {

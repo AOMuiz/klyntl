@@ -8,16 +8,15 @@ import { TransactionHeader } from "@/components/Transaction/TransactionHeader";
 import { TransactionResultsInfo } from "@/components/Transaction/TransactionResultsInfo";
 import { TransactionSearchBar } from "@/components/Transaction/TransactionSearchBar";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { Colors } from "@/constants/Colors";
+import SimpleTransactionCard from "@/components/ui/SimpleTransactionCard";
+
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useTransactionData } from "@/hooks/business/useTransactionData";
 import { useTransactionFilters } from "@/hooks/business/useTransactionFilters";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransactions } from "@/hooks/useTransactions";
 import { styles } from "@/screens/transaction/TransactionsScreen.styles";
-import { formatCurrency } from "@/utils/currency";
-import { formatDate } from "@/utils/helpers";
-import { getTransactionIcon } from "@/utils/transactionUtils";
+
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -28,184 +27,13 @@ import {
   ScrollView,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { useTheme } from "react-native-paper";
-
-// Utility functions - keep only the ones not moved to transactionUtils
-
-export const getTransactionIconBackground = (type: string, colors: any) => {
-  switch (type) {
-    case "sale":
-      return colors.success[100];
-    case "refund":
-      return colors.warning[100];
-    case "payment":
-      return "#E8F5E8"; // Light green
-    case "credit":
-      return "#E3F2FD"; // Light blue
-    default:
-      return colors.paper.surfaceVariant;
-  }
-};
-
-export const getTransactionIconColor = (type: string, colors: any) => {
-  switch (type) {
-    case "sale":
-      return colors.success;
-    case "refund":
-      return colors.warning;
-    case "payment":
-      return "#4CAF50"; // Green
-    case "credit":
-      return "#2196F3"; // Blue
-    default:
-      return colors.paper.onSurface;
-  }
-};
-
-export const getAmountColor = (type: string, colors: any) => {
-  switch (type) {
-    case "sale":
-      return "#2E7D32"; // Dark green
-    case "refund":
-      return colors.warning;
-    case "payment":
-      return "#2E7D32"; // Dark green
-    case "credit":
-      return "#1976D2"; // Dark blue
-    default:
-      return colors.paper.onSurface;
-  }
-};
-
-export const getPaymentMethodStyle = (
-  paymentMethod: string,
-  isDark: boolean
-) => {
-  const paymentMethodConfig = {
-    cash: {
-      color: Colors[isDark ? "dark" : "light"].success,
-      backgroundColor: Colors[isDark ? "dark" : "light"].success + "20",
-    },
-    bank_transfer: {
-      color: Colors[isDark ? "dark" : "light"].secondary,
-      backgroundColor: Colors[isDark ? "dark" : "light"].secondary + "20",
-    },
-    credit: {
-      color: Colors[isDark ? "dark" : "light"].warning,
-      backgroundColor: Colors[isDark ? "dark" : "light"].warning + "20",
-    },
-    pos_card: {
-      color: Colors[isDark ? "dark" : "light"].primary,
-      backgroundColor: Colors[isDark ? "dark" : "light"].primary + "20",
-    },
-    mixed: {
-      color: Colors[isDark ? "dark" : "light"].accent,
-      backgroundColor: Colors[isDark ? "dark" : "light"].accent + "20",
-    },
-  };
-
-  return (
-    paymentMethodConfig[paymentMethod as keyof typeof paymentMethodConfig] || {
-      color: "#1976D2",
-      backgroundColor: "#E3F2FD",
-    }
-  );
-};
-
-export const getStatusBadge = (
-  status?: string,
-  dueDate?: string,
-  colors?: any
-) => {
-  if (!status || status === "completed") {
-    // Check if overdue
-    if (dueDate && status !== "completed") {
-      const today = new Date();
-      const due = new Date(dueDate);
-      if (due < today) {
-        return {
-          color: colors.error,
-          backgroundColor: "#FFEBEE",
-          text: "Overdue",
-        };
-      }
-    }
-    return null;
-  }
-
-  const statusConfig = {
-    pending: {
-      color: "#FF8F00",
-      backgroundColor: "#FFF3E0",
-      text: "PENDING",
-    },
-    partial: {
-      color: colors.accent,
-      backgroundColor: colors.accent + "20",
-      text: "PARTIAL",
-    },
-    cancelled: {
-      color: colors.error,
-      backgroundColor: "#FFEBEE",
-      text: "CANCELLED",
-    },
-  };
-
-  const config = statusConfig[status as keyof typeof statusConfig];
-  return (
-    config || {
-      color: colors.paper.onSurface,
-      backgroundColor: colors.paper.surfaceVariant,
-      text: status.toUpperCase(),
-    }
-  );
-};
-
-// Enhanced payment status information function
-export const getPaymentStatusInfo = (transaction: any) => {
-  const { type, paymentMethod, paidAmount, remainingAmount } = transaction;
-
-  // For sales with mixed payments
-  if (type === "sale" && paymentMethod === "mixed") {
-    if (paidAmount > 0 && remainingAmount > 0) {
-      return {
-        text: `${formatCurrency(paidAmount)} paid, ${formatCurrency(
-          remainingAmount
-        )} due`,
-        color: "#FF8F00", // Orange for partial
-      };
-    }
-  }
-
-  // For credit transactions
-  if (type === "credit") {
-    if (remainingAmount > 0) {
-      return {
-        text: `${formatCurrency(remainingAmount)} outstanding`,
-        color: "#FF8F00", // Orange for debt
-      };
-    }
-  }
-
-  // For payments applied to debt
-  if (type === "payment" && paidAmount > 0) {
-    return {
-      text: `Applied to debt`,
-      color: "#4CAF50", // Green for payment
-    };
-  }
-
-  return null;
-};
 
 export default function TransactionsScreen() {
   const router = useRouter();
   const theme = useTheme<ExtendedKlyntlTheme>();
   const colors = useKlyntlColors(theme);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
   // Use React Query hooks instead of Zustand stores
   const transactionsQuery = useTransactions();
@@ -384,180 +212,16 @@ export default function TransactionsScreen() {
     const transaction = item.item;
     const customer = customers.find((c) => c.id === transaction.customerId);
     const customerName = customer?.name || "Unknown Customer";
-    const statusBadge = getStatusBadge(
-      transaction.status,
-      transaction.dueDate,
-      colors
-    );
-    const hasDebtInfo =
-      transaction.type === "credit" &&
-      (transaction.paidAmount || transaction.remainingAmount);
-
-    // Extract payment method style computation
-    const paymentMethodStyle =
-      transaction.paymentMethod && transaction.paymentMethod !== "cash"
-        ? getPaymentMethodStyle(transaction.paymentMethod, isDark)
-        : null;
-
-    // Extract payment status info
-    const paymentInfo = getPaymentStatusInfo(transaction);
 
     return (
-      <TouchableOpacity
+      <SimpleTransactionCard
         key={`transaction-${transaction.id}`}
-        activeOpacity={0.7}
+        transaction={transaction}
+        customerName={customerName}
         onPress={() =>
           router.push(`/(modal)/transaction/view/${transaction.id}`)
         }
-        style={[
-          styles.transactionCard,
-          {
-            backgroundColor: colors.paper.surface,
-            borderColor: colors.paper.outline,
-          },
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={`Edit transaction ${customerName}`}
-      >
-        <View style={styles.transactionRow}>
-          <View
-            style={[
-              styles.transactionIcon,
-              {
-                backgroundColor: getTransactionIconBackground(
-                  transaction.type,
-                  colors
-                ),
-              },
-            ]}
-          >
-            <IconSymbol
-              name={getTransactionIcon(transaction.type)}
-              size={20}
-              color={getTransactionIconColor(transaction.type, colors)}
-            />
-          </View>
-
-          <View style={styles.transactionInfo}>
-            <View style={styles.customerRow}>
-              <ThemedText
-                style={[styles.customerName, { color: colors.paper.onSurface }]}
-                numberOfLines={1}
-              >
-                {customerName}
-              </ThemedText>
-            </View>
-
-            <ThemedText
-              style={[
-                styles.description,
-                { color: colors.paper.onSurfaceVariant },
-              ]}
-            >
-              {transaction.description ||
-                (transaction.type === "sale" && "🛒 Customer Purchase") ||
-                (transaction.type === "payment" && "💰 Payment Received") ||
-                (transaction.type === "credit" && "📝 Credit/Loan Given") ||
-                (transaction.type === "refund" && "↩️ Refund Processed") ||
-                `${
-                  transaction.type.charAt(0).toUpperCase() +
-                  transaction.type.slice(1)
-                } transaction`}
-            </ThemedText>
-
-            {/* Debt information for credit transactions */}
-            {hasDebtInfo && (
-              <View style={styles.debtInfo}>
-                {transaction.paidAmount && transaction.paidAmount > 0 && (
-                  <ThemedText style={[styles.debtText, { color: "#4CAF50" }]}>
-                    Paid: {formatCurrency(transaction.paidAmount)}
-                  </ThemedText>
-                )}
-                {transaction.remainingAmount &&
-                  transaction.remainingAmount > 0 && (
-                    <ThemedText style={[styles.debtText, { color: "#FF8F00" }]}>
-                      Due: {formatCurrency(transaction.remainingAmount)}
-                    </ThemedText>
-                  )}
-              </View>
-            )}
-
-            {/* Payment method for transactions that have it */}
-            {paymentMethodStyle && (
-              <ThemedText
-                type="button"
-                style={[
-                  styles.paymentMethod,
-                  {
-                    color: paymentMethodStyle.color,
-                    backgroundColor: paymentMethodStyle.backgroundColor,
-                  },
-                ]}
-              >
-                {transaction.paymentMethod!.replace("_", " ").toUpperCase()}
-              </ThemedText>
-            )}
-
-            {/* Enhanced status and payment info */}
-            {paymentInfo && (
-              <View style={styles.paymentStatus}>
-                <ThemedText
-                  style={[
-                    styles.paymentStatusText,
-                    { color: paymentInfo.color },
-                  ]}
-                >
-                  {paymentInfo.text}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.transactionAmount}>
-            {/* Show quick debt indicator */}
-            {transaction.remainingAmount && transaction.remainingAmount > 0 && (
-              <View
-                style={[styles.quickDebtBadge, { backgroundColor: "#FFF7ED" }]}
-              >
-                <ThemedText style={{ color: "#FF8F00" }} type="caption">
-                  Due {formatCurrency(transaction.remainingAmount)}
-                </ThemedText>
-              </View>
-            )}
-            {statusBadge && (
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusBadge.backgroundColor },
-                ]}
-              >
-                <ThemedText
-                  style={[styles.statusText, { color: statusBadge.color }]}
-                >
-                  {statusBadge.text}
-                </ThemedText>
-              </View>
-            )}
-            <ThemedText
-              style={[
-                styles.amountText,
-                { color: getAmountColor(transaction.type, colors) },
-              ]}
-            >
-              {transaction.type === "refund" ? "- " : ""}
-              {formatCurrency(transaction.amount, { short: true })}
-            </ThemedText>
-            <ThemedText
-              style={[
-                styles.timeText,
-                { color: colors.paper.onSurfaceVariant },
-              ]}
-            >
-              {formatDate(transaction.date)}
-            </ThemedText>
-          </View>
-        </View>
-      </TouchableOpacity>
+      />
     );
   };
 

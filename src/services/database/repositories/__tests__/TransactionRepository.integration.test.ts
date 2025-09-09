@@ -65,6 +65,7 @@ describe("TransactionRepository - TDD Integration", () => {
     // Mock SimplePaymentService
     mockSimplePaymentService = {
       handlePaymentAllocation: jest.fn(),
+      handlePaymentAllocationInTransaction: jest.fn(),
       applyCreditToSale: jest.fn(),
       getCreditBalance: jest.fn(),
       useCredit: jest.fn(),
@@ -266,12 +267,14 @@ describe("TransactionRepository - TDD Integration", () => {
         outstandingBalance: 8000, // ₦8,000 debt
       });
 
-      // Mock SimplePaymentService payment allocation
-      mockSimplePaymentService.handlePaymentAllocation.mockResolvedValue({
-        debtReduced: 8000,
-        creditCreated: 4000, // ₦4,000 overpayment
-        success: true,
-      });
+      // Mock SimplePaymentService payment allocation (transaction-safe version)
+      mockSimplePaymentService.handlePaymentAllocationInTransaction.mockResolvedValue(
+        {
+          debtReduced: 8000,
+          creditCreated: 4000, // ₦4,000 overpayment
+          success: true,
+        }
+      );
 
       // Act
       const result = await transactionRepo.create(paymentData);
@@ -287,9 +290,9 @@ describe("TransactionRepository - TDD Integration", () => {
         status: "completed",
       });
 
-      // Verify SimplePaymentService was used for allocation
+      // Verify SimplePaymentService was used for allocation (transaction-safe version)
       expect(
-        mockSimplePaymentService.handlePaymentAllocation
+        mockSimplePaymentService.handlePaymentAllocationInTransaction
       ).toHaveBeenCalledWith("customer-1", 12000, true);
     });
   });

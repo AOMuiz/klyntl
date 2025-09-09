@@ -5,6 +5,7 @@ import { ThemedText } from "@/components/ThemedText";
 import DebtIndicator from "@/components/ui/DebtIndicator";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import RunningDebtBalance from "@/components/ui/RunningDebtBalance";
+import SimpleCustomerCard from "@/components/ui/SimpleCustomerCard";
 import TransactionStatusBadge from "@/components/ui/TransactionStatusBadge";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useContactActions } from "@/hooks/useContactActions";
@@ -361,228 +362,87 @@ export default function CustomerDetailScreen({
             </View>
           </View>
 
-          {/* Customer Stats */}
+          {/* Customer Stats - Simplified */}
           <View style={styles.statsContainer}>
-            <Card
-              style={[
-                styles.statCard,
-                {
-                  backgroundColor: colors.paper.surface,
-                  borderWidth: 1,
-                  borderColor: colors.primary[100],
-                },
-              ]}
-              elevation={0}
-              mode="elevated"
-            >
-              <Card.Content style={styles.statCardContent}>
-                <Text
-                  variant="headlineSmall"
-                  style={[
-                    styles.statValue,
-                    {
-                      color: colors.primary[600],
-                      textShadowColor: colors.primary[100],
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 1,
-                    },
-                  ]}
-                >
-                  {formatCurrency(customer.totalSpent)}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.neutral[600] }]}
-                >
-                  Total Spent
-                </Text>
-              </Card.Content>
-            </Card>
-            <Card
-              style={[
-                styles.statCard,
-                {
-                  backgroundColor: colors.paper.surface,
-                  borderWidth: 1,
-                  borderColor: colors.secondary[100],
-                },
-              ]}
-              elevation={0}
-              mode="elevated"
-            >
-              <Card.Content style={styles.statCardContent}>
-                <Text
-                  variant="headlineSmall"
-                  style={[
-                    styles.statValue,
-                    {
-                      color: colors.secondary[600],
-                      textShadowColor: colors.secondary[100],
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 1,
-                    },
-                  ]}
-                >
-                  {transactions.length}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.neutral[600] }]}
-                >
-                  Transactions
-                </Text>
-              </Card.Content>
-            </Card>
-            <Card
-              style={[
-                styles.statCard,
-                {
-                  backgroundColor: colors.paper.surface,
-                  borderWidth: 1,
-                  borderColor: colors.accent[100],
-                },
-              ]}
-              elevation={0}
-              mode="elevated"
-            >
-              <Card.Content style={styles.statCardContent}>
-                <Text
-                  variant="titleMedium"
-                  style={[
-                    styles.statValue,
-                    {
-                      color: colors.accent[600],
-                      textShadowColor: colors.accent[100],
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 1,
-                    },
-                  ]}
-                >
-                  {customer.lastPurchase
-                    ? formatDate(customer.lastPurchase)
-                    : "Never"}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  style={[styles.statLabel, { color: colors.neutral[600] }]}
-                >
-                  Last Purchase
-                </Text>
-              </Card.Content>
-            </Card>
+            <SimpleCustomerCard
+              title="Total Spent"
+              value={formatCurrency(customer.totalSpent)}
+              icon="chart.bar.fill"
+              color="#2E7D32"
+              backgroundColor="#E8F5E8"
+            />
+            <SimpleCustomerCard
+              title="Transactions"
+              value={transactions.length.toString()}
+              icon="list.bullet"
+              color="#1976D2"
+              backgroundColor="#E3F2FD"
+            />
           </View>
           <View style={styles.statsContainer}>
-            <Card
-              style={[
-                styles.statCard,
-                {
-                  backgroundColor: colors.paper.surface,
-                  borderWidth: 1,
-                  borderColor: colors.warning[100],
-                },
-              ]}
-              elevation={0}
-              mode="elevated"
-            >
-              <Card.Content style={styles.statCardContent}>
-                <Text
-                  variant="headlineSmall"
+            <SimpleCustomerCard
+              title="Last Purchase"
+              value={
+                customer.lastPurchase
+                  ? formatDate(customer.lastPurchase)
+                  : "Never"
+              }
+              icon="calendar"
+              color="#7B1FA2"
+              backgroundColor="#F3E5F5"
+            />
+            <SimpleCustomerCard
+              title="Amount Owed"
+              value={formatCurrency(customer.outstandingBalance)}
+              icon="exclamationmark.triangle.fill"
+              color="#FF8F00"
+              backgroundColor="#FFF3E0"
+            />
+          </View>
+
+          {/* Account Breakdown - Only if there's both debt and credit */}
+          {customer.outstandingBalance > 0 &&
+            (customer.creditBalance || 0) > 0 && (
+              <View style={styles.statsContainer}>
+                <Card
                   style={[
-                    styles.statValue,
+                    styles.statCard,
                     {
-                      color:
-                        customer.outstandingBalance -
-                          (customer.creditBalance || 0) >
-                        0
-                          ? colors.warning[600]
-                          : colors.success[600],
-                      textShadowColor:
-                        customer.outstandingBalance -
-                          (customer.creditBalance || 0) >
-                        0
-                          ? colors.warning[100]
-                          : colors.success[100],
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 1,
+                      backgroundColor: colors.paper.surface,
+                      borderWidth: 1,
+                      borderColor: colors.warning[100],
                     },
                   ]}
+                  elevation={0}
+                  mode="elevated"
                 >
-                  {(() => {
-                    const netBalance =
-                      customer.outstandingBalance -
-                      (customer.creditBalance || 0);
-                    if (netBalance > 0) {
-                      return formatCurrency(netBalance);
-                    } else if (netBalance < 0) {
-                      return `${formatCurrency(Math.abs(netBalance))} Credit`;
-                    } else {
-                      return "₦0";
-                    }
-                  })()}
-                </Text>
-                <Text
-                  variant="bodySmall"
-                  numberOfLines={1}
-                  style={[styles.statLabel, { color: colors.neutral[600] }]}
-                >
-                  {(() => {
-                    const netBalance =
-                      customer.outstandingBalance -
-                      (customer.creditBalance || 0);
-                    if (netBalance > 0) {
-                      return "Amount Owed";
-                    } else if (netBalance < 0) {
-                      return "Credit Balance";
-                    } else {
-                      return "Account Balanced";
-                    }
-                  })()}
-                </Text>
-              </Card.Content>
-            </Card>
-            {/* Breakdown of debt vs credit */}
-            {(customer.outstandingBalance > 0 ||
-              (customer.creditBalance || 0) > 0) && (
-              <Card
-                style={[
-                  styles.statCard,
-                  {
-                    backgroundColor: colors.paper.surface,
-                    borderWidth: 1,
-                    borderColor: colors.warning[100],
-                  },
-                ]}
-                elevation={0}
-                mode="elevated"
-              >
-                <Card.Content style={{ padding: 0, flex: 1 }}>
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: colors.neutral[600], marginBottom: 8 }}
-                  >
-                    Account Breakdown:
-                  </Text>
-                  {customer.outstandingBalance > 0 && (
+                  <Card.Content style={{ padding: 12 }}>
+                    <Text
+                      variant="bodyMedium"
+                      style={{
+                        color: colors.neutral[600],
+                        marginBottom: 8,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Account Breakdown:
+                    </Text>
                     <Text
                       variant="bodySmall"
-                      style={{ color: colors.warning[600] }}
+                      style={{ color: colors.warning[600], marginBottom: 4 }}
                     >
                       📊 Debt: {formatCurrency(customer.outstandingBalance)}
                     </Text>
-                  )}
-                  {(customer.creditBalance || 0) > 0 && (
                     <Text
                       variant="bodySmall"
                       style={{ color: colors.success[600] }}
                     >
-                      💳 Prepaid Credit:{" "}
-                      {formatCurrency(customer.creditBalance || 0)}
+                      💳 Credit: {formatCurrency(customer.creditBalance || 0)}
                     </Text>
-                  )}
-                </Card.Content>
-              </Card>
+                  </Card.Content>
+                </Card>
+              </View>
             )}
-          </View>
 
           {/* Recent Transactions */}
           <View style={styles.section}>

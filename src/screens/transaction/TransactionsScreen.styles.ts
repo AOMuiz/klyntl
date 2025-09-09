@@ -103,7 +103,7 @@ export const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-    paddingHorizontal: wp(20),
+    paddingHorizontal: wp(5),
   },
   listContent: {
     paddingBottom: hp(40),

@@ -1317,9 +1317,9 @@ export class TransactionRepository implements ITransactionRepository {
         // Payment received: use SimplePaymentService to handle allocation if appliedToDebt is true
         if (transaction.appliedToDebt) {
           try {
-            // Use SimplePaymentService to handle proper payment allocation
+            // Use transaction-safe payment allocation (we're already in a transaction)
             const allocationResult =
-              await this.simplePaymentService.handlePaymentAllocation(
+              await this.simplePaymentService.handlePaymentAllocationInTransaction(
                 transaction.customerId,
                 transaction.amount,
                 transaction.appliedToDebt
@@ -1348,20 +1348,44 @@ export class TransactionRepository implements ITransactionRepository {
                 );
               }
             }
-          } catch (error) {
+          } catch (error: any) {
             console.warn(
               "SimplePaymentService allocation failed, using fallback:",
               error
             );
-            // Fallback to old method if SimplePaymentService fails
-            await this.db.runAsync(
-              `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-              [
-                transaction.amount,
-                new Date().toISOString(),
-                transaction.customerId,
-              ]
-            );
+            // Enhanced fallback: Handle nested transaction errors gracefully
+            if (
+              error.message?.includes(
+                "cannot start a transaction within a transaction"
+              ) ||
+              error.message?.includes(
+                "cannot rollback - no transaction is active"
+              )
+            ) {
+              // Simple debt reduction without nested transaction when already in one
+              await this.db.runAsync(
+                `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+                [
+                  transaction.amount,
+                  new Date().toISOString(),
+                  transaction.customerId,
+                ]
+              );
+            } else {
+              // For other errors, still apply the fallback but log more details
+              console.error(
+                "Payment allocation failed with error:",
+                error.message
+              );
+              await this.db.runAsync(
+                `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
+                [
+                  transaction.amount,
+                  new Date().toISOString(),
+                  transaction.customerId,
+                ]
+              );
+            }
           }
         }
         // If appliedToDebt is false, don't reduce outstanding balance (future service deposit)

@@ -4,8 +4,6 @@ import {
   useCustomerAnalytics,
   useRevenueAnalytics,
 } from "../hooks/useAnalytics";
-// TODO: Update to use new database service pattern
-// import { useDatabaseUtils } from "../hooks/useDatabaseUtils";
 
 export function AnalyticsExample() {
   const { data: analytics, isLoading, error, refetch } = useAnalytics();
