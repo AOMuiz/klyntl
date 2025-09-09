@@ -441,7 +441,7 @@ export class PaymentService {
         [
           auditId,
           customerId,
-          "credit_usage",
+          null, // No specific transaction ID for credit usage
           "credit_used",
           toUse,
           JSON.stringify({ reason: "credit_applied_to_purchase" }),

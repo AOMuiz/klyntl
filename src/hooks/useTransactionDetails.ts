@@ -19,7 +19,7 @@ export const useTransactionDetails = ({
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Load credit balance and payment history
+  // Load credit balance and payment history using centralized services only
   useEffect(() => {
     if (transaction && db && customerId) {
       const loadTransactionDetails = async () => {
@@ -27,13 +27,13 @@ export const useTransactionDetails = ({
         try {
           const databaseService = createDatabaseService(db);
 
-          // Get credit balance using service
+          // Use SimplePaymentService as single source of truth - no direct SQL queries
           const balance = await databaseService.simplePayment.getCreditBalance(
             customerId
           );
           setCreditBalance(balance);
 
-          // Get payment history using service
+          // Get payment history using SimplePaymentService - no direct SQL queries
           const history = await databaseService.simplePayment.getPaymentHistory(
             customerId,
             10
@@ -41,6 +41,9 @@ export const useTransactionDetails = ({
           setPaymentHistory(history);
         } catch (err) {
           console.error("Failed to load transaction details:", err);
+          // Set safe fallback values for Nigerian SME context
+          setCreditBalance(0);
+          setPaymentHistory([]);
         } finally {
           setIsLoadingDetails(false);
         }
@@ -50,7 +53,7 @@ export const useTransactionDetails = ({
     }
   }, [transaction, db, customerId]);
 
-  // Use the debt impact calculator from SimpleTransactionCalculator
+  // Use SimpleTransactionCalculator as single source of truth for debt calculations
   const calculateDebtImpact = (tx: any) => {
     const impact = SimpleTransactionCalculator.calculateDebtImpact(
       tx.type,
@@ -59,15 +62,20 @@ export const useTransactionDetails = ({
       tx.appliedToDebt
     );
 
-    // Return the signed change value
+    // Return the signed change value for Nigerian SME context
+    // Positive = customer owes more, Negative = customer owes less
     return impact.isDecrease ? -impact.change : impact.change;
   };
 
   // Compute running balance before/after this transaction
+  // Returns clamped values and creditCreated to avoid showing negative outstanding
   const computeRunningBalances = () => {
     if (!allCustomerTxns || allCustomerTxns.length === 0) {
       const impact = calculateDebtImpact(transaction);
-      return { before: 0, after: impact };
+      const rawAfter = impact;
+      const after = Math.max(0, rawAfter);
+      const creditCreated = Math.max(0, -rawAfter);
+      return { before: 0, after, rawAfter, creditCreated };
     }
 
     // Sort ascending by date so accumulation progresses forward in time
@@ -86,8 +94,13 @@ export const useTransactionDetails = ({
     }
 
     const impact = calculateDebtImpact(transaction);
-    const after = before + impact;
-    return { before, after };
+    const rawAfter = before + impact;
+
+    // Clamp to avoid negative outstanding; excess becomes creditCreated
+    const after = Math.max(0, rawAfter);
+    const creditCreated = Math.max(0, -rawAfter);
+
+    return { before, after, rawAfter, creditCreated };
   };
 
   return {

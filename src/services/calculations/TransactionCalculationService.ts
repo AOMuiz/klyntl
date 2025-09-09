@@ -1,5 +1,14 @@
 /**
- * Centralized Transaction Calculation Service
+ * @deprecated Use SimpleTransactionCalculator and SimplePaymentService instead
+ *
+ * This service has been replaced by simplified calculation services more suitable
+ * for Nigerian SME operations:
+ * - SimpleTransactionCalculator: For transaction status and debt impact calculations
+ * - SimplePaymentService: For payment allocation and credit management
+ *
+ * This file is maintained for backward compatibility but will be removed in future versions.
+ *
+ * Legacy Centralized Transaction Calculation Service
  *
  * This service implements SOLID principles to handle all transaction, payment,
  * and debt calculations in a consistent, auditable manner.

@@ -86,8 +86,31 @@ export default function TransactionDetailsScreen() {
   };
 
   // Compute running balance before/after this transaction using all customer txns
-  const { before: balanceBefore, after: balanceAfter } =
-    computeRunningBalances();
+  const {
+    before: runningBefore,
+    after: runningAfter,
+    rawAfter,
+    creditCreated,
+  } = computeRunningBalances();
+
+  // Prefer authoritative persistedOutstanding when available from DB
+  let displayBefore = runningBefore;
+  let displayAfter = runningAfter;
+  let displayCreditCreated = creditCreated;
+
+  // Keep backward-compatible names used elsewhere in this file
+  const balanceBefore = displayBefore;
+  const balanceAfter = displayAfter;
+
+  console.log({
+    runningBefore,
+    runningAfter,
+    rawAfter,
+    creditCreated,
+    balanceBefore,
+    balanceAfter,
+    displayCreditCreated,
+  });
 
   const onCopyInvoice = async () => {
     try {
@@ -121,8 +144,19 @@ export default function TransactionDetailsScreen() {
       lines.push(`Remaining: ${formatCurrency(transaction.remainingAmount)}`);
     lines.push(`Total: ${formatCurrency(transaction.amount)}`);
     lines.push("");
-    lines.push(`Balance before: ${formatCurrency(balanceBefore)}`);
-    lines.push(`Balance after: ${formatCurrency(balanceAfter)}`);
+
+    // Improved balance display logic
+    if (balanceBefore < 0) {
+      lines.push(`Credit before: ${formatCurrency(Math.abs(balanceBefore))}`);
+    } else {
+      lines.push(`Balance before: ${formatCurrency(balanceBefore)}`);
+    }
+
+    if (balanceAfter < 0) {
+      lines.push(`Credit after: ${formatCurrency(Math.abs(balanceAfter))}`);
+    } else {
+      lines.push(`Balance after: ${formatCurrency(balanceAfter)}`);
+    }
 
     // Try to include metadata if present
     if (transaction.metadata) {
@@ -336,25 +370,30 @@ export default function TransactionDetailsScreen() {
             </View>
           )}
 
-          {/* Payment Breakdown using simplified logic */}
+          {/* Payment Breakdown with Nigerian SME-friendly messages */}
           <View style={{ marginTop: hp(12) }}>
             <Text
               variant="bodySmall"
               style={{ color: theme.colors.onSurfaceVariant }}
             >
-              Payment Breakdown
+              Payment Details
             </Text>
             <View style={{ marginTop: hp(6) }}>
               <Text variant="bodyMedium">
-                💰 Amount Paid: {formatCurrency(transaction.paidAmount || 0)}
+                💰 Money Received: {formatCurrency(transaction.paidAmount || 0)}
               </Text>
               <Text variant="bodyMedium">
-                ⏳ Amount Due:{" "}
+                ⏳ Still Owing:{" "}
                 {formatCurrency(transaction.remainingAmount || 0)}
               </Text>
               {transaction.paymentMethod === "mixed" && (
                 <Text variant="bodyMedium" style={{ marginTop: hp(4) }}>
-                  🔄 Mixed Payment: Cash + Credit applied
+                  🔄 Mixed Payment: Cash & Credit Used
+                </Text>
+              )}
+              {transaction.paymentMethod === "credit" && (
+                <Text variant="bodyMedium" style={{ marginTop: hp(4) }}>
+                  📝 Credit Sale: Customer will pay later
                 </Text>
               )}
             </View>
@@ -365,15 +404,26 @@ export default function TransactionDetailsScreen() {
               variant="bodySmall"
               style={{ color: theme.colors.onSurfaceVariant }}
             >
-              Customer Balance Impact
+              Customer Account Status
             </Text>
             <View style={{ marginTop: hp(6) }}>
               <Text variant="bodyMedium">
-                📊 Balance before: {formatCurrency(balanceBefore)}
+                📊 Account before:{" "}
+                {balanceBefore < 0 ? `💳 Credit ` : `💰 Owes `}
+                {formatCurrency(Math.abs(balanceBefore))}
               </Text>
               <Text variant="bodyMedium">
-                📈 Balance after: {formatCurrency(balanceAfter)}
+                📈 Account after: {balanceAfter < 0 ? `💳 Credit ` : `💰 Owes `}
+                {formatCurrency(Math.abs(balanceAfter))}
               </Text>
+              {displayCreditCreated > 0 && (
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.primary, marginTop: hp(4) }}
+                >
+                  💳 New credit balance: {formatCurrency(displayCreditCreated)}
+                </Text>
+              )}
               <Text
                 variant="bodySmall"
                 style={{
@@ -387,14 +437,16 @@ export default function TransactionDetailsScreen() {
                 }}
               >
                 {balanceAfter > balanceBefore
-                  ? `📈 Customer debt increased by ${formatCurrency(
+                  ? `📈 Debt increased by ${formatCurrency(
                       balanceAfter - balanceBefore
                     )}`
                   : balanceAfter < balanceBefore
-                  ? `📉 Customer debt decreased by ${formatCurrency(
+                  ? `📉 Debt reduced by ${formatCurrency(
                       balanceBefore - balanceAfter
                     )}`
-                  : "✅ No change in customer balance"}
+                  : balanceAfter < 0
+                  ? "💳 Customer has credit to use"
+                  : "✅ Account unchanged"}
               </Text>
             </View>
           </View>

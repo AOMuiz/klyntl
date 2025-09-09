@@ -548,8 +548,8 @@ const migration009: Migration = {
       CREATE TABLE IF NOT EXISTS payment_audit (
         id TEXT PRIMARY KEY,
         customer_id TEXT NOT NULL,
-        source_transaction_id TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('payment', 'over_payment', 'refund', 'credit_note')),
+        source_transaction_id TEXT,
+        type TEXT NOT NULL CHECK(type IN ('payment', 'over_payment', 'refund', 'credit_note', 'payment_allocation', 'credit_applied_to_sale', 'credit_used', 'payment_applied', 'credit_usage', 'status_change', 'partial_payment', 'full_payment')),
         amount INTEGER NOT NULL,
         currency TEXT DEFAULT 'NGN',
         metadata TEXT, -- JSON string for additional data

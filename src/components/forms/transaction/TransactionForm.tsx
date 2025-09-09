@@ -37,6 +37,7 @@ import {
   validateMixedPayment,
 } from "@/utils/validation/transactionValidation";
 import { AmountInput } from "./AmountInput";
+import { CustomerDisplay } from "./CustomerDisplay";
 import { CustomerSelector } from "./CustomerSelector";
 import { DatePickerWithPresets } from "./DatePickerWithPresets";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
@@ -133,6 +134,8 @@ export default function TransactionForm({
       isEdit: transactionId ? "true" : "false",
       transactionId: transactionId || "",
     };
+
+    console.log({ summaryParams });
 
     router.push({
       pathname: "/transaction/summary",
@@ -339,17 +342,37 @@ export default function TransactionForm({
           {/* Customer Selection */}
           <FormField
             label="Customer"
-            required
+            required={!transactionId} // Not required in edit mode since it can't be changed
             error={errors.customerId?.message}
           >
-            <CustomerSelector
-              customers={customers || []}
-              selectedId={watchedValues.customerId}
-              onSelect={(id) => setValue("customerId", id)}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              filteredCustomers={filteredCustomers}
-            />
+            {transactionId ? (
+              // Edit mode: Show read-only customer display
+              (() => {
+                const selectedCustomer = customers?.find(
+                  (c) => c.id === watchedValues.customerId
+                );
+                return selectedCustomer ? (
+                  <CustomerDisplay
+                    customer={selectedCustomer}
+                    showEditWarning={true}
+                  />
+                ) : (
+                  <ThemedText style={{ color: "red" }}>
+                    Customer not found
+                  </ThemedText>
+                );
+              })()
+            ) : (
+              // New transaction mode: Show customer selector
+              <CustomerSelector
+                customers={customers || []}
+                selectedId={watchedValues.customerId}
+                onSelect={(id) => setValue("customerId", id)}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filteredCustomers={filteredCustomers}
+              />
+            )}
           </FormField>
 
           {/* Amount Field */}

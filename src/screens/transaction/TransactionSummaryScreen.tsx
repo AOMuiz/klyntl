@@ -149,6 +149,8 @@ export default function TransactionSummaryScreen() {
 
       const formattedData = formatTransactionData(transactionData);
 
+      console.log({ formattedData });
+
       if (isEdit && transactionId) {
         await updateTransactionAsync({
           id: transactionId,

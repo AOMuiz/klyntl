@@ -254,7 +254,7 @@ describe("PaymentService", () => {
         expect.arrayContaining([
           expect.any(String),
           "cust_1",
-          "credit_usage",
+          null, // No specific transaction ID for credit usage
           "credit_used",
           3000,
           expect.any(String),

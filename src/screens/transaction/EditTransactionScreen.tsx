@@ -1,7 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
-import { Card, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Card, Text, useTheme } from "react-native-paper";
 
 import TransactionForm from "@/components/forms/transaction/TransactionForm";
 import ScreenContainer, {
@@ -11,8 +8,12 @@ import { ThemedText } from "@/components/ThemedText";
 import DebtIndicator from "@/components/ui/DebtIndicator";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTransaction } from "@/hooks/useTransactions";
+import { SimpleTransactionCalculator } from "@/services/calculations/SimpleTransactionCalculator";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect } from "react";
+import { ScrollView, View } from "react-native";
 
 export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,28 +59,17 @@ export default function EditTransactionScreen() {
 
   const customer = customers?.find((c) => c.id === transaction.customerId);
 
-  // Calculate current debt impact
+  // Use SimpleTransactionCalculator as single source of truth for debt calculations
   const calculateCurrentDebtImpact = () => {
-    switch (transaction.type) {
-      case "sale":
-        if (transaction.paymentMethod === "credit") {
-          return transaction.amount;
-        } else if (transaction.paymentMethod === "mixed") {
-          return transaction.remainingAmount || 0;
-        }
-        return 0;
-      case "payment":
-        if (transaction.appliedToDebt) {
-          return -transaction.amount;
-        }
-        return 0;
-      case "credit":
-        return transaction.amount;
-      case "refund":
-        return -transaction.amount;
-      default:
-        return 0;
-    }
+    const impact = SimpleTransactionCalculator.calculateDebtImpact(
+      transaction.type,
+      transaction.paymentMethod || "cash",
+      transaction.amount,
+      transaction.appliedToDebt
+    );
+
+    // Return signed value for debt impact (positive = increases debt, negative = decreases debt)
+    return impact.isDecrease ? -impact.change : impact.change;
   };
 
   const currentDebtImpact = calculateCurrentDebtImpact();

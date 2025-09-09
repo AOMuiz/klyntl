@@ -7,6 +7,7 @@ import {
 } from "@/types/transaction";
 import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
+import { SimpleTransactionCalculator } from "../../calculations/SimpleTransactionCalculator";
 import { AuditLogService } from "../service/AuditLogService";
 import { PaymentService } from "../service/PaymentService";
 import { SimplePaymentService } from "../service/SimplePaymentService";
@@ -136,7 +137,7 @@ export class TransactionRepository implements ITransactionRepository {
         // Insert the transaction
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
           [
             transaction.id,
             transaction.customerId,
@@ -765,7 +766,7 @@ export class TransactionRepository implements ITransactionRepository {
 
           await this.db.runAsync(
             `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               transaction.id,
               transaction.customerId,
@@ -1111,7 +1112,7 @@ export class TransactionRepository implements ITransactionRepository {
   }
 
   /**
-   * Calculate transaction status based on transaction type, payment method, and amounts
+   * Calculate transaction status using SimpleTransactionCalculator (single source of truth)
    */
   private calculateTransactionStatusWithValues(
     type: string,
@@ -1120,103 +1121,30 @@ export class TransactionRepository implements ITransactionRepository {
     paidAmount: number,
     remainingAmount: number
   ): TransactionStatus {
-    // Use SimpleTransactionCalculator for accurate status calculation
-    if (this.simplePaymentService) {
-      // For now, use a simple calculation - we'll integrate SimpleTransactionCalculator properly
-      if (type === "payment") {
-        return "completed";
-      }
-      if (remainingAmount > 0) {
-        return paymentMethod === "mixed" ? "partial" : "pending";
-      }
-      return "completed";
-    }
-
-    // Fallback to PaymentService if available
-    if (this.paymentService) {
-      return this.paymentService.calculateTransactionStatus(
-        type,
-        paymentMethod,
-        amount,
-        paidAmount,
-        remainingAmount
-      ) as TransactionStatus;
-    }
-
-    // Fallback to original logic with calculated values
-    if (type === "payment") {
-      return "completed";
-    }
-
-    if (type === "credit") {
-      return remainingAmount > 0 ? "pending" : "completed";
-    }
-
-    if (paymentMethod === "cash" || paidAmount >= amount) {
-      return "completed";
-    }
-
-    if (paymentMethod === "mixed") {
-      return remainingAmount > 0 ? "partial" : "completed";
-    }
-
-    if (paymentMethod === "credit" || remainingAmount > 0) {
-      return "pending";
-    }
-
-    return "completed";
+    // Use SimpleTransactionCalculator as the single source of truth
+    const result = SimpleTransactionCalculator.calculateStatus(
+      type,
+      amount,
+      paidAmount,
+      remainingAmount
+    );
+    return result.status;
   }
 
   /**
-   * Calculate transaction status based on input data (legacy method)
+   * Calculate transaction status using SimpleTransactionCalculator (single source of truth)
    */
   private calculateTransactionStatus(
     data: CreateTransactionInput
   ): TransactionStatus {
-    // Use SimpleTransactionCalculator for accurate status calculation if available
-    if (this.simplePaymentService) {
-      // For now, use a simple calculation - we'll integrate SimpleTransactionCalculator properly
-      if (data.type === "payment") {
-        return "completed";
-      }
-      if ((data.remainingAmount || 0) > 0) {
-        return data.paymentMethod === "mixed" ? "partial" : "pending";
-      }
-      return "completed";
-    }
-
-    // Fallback to PaymentService if available
-    if (this.paymentService) {
-      return this.paymentService.calculateTransactionStatus(
-        data.type,
-        data.paymentMethod || "cash",
-        data.amount,
-        data.paidAmount || 0,
-        data.remainingAmount || 0
-      ) as TransactionStatus;
-    }
-
-    // Fallback to original logic
-    if (data.type === "payment") {
-      return "completed";
-    }
-
-    if (
-      data.paymentMethod === "cash" ||
-      (data.paidAmount || 0) >= (data.amount || 0)
-    ) {
-      return "completed";
-    }
-
-    if (data.paymentMethod === "mixed") {
-      return (data.remainingAmount || 0) > 0 ? "partial" : "completed";
-    }
-
-    if (data.paymentMethod === "credit" || (data.remainingAmount || 0) > 0) {
-      return "pending";
-    }
-
-    return "completed";
+    // Use SimpleTransactionCalculator as the single source of truth
+    const result = SimpleTransactionCalculator.calculateStatus(
+      data.type,
+      data.amount,
+      data.paidAmount || 0,
+      data.remainingAmount || 0
+    );
+    return result.status;
   }
 
   /**
@@ -1259,7 +1187,7 @@ export class TransactionRepository implements ITransactionRepository {
 
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             paymentTransaction.id,
             paymentTransaction.customerId,
@@ -1583,19 +1511,18 @@ export class TransactionRepository implements ITransactionRepository {
   }
 
   /**
-   * Calculate the debt impact of a transaction
+   * Calculate the debt impact of a transaction using SimpleTransactionCalculator
    */
   private calculateDebtChange(transaction: Transaction): number {
-    switch (transaction.type) {
-      case "sale":
-      case "credit":
-        return transaction.remainingAmount || 0;
-      case "payment":
-      case "refund":
-        return -transaction.amount;
-      default:
-        return 0;
-    }
+    const impact = SimpleTransactionCalculator.calculateDebtImpact(
+      transaction.type,
+      transaction.paymentMethod || "cash",
+      transaction.amount,
+      transaction.appliedToDebt
+    );
+
+    // Return signed value: positive for debt increase, negative for debt decrease
+    return impact.isDecrease ? -impact.change : impact.change;
   }
 
   // ===== TEST COMPATIBILITY METHODS =====
