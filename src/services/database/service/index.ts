@@ -23,7 +23,6 @@ import { StoreConfigRepository } from "../repositories/StoreConfigRepository";
 import { TransactionRepository } from "../repositories/TransactionRepository";
 import { DatabaseConfig } from "../types";
 import { AuditLogService } from "./AuditLogService";
-import { PaymentService } from "./PaymentService";
 import { QueryBuilderService } from "./QueryBuilderService";
 import { SimplePaymentService } from "./SimplePaymentService";
 import { DatabaseError } from "./utilService";
@@ -35,7 +34,6 @@ export class DatabaseService {
   private readonly auditService: AuditLogService;
   private readonly queryBuilder: QueryBuilderService;
   private readonly validationService: ValidationService;
-  public readonly paymentService: PaymentService;
   public readonly simplePaymentService: SimplePaymentService;
   public readonly customers: CustomerRepository;
   public readonly transactions: TransactionRepository;
@@ -81,7 +79,6 @@ export class DatabaseService {
       this.auditService,
       this.queryBuilder
     );
-    this.paymentService = new PaymentService(this.db, this.customers);
     this.simplePaymentService = new SimplePaymentService(
       this.db,
       this.customers
@@ -90,7 +87,7 @@ export class DatabaseService {
       this.db,
       this.auditService,
       this.customers,
-      this.paymentService
+      this.simplePaymentService
     );
     this.products = new ProductRepository(
       this.db,
@@ -257,7 +254,7 @@ export class DatabaseService {
 
   // Payment service access
   get payment() {
-    return this.paymentService;
+    return this.simplePaymentService;
   }
 
   // Simple payment service access
@@ -552,3 +549,6 @@ STRATEGY BENEFITS:
 - Scales well with additional features
 - Backward compatible
 */
+
+// Temporary singleton export for backward compatibility during migration
+// TODO: Remove this once all imports are updated to use dependency injection

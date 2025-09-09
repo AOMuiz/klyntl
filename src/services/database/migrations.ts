@@ -715,6 +715,80 @@ const migration011: Migration = {
 };
 
 /**
+ * Migration 12: Update simple_payment_audit to support balance consolidation
+ */
+const migration012: Migration = {
+  version: 12,
+  name: "add_balance_consolidation_audit_type",
+  up: async (db: SQLiteDatabase) => {
+    // SQLite doesn't support ALTER TABLE CHECK constraints directly
+    // So we need to recreate the table with the updated constraint
+    await db.execAsync(`
+      -- Create temporary table with new constraint
+      CREATE TABLE simple_payment_audit_new (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('payment', 'overpayment', 'credit_used', 'balance_consolidation')),
+        amount INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        description TEXT,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      );
+
+      -- Copy existing data
+      INSERT INTO simple_payment_audit_new 
+      SELECT id, customer_id, type, amount, created_at, description 
+      FROM simple_payment_audit;
+
+      -- Drop old table
+      DROP TABLE simple_payment_audit;
+
+      -- Rename new table
+      ALTER TABLE simple_payment_audit_new RENAME TO simple_payment_audit;
+
+      -- Recreate indexes
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_customer ON simple_payment_audit(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_type ON simple_payment_audit(type);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_created ON simple_payment_audit(created_at);
+    `);
+  },
+  down: async (db: SQLiteDatabase) => {
+    // Recreate table with original constraint (removing balance_consolidation entries)
+    await db.execAsync(`
+      -- Delete balance_consolidation entries first
+      DELETE FROM simple_payment_audit WHERE type = 'balance_consolidation';
+      
+      -- Create temporary table with original constraint
+      CREATE TABLE simple_payment_audit_new (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('payment', 'overpayment', 'credit_used')),
+        amount INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        description TEXT,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      );
+
+      -- Copy remaining data
+      INSERT INTO simple_payment_audit_new 
+      SELECT id, customer_id, type, amount, created_at, description 
+      FROM simple_payment_audit;
+
+      -- Drop old table
+      DROP TABLE simple_payment_audit;
+
+      -- Rename new table
+      ALTER TABLE simple_payment_audit_new RENAME TO simple_payment_audit;
+
+      -- Recreate indexes
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_customer ON simple_payment_audit(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_type ON simple_payment_audit(type);
+      CREATE INDEX IF NOT EXISTS idx_simple_payment_audit_created ON simple_payment_audit(created_at);
+    `);
+  },
+};
+
+/**
  * All migrations in order
  */
 export const migrations: Migration[] = [
@@ -730,6 +804,7 @@ export const migrations: Migration[] = [
   migration009, // Add credit balance and payment audit migration
   migration010, // Reconciliation for debt/audit
   migration011, // Add simple_payment_audit table migration
+  migration012, // Add balance consolidation audit type
 ];
 
 /**

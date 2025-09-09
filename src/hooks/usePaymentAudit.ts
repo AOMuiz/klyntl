@@ -13,11 +13,9 @@ export function usePaymentAudit(customerId?: string) {
       if (!customerId) return [];
 
       // Always use the DatabaseService payment API - no direct DB queries
-      if (databaseService?.payment?.getPaymentAuditHistory) {
+      if (databaseService?.payment?.getPaymentHistory) {
         try {
-          return await databaseService.payment.getPaymentAuditHistory(
-            customerId
-          );
+          return await databaseService.payment.getPaymentHistory(customerId);
         } catch (err) {
           console.warn("Failed to load payment_audit via service:", err);
           return [];
@@ -34,31 +32,46 @@ export function usePaymentAudit(customerId?: string) {
 }
 
 // Enhanced hook for comprehensive payment status of a specific transaction
+// @deprecated - SimplePaymentService doesn't track per-transaction status
+// Use the transaction's status field directly instead
 export function useTransactionPaymentStatus(transactionId?: string) {
   const { db } = useDatabase();
-  const databaseService = db ? createDatabaseService(db) : undefined;
 
   return useQuery({
     queryKey: ["transactionPaymentStatus", transactionId],
     queryFn: async () => {
-      if (!transactionId) return null;
+      if (!transactionId || !db) return null;
 
-      // Always use the service layer
-      if (databaseService?.payment?.getTransactionPaymentStatus) {
-        try {
-          return await databaseService.payment.getTransactionPaymentStatus(
-            transactionId
-          );
-        } catch (error) {
-          console.warn("Failed to get transaction payment status:", error);
-          return null;
-        }
+      // Simplified approach: get transaction status directly from transaction table
+      try {
+        const result = await db.getFirstAsync<{
+          status: string;
+          paidAmount: number;
+          remainingAmount: number;
+          amount: number;
+        }>(
+          "SELECT status, paidAmount, remainingAmount, amount FROM transactions WHERE id = ?",
+          [transactionId]
+        );
+
+        return result
+          ? {
+              status: result.status,
+              paidAmount: result.paidAmount,
+              remainingAmount: result.remainingAmount,
+              totalAmount: result.amount,
+              percentagePaid:
+                result.amount > 0
+                  ? (result.paidAmount / result.amount) * 100
+                  : 0,
+            }
+          : null;
+      } catch (error) {
+        console.warn("Failed to get transaction payment status:", error);
+        return null;
       }
-
-      console.warn("Payment service not available for transaction status");
-      return null;
     },
-    enabled: !!transactionId && !!databaseService,
+    enabled: !!transactionId && !!db,
     staleTime: 30 * 1000,
   });
 }
@@ -151,34 +164,33 @@ export function usePaymentOperations() {
 
   const processPayment = async (
     customerId: string,
-    paymentTxId: string,
-    paymentAmount: number
+    paymentAmount: number,
+    applyToDebt: boolean = true
   ) => {
     if (!databaseService?.payment?.handlePaymentAllocation) {
       throw new Error("Payment service not available");
     }
     return databaseService.payment.handlePaymentAllocation(
       customerId,
-      paymentTxId,
-      paymentAmount
+      paymentAmount,
+      applyToDebt
     );
   };
 
   const processMixedPayment = async (
     customerId: string,
-    transactionId: string,
-    cashAmount: number,
-    creditAmount: number
+    cashAmount: number
   ) => {
-    if (!databaseService?.payment?.processMixedPayment) {
+    if (!databaseService?.payment?.processPayment) {
       throw new Error("Payment service not available");
     }
-    return databaseService.payment.processMixedPayment(
+    // SimplePaymentService doesn't have mixed payment handling - use processPayment
+    return databaseService.payment.processPayment({
       customerId,
-      transactionId,
-      cashAmount,
-      creditAmount
-    );
+      amount: cashAmount,
+      paymentMethod: "cash",
+      description: "Mixed payment (cash portion)",
+    });
   };
 
   const applyCreditToSale = async (
@@ -197,10 +209,10 @@ export function usePaymentOperations() {
   };
 
   const cancelTransaction = async (transactionId: string, reason?: string) => {
-    if (!databaseService?.payment?.cancelTransaction) {
-      throw new Error("Payment service not available");
-    }
-    return databaseService.payment.cancelTransaction(transactionId, reason);
+    // SimplePaymentService doesn't have cancel functionality - transactions are handled by TransactionRepository
+    throw new Error(
+      "Transaction cancellation should be handled through the transaction service, not payment service"
+    );
   };
 
   return {

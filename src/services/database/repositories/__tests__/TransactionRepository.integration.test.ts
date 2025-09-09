@@ -75,7 +75,6 @@ describe("TransactionRepository - TDD Integration", () => {
       mockDb,
       mockAuditService,
       mockCustomerRepo,
-      mockPaymentService,
       mockSimplePaymentService
     );
   });

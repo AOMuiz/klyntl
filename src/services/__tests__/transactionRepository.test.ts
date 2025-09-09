@@ -11,6 +11,7 @@ jest.mock("expo-sqlite", () => ({
 
 jest.mock("../database/repositories/CustomerRepository");
 jest.mock("../database/service/AuditLogService");
+jest.mock("../database/service/SimplePaymentService");
 jest.mock("../database/service/ValidationService");
 jest.mock("../../utils/helpers");
 
@@ -22,6 +23,7 @@ describe("TransactionRepository", () => {
   let mockDb: any;
   let mockCustomerRepo: any;
   let mockAudit: any;
+  let mockSimplePaymentService: any;
   let mockValidationService: any;
 
   beforeEach(() => {
@@ -77,13 +79,34 @@ describe("TransactionRepository", () => {
     mockAudit.logEntry.mockResolvedValue(undefined);
     mockGenerateId.mockReturnValue("txn_test_123");
 
+    // Setup SimplePaymentService mock
+    mockSimplePaymentService = {
+      applyCreditToSale: jest.fn().mockResolvedValue({
+        creditUsed: 0,
+        remainingAmount: 0,
+      }),
+      handlePaymentAllocation: jest.fn().mockResolvedValue({
+        success: true,
+        debtReduced: 0,
+        creditCreated: 0,
+      }),
+      consolidateCustomerBalance: jest.fn().mockResolvedValue({
+        wasConsolidated: false,
+        originalDebt: 0,
+        originalCredit: 0,
+        netResult: "balanced",
+        netAmount: 0,
+      }),
+    };
+
     // Mock SQLite.openDatabaseAsync to return our mock database
     mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
 
     transactionRepository = new TransactionRepository(
       mockDb,
       mockAudit,
-      mockCustomerRepo
+      mockCustomerRepo,
+      mockSimplePaymentService
     );
   });
 

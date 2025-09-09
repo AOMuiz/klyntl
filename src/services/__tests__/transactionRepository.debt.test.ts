@@ -99,10 +99,45 @@ describe("TransactionRepository - Debt Management", () => {
     // Mock SQLite.openDatabaseAsync to return our mock database
     mockSQLite.openDatabaseAsync.mockResolvedValue(mockDb);
 
+    const mockSimplePaymentService = {
+      db: mockDb,
+      customerRepo: mockCustomerRepo,
+      getCreditBalance: jest.fn().mockResolvedValue(0),
+      useCredit: jest
+        .fn()
+        .mockResolvedValue({ creditUsed: 0, remainingAmount: 0 }),
+      processPayment: jest.fn().mockResolvedValue({ success: true }),
+      processMixedPayment: jest.fn().mockResolvedValue({ success: true }),
+      applyCreditToSale: jest.fn().mockResolvedValue({
+        creditUsed: 0,
+        remainingAmount: 0,
+      }),
+      handlePaymentAllocation: jest.fn().mockResolvedValue({
+        success: true,
+        debtReduced: 0,
+        creditCreated: 0,
+      }),
+      consolidateCustomerBalance: jest.fn().mockResolvedValue({
+        wasConsolidated: false,
+        originalDebt: 0,
+        originalCredit: 0,
+        netResult: "balanced",
+        netAmount: 0,
+      }),
+      getPaymentHistory: jest.fn().mockResolvedValue([]),
+      getCreditSummary: jest.fn().mockResolvedValue({
+        totalCredit: 0,
+        usedCredit: 0,
+        availableCredit: 0,
+      }),
+      calculateTransactionStatus: jest.fn().mockReturnValue("pending"),
+    } as any;
+
     transactionRepository = new TransactionRepository(
       mockDb,
       mockAudit,
-      mockCustomerRepo
+      mockCustomerRepo,
+      mockSimplePaymentService
     );
   });
 

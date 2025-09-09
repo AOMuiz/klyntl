@@ -145,17 +145,28 @@ export default function TransactionDetailsScreen() {
     lines.push(`Total: ${formatCurrency(transaction.amount)}`);
     lines.push("");
 
-    // Improved balance display logic
-    if (balanceBefore < 0) {
-      lines.push(`Credit before: ${formatCurrency(Math.abs(balanceBefore))}`);
+    // Net balance display (debt - credit) for clarity
+    const netBefore = balanceBefore - (creditBalance || 0);
+    const netAfter = balanceAfter - (creditBalance || 0);
+
+    if (netBefore < 0) {
+      lines.push(
+        `Net balance before: ${formatCurrency(Math.abs(netBefore))} Credit`
+      );
+    } else if (netBefore > 0) {
+      lines.push(`Net balance before: ${formatCurrency(netBefore)} Owed`);
     } else {
-      lines.push(`Balance before: ${formatCurrency(balanceBefore)}`);
+      lines.push(`Net balance before: ₦0 (Balanced)`);
     }
 
-    if (balanceAfter < 0) {
-      lines.push(`Credit after: ${formatCurrency(Math.abs(balanceAfter))}`);
+    if (netAfter < 0) {
+      lines.push(
+        `Net balance after: ${formatCurrency(Math.abs(netAfter))} Credit`
+      );
+    } else if (netAfter > 0) {
+      lines.push(`Net balance after: ${formatCurrency(netAfter)} Owed`);
     } else {
-      lines.push(`Balance after: ${formatCurrency(balanceAfter)}`);
+      lines.push(`Net balance after: ₦0 (Balanced)`);
     }
 
     // Try to include metadata if present
@@ -352,33 +363,70 @@ export default function TransactionDetailsScreen() {
             </Text>
           </View>
 
-          {/* Credit Balance Display with clearer messaging */}
-          {creditBalance > 0 && (
-            <View style={{ marginTop: hp(12) }}>
-              <Text
-                variant="bodySmall"
-                style={{ color: theme.colors.onSurfaceVariant }}
-              >
-                Stored Credit Balance
-              </Text>
-              <Text
-                variant="bodyMedium"
-                style={{ marginTop: hp(6), color: theme.colors.primary }}
-              >
-                💳 Unused Credit: {formatCurrency(creditBalance)}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  marginTop: hp(4),
-                  fontStyle: "italic",
-                }}
-              >
-                (Money customer prepaid for future purchases)
-              </Text>
-            </View>
-          )}
+          {/* Credit Balance Display - only show if there's actual usable credit */}
+          {(() => {
+            const currentDebt = customer?.outstandingBalance || 0;
+            const currentCredit = customer?.creditBalance || 0;
+            const usableCredit = Math.max(0, currentCredit - currentDebt);
+
+            if (usableCredit > 0) {
+              return (
+                <View style={{ marginTop: hp(12) }}>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    Available Credit Balance
+                  </Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={{ marginTop: hp(6), color: theme.colors.primary }}
+                  >
+                    💳 Usable Credit: {formatCurrency(usableCredit)}
+                  </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      marginTop: hp(4),
+                      fontStyle: "italic",
+                    }}
+                  >
+                    (Money customer can use for future purchases)
+                  </Text>
+                </View>
+              );
+            } else if (currentCredit > 0 && currentDebt > 0) {
+              return (
+                <View style={{ marginTop: hp(12) }}>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    Credit Status
+                  </Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={{ marginTop: hp(6), color: theme.colors.onSurface }}
+                  >
+                    💳 {formatCurrency(currentCredit)} prepaid credit is
+                    offsetting debt
+                  </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      marginTop: hp(4),
+                      fontStyle: "italic",
+                    }}
+                  >
+                    (No additional credit available for new purchases)
+                  </Text>
+                </View>
+              );
+            }
+            return null;
+          })()}
 
           {/* Payment Breakdown with Nigerian SME-friendly messages */}
           <View style={{ marginTop: hp(12) }}>
@@ -417,61 +465,105 @@ export default function TransactionDetailsScreen() {
               Transaction Impact on Customer Account
             </Text>
             <View style={{ marginTop: hp(6) }}>
-              <Text variant="bodyMedium">
-                📊 Running balance before:{" "}
-                {balanceBefore < 0 ? `💳 Customer had ` : `💰 Customer owed `}
-                {formatCurrency(Math.abs(balanceBefore))}
-              </Text>
-              <Text variant="bodyMedium">
-                📈 Running balance after:{" "}
-                {balanceAfter < 0 ? `💳 Customer has ` : `💰 Customer owes `}
-                {formatCurrency(Math.abs(balanceAfter))}
-              </Text>
-              {displayCreditCreated > 0 && (
-                <Text
-                  variant="bodySmall"
-                  style={{ color: theme.colors.primary, marginTop: hp(4) }}
-                >
-                  💳 New credit balance: {formatCurrency(displayCreditCreated)}
-                </Text>
-              )}
-              <Text
-                variant="bodySmall"
-                style={{
-                  color:
-                    balanceAfter > balanceBefore
-                      ? theme.colors.error
-                      : balanceAfter < balanceBefore
-                      ? "#4CAF50"
-                      : theme.colors.onSurfaceVariant,
-                  marginTop: hp(4),
-                }}
-              >
-                {balanceAfter > balanceBefore
-                  ? `📈 This transaction increased debt by ${formatCurrency(
-                      balanceAfter - balanceBefore
-                    )}`
-                  : balanceAfter < balanceBefore
-                  ? `📉 This transaction reduced debt by ${formatCurrency(
-                      balanceBefore - balanceAfter
-                    )}`
-                  : balanceAfter < 0
-                  ? "💳 Customer has running credit balance"
-                  : "✅ Account unchanged"}
-              </Text>
-              {creditBalance > 0 && (
-                <Text
-                  variant="bodySmall"
-                  style={{
-                    color: theme.colors.primary,
-                    marginTop: hp(4),
-                    fontStyle: "italic",
-                  }}
-                >
-                  ℹ️ Note: Customer also has {formatCurrency(creditBalance)} in
-                  unused prepaid credit
-                </Text>
-              )}
+              {(() => {
+                // Calculate net balances (debt - credit) for clearer display
+                const currentDebt = customer?.outstandingBalance || 0;
+                const currentCredit = customer?.creditBalance || 0;
+                const netBefore = balanceBefore - (creditBalance || 0);
+                const netAfter = balanceAfter - (creditBalance || 0);
+
+                return (
+                  <>
+                    <Text variant="bodyMedium">
+                      � Net balance before:{" "}
+                      {netBefore < 0
+                        ? `💳 Customer had ${formatCurrency(
+                            Math.abs(netBefore)
+                          )} credit`
+                        : netBefore > 0
+                        ? `💰 Customer owed ${formatCurrency(netBefore)}`
+                        : `✅ Account was balanced (₦0)`}
+                    </Text>
+                    <Text variant="bodyMedium">
+                      📈 Net balance after:{" "}
+                      {netAfter < 0
+                        ? `💳 Customer has ${formatCurrency(
+                            Math.abs(netAfter)
+                          )} credit`
+                        : netAfter > 0
+                        ? `� Customer owes ${formatCurrency(netAfter)}`
+                        : `✅ Account is balanced (₦0)`}
+                    </Text>
+
+                    {/* Show breakdown only if both debt and credit exist */}
+                    {currentDebt > 0 && currentCredit > 0 && (
+                      <View
+                        style={{
+                          marginTop: hp(8),
+                          paddingTop: hp(8),
+                          borderTopWidth: 1,
+                          borderTopColor: theme.colors.outline,
+                        }}
+                      >
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.onSurfaceVariant }}
+                        >
+                          Current Account Breakdown:
+                        </Text>
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.error }}
+                        >
+                          📊 Debt: {formatCurrency(currentDebt)}
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: "#4CAF50" }}>
+                          � Prepaid Credit: {formatCurrency(currentCredit)}
+                        </Text>
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.primary }}
+                        >
+                          🏆 Net Result:{" "}
+                          {formatCurrency(
+                            Math.abs(currentDebt - currentCredit)
+                          )}{" "}
+                          {currentDebt > currentCredit
+                            ? "owed"
+                            : currentDebt < currentCredit
+                            ? "credit"
+                            : "(balanced)"}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Text
+                      variant="bodySmall"
+                      style={{
+                        color:
+                          netAfter > netBefore
+                            ? theme.colors.error
+                            : netAfter < netBefore
+                            ? "#4CAF50"
+                            : theme.colors.onSurfaceVariant,
+                        marginTop: hp(4),
+                      }}
+                    >
+                      {netAfter > netBefore
+                        ? `📈 This transaction increased net debt by ${formatCurrency(
+                            netAfter - netBefore
+                          )}`
+                        : netAfter < netBefore
+                        ? `📉 This transaction reduced net debt by ${formatCurrency(
+                            netBefore - netAfter
+                          )}`
+                        : netAfter === 0
+                        ? "✅ This transaction balanced the account"
+                        : "⚖️ Net balance unchanged"}
+                    </Text>
+                  </>
+                );
+              })()}
             </View>
           </View>
 

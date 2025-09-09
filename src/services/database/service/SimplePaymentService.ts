@@ -17,10 +17,18 @@ export interface SimplePaymentResult {
 export interface SimplePaymentAudit {
   id: string;
   customer_id: string;
-  type: "payment" | "overpayment" | "credit_used";
+  type: "payment" | "overpayment" | "credit_used" | "balance_consolidation";
   amount: number;
   created_at: string;
   description: string;
+}
+
+export interface ConsolidationResult {
+  wasConsolidated: boolean;
+  originalDebt: number;
+  originalCredit: number;
+  netResult: "debt" | "credit" | "balanced";
+  netAmount: number;
 }
 
 export class SimplePaymentService {
@@ -30,7 +38,75 @@ export class SimplePaymentService {
   ) {}
 
   /**
-   * Handle payment allocation with overpayment support
+   * Consolidate customer balance when debt and credit cancel out
+   * This implements auto-consolidation for Nigerian SME clarity
+   */
+  async consolidateCustomerBalance(
+    customerId: string
+  ): Promise<ConsolidationResult> {
+    const customer = await this.customerRepo.findById(customerId);
+    if (!customer) {
+      throw new Error(`Customer ${customerId} not found`);
+    }
+
+    const currentDebt = customer.outstandingBalance || 0;
+    const currentCredit = customer.creditBalance || 0;
+
+    // Only consolidate if both debt and credit exist
+    if (currentDebt <= 0 || currentCredit <= 0) {
+      return {
+        wasConsolidated: false,
+        originalDebt: currentDebt,
+        originalCredit: currentCredit,
+        netResult:
+          currentDebt > 0 ? "debt" : currentCredit > 0 ? "credit" : "balanced",
+        netAmount:
+          currentDebt > 0 ? currentDebt : currentCredit > 0 ? currentCredit : 0,
+      };
+    }
+
+    // Calculate net balance
+    const netDebt = Math.max(0, currentDebt - currentCredit);
+    const netCredit = Math.max(0, currentCredit - currentDebt);
+
+    await this.db.withTransactionAsync(async () => {
+      // Update customer balances to consolidated amounts
+      await this.db.runAsync(
+        `UPDATE customers SET 
+         outstandingBalance = ?, 
+         credit_balance = ?, 
+         updatedAt = ?
+         WHERE id = ?`,
+        [netDebt, netCredit, new Date().toISOString(), customerId]
+      );
+
+      // Log consolidation for audit trail
+      const consolidationAmount = Math.min(currentDebt, currentCredit);
+      await this.logSimpleAudit(
+        customerId,
+        "balance_consolidation",
+        consolidationAmount,
+        `Auto-consolidated ₦${consolidationAmount.toLocaleString()} debt with ₦${consolidationAmount.toLocaleString()} credit. Net result: ${
+          netDebt > 0
+            ? `₦${netDebt.toLocaleString()} debt`
+            : netCredit > 0
+            ? `₦${netCredit.toLocaleString()} credit`
+            : "balanced account"
+        }`
+      );
+    });
+
+    return {
+      wasConsolidated: true,
+      originalDebt: currentDebt,
+      originalCredit: currentCredit,
+      netResult: netDebt > 0 ? "debt" : netCredit > 0 ? "credit" : "balanced",
+      netAmount: netDebt > 0 ? netDebt : netCredit > 0 ? netCredit : 0,
+    };
+  }
+
+  /**
+   * Handle payment allocation with overpayment support and auto-consolidation
    */
   async handlePaymentAllocation(
     customerId: string,
@@ -116,6 +192,9 @@ export class SimplePaymentService {
         );
       }
     });
+
+    // Auto-consolidate balances after payment processing
+    await this.consolidateCustomerBalance(customerId);
 
     return {
       debtReduced,
@@ -209,6 +288,9 @@ export class SimplePaymentService {
         }
       });
     }
+
+    // Auto-consolidate balances after credit application
+    await this.consolidateCustomerBalance(customerId);
 
     return {
       creditUsed: creditToUse,
@@ -391,7 +473,7 @@ export class SimplePaymentService {
    */
   private async logSimpleAudit(
     customerId: string,
-    type: "payment" | "overpayment" | "credit_used",
+    type: "payment" | "overpayment" | "credit_used" | "balance_consolidation",
     amount: number,
     description: string
   ): Promise<void> {

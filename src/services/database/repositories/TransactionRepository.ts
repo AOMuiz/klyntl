@@ -9,7 +9,6 @@ import { generateId } from "@/utils/helpers";
 import { SQLiteDatabase } from "expo-sqlite";
 import { SimpleTransactionCalculator } from "../../calculations/SimpleTransactionCalculator";
 import { AuditLogService } from "../service/AuditLogService";
-import { PaymentService } from "../service/PaymentService";
 import { SimplePaymentService } from "../service/SimplePaymentService";
 import {
   DatabaseError,
@@ -26,8 +25,7 @@ export class TransactionRepository implements ITransactionRepository {
     private db: SQLiteDatabase,
     private auditService: AuditLogService,
     private customerRepo: CustomerRepository,
-    private paymentService?: PaymentService,
-    private simplePaymentService?: SimplePaymentService
+    private simplePaymentService: SimplePaymentService
   ) {}
 
   async create(transactionData: CreateTransactionInput): Promise<Transaction> {
@@ -1002,43 +1000,13 @@ export class TransactionRepository implements ITransactionRepository {
           debtAmount > 0
         ) {
           // For credit/mixed payments, check if customer has available credit first
-          if (this.simplePaymentService) {
-            try {
-              const creditResult =
-                await this.simplePaymentService.applyCreditToSale(
-                  transaction.customerId,
-                  debtAmount,
-                  transaction.id
-                );
-
-              // If credit was applied, reduce the debt amount
-              const remainingDebt = creditResult.remainingAmount;
-
-              if (remainingDebt > 0) {
-                // Only create debt for the remaining amount after credit application
-                await this.customerRepo.increaseOutstandingBalance(
-                  transaction.customerId,
-                  remainingDebt
-                );
-              }
-            } catch (error) {
-              console.warn(
-                "SimplePaymentService credit application failed, using fallback:",
-                error
-              );
-              // Fallback to old method if SimplePaymentService fails
-              await this.customerRepo.increaseOutstandingBalance(
+          try {
+            const creditResult =
+              await this.simplePaymentService.applyCreditToSale(
                 transaction.customerId,
-                debtAmount
+                debtAmount,
+                transaction.id
               );
-            }
-          } else if (this.paymentService) {
-            const creditResult = await this.paymentService.applyCreditToSale(
-              transaction.customerId,
-              debtAmount,
-              transaction.id,
-              true // withinExistingTransaction = true
-            );
 
             // If credit was applied, reduce the debt amount
             const remainingDebt = creditResult.remainingAmount;
@@ -1050,8 +1018,12 @@ export class TransactionRepository implements ITransactionRepository {
                 remainingDebt
               );
             }
-          } else {
-            // Fallback to old method if no payment service available
+          } catch (error) {
+            console.warn(
+              "SimplePaymentService credit application failed, using fallback:",
+              error
+            );
+            // Fallback to old method if SimplePaymentService fails
             await this.customerRepo.increaseOutstandingBalance(
               transaction.customerId,
               debtAmount
@@ -1063,12 +1035,11 @@ export class TransactionRepository implements ITransactionRepository {
 
       case "payment":
         // Payment received: use PaymentService to handle allocation only if appliedToDebt is true
-        if (this.paymentService && transaction.appliedToDebt) {
+        if (this.simplePaymentService && transaction.appliedToDebt) {
           try {
-            // Use PaymentService to handle proper payment allocation
-            await this.paymentService.handlePaymentAllocation(
+            // Use SimplePaymentService to handle proper payment allocation
+            await this.simplePaymentService.handlePaymentAllocation(
               transaction.customerId,
-              transaction.id,
               transaction.amount,
               true // withinExistingTransaction = true
             );
@@ -1217,29 +1188,18 @@ export class TransactionRepository implements ITransactionRepository {
           newValues: paymentTransaction,
         });
 
-        // Delegate allocation to PaymentService when available
-        if (this.paymentService) {
-          try {
-            await this.paymentService.handlePaymentAllocation(
-              paymentTx.customerId,
-              paymentTransaction.id,
-              paymentTx.amount,
-              true // withinExistingTransaction = true
-            );
-          } catch (error) {
-            console.warn(
-              "PaymentService allocation failed, using fallback:",
-              error
-            );
-            // Fallback to old method: allocate to outstanding debts
-            await this.fallbackPaymentAllocation(
-              paymentTx.customerId,
-              paymentTransaction.id,
-              paymentTx.amount,
-              applyToOldest
-            );
-          }
-        } else {
+        // Delegate allocation to SimplePaymentService
+        try {
+          await this.simplePaymentService.handlePaymentAllocation(
+            paymentTx.customerId,
+            paymentTx.amount,
+            true // applyToDebt = true
+          );
+        } catch (error) {
+          console.warn(
+            "PaymentService allocation failed, using fallback:",
+            error
+          );
           // Fallback to old method: allocate to outstanding debts
           await this.fallbackPaymentAllocation(
             paymentTx.customerId,
@@ -1355,7 +1315,7 @@ export class TransactionRepository implements ITransactionRepository {
 
       case "payment":
         // Payment received: use SimplePaymentService to handle allocation if appliedToDebt is true
-        if (this.simplePaymentService && transaction.appliedToDebt) {
+        if (transaction.appliedToDebt) {
           try {
             // Use SimplePaymentService to handle proper payment allocation
             const allocationResult =
@@ -1403,40 +1363,6 @@ export class TransactionRepository implements ITransactionRepository {
               ]
             );
           }
-        } else if (this.paymentService && transaction.appliedToDebt) {
-          try {
-            // Fallback to PaymentService if SimplePaymentService not available
-            await this.paymentService.handlePaymentAllocation(
-              transaction.customerId,
-              transaction.id,
-              transaction.amount,
-              true // withinExistingTransaction = true
-            );
-          } catch (error) {
-            console.warn(
-              "PaymentService allocation failed, using fallback:",
-              error
-            );
-            // Fallback to old method if PaymentService fails
-            await this.db.runAsync(
-              `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-              [
-                transaction.amount,
-                new Date().toISOString(),
-                transaction.customerId,
-              ]
-            );
-          }
-        } else if (transaction.appliedToDebt) {
-          // Fallback to old method if no payment service available but appliedToDebt is true
-          await this.db.runAsync(
-            `UPDATE customers SET outstandingBalance = MAX(0, outstandingBalance - ?), updatedAt = ? WHERE id = ?`,
-            [
-              transaction.amount,
-              new Date().toISOString(),
-              transaction.customerId,
-            ]
-          );
         }
         // If appliedToDebt is false, don't reduce outstanding balance (future service deposit)
         break;

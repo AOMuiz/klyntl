@@ -3,7 +3,7 @@ import { CustomerRepository } from "../../database/repositories/CustomerReposito
 import { TransactionRepository } from "../../database/repositories/TransactionRepository";
 import { DatabaseService } from "../../database/service";
 import { AuditLogService } from "../../database/service/AuditLogService";
-import { PaymentService } from "../../database/service/PaymentService";
+
 import { QueryBuilderService } from "../../database/service/QueryBuilderService";
 import { DatabaseConfig } from "../../database/types";
 
@@ -22,7 +22,7 @@ describe("Database Integrity Tests", () => {
   let mockConfig: DatabaseConfig;
   let mockAuditService: jest.Mocked<AuditLogService>;
   let mockQueryBuilder: jest.Mocked<QueryBuilderService>;
-  let mockPaymentService: jest.Mocked<PaymentService>;
+  let mockSimplePaymentService: any;
 
   beforeEach(async () => {
     // Create mocks
@@ -52,9 +52,12 @@ describe("Database Integrity Tests", () => {
       buildDeleteQuery: jest.fn(),
     } as any;
 
-    mockPaymentService = {
+    mockSimplePaymentService = {
       applyCreditToSale: jest.fn(),
       handlePaymentAllocation: jest.fn(),
+      consolidateCustomerBalance: jest.fn(),
+      getPaymentHistory: jest.fn(),
+      processPayment: jest.fn(),
       calculateTransactionStatus: jest.fn(),
     } as any;
 
@@ -69,7 +72,7 @@ describe("Database Integrity Tests", () => {
       mockSQLiteDb,
       mockAuditService,
       customerRepo,
-      mockPaymentService
+      mockSimplePaymentService
     );
 
     // Reset all mocks

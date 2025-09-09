@@ -1,10 +1,13 @@
 import { create } from "zustand";
-import { databaseService } from "../services/database/oldUnusedIndex";
 import {
   CreateTransactionInput,
   Transaction,
   UpdateTransactionInput,
 } from "../types/transaction";
+
+// TODO: Update to use proper dependency injection
+// For now using a placeholder - this needs to be properly initialized
+let databaseService: any = null;
 
 // Helper function to invalidate analytics cache
 const invalidateAnalyticsCache = () => {

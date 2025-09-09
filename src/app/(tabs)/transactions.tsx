@@ -114,7 +114,11 @@ export const getPaymentMethodStyle = (
   );
 };
 
-const getStatusBadge = (status?: string, dueDate?: string, colors?: any) => {
+export const getStatusBadge = (
+  status?: string,
+  dueDate?: string,
+  colors?: any
+) => {
   if (!status || status === "completed") {
     // Check if overdue
     if (dueDate && status !== "completed") {
@@ -160,7 +164,7 @@ const getStatusBadge = (status?: string, dueDate?: string, colors?: any) => {
 };
 
 // Enhanced payment status information function
-const getPaymentStatusInfo = (transaction: any) => {
+export const getPaymentStatusInfo = (transaction: any) => {
   const { type, paymentMethod, paidAmount, remainingAmount } = transaction;
 
   // For sales with mixed payments

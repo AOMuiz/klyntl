@@ -433,7 +433,7 @@ export default function CustomerDetailScreen({
                 </Text>
               </Card.Content>
             </Card>
-            {/* <Card
+            <Card
               style={[
                 styles.statCard,
                 {
@@ -469,7 +469,9 @@ export default function CustomerDetailScreen({
                   Last Purchase
                 </Text>
               </Card.Content>
-            </Card> */}
+            </Card>
+          </View>
+          <View style={styles.statsContainer}>
             <Card
               style={[
                 styles.statCard,
@@ -489,11 +491,15 @@ export default function CustomerDetailScreen({
                     styles.statValue,
                     {
                       color:
-                        customer.outstandingBalance > 0
+                        customer.outstandingBalance -
+                          (customer.creditBalance || 0) >
+                        0
                           ? colors.warning[600]
                           : colors.success[600],
                       textShadowColor:
-                        customer.outstandingBalance > 0
+                        customer.outstandingBalance -
+                          (customer.creditBalance || 0) >
+                        0
                           ? colors.warning[100]
                           : colors.success[100],
                       textShadowOffset: { width: 0, height: 1 },
@@ -501,17 +507,81 @@ export default function CustomerDetailScreen({
                     },
                   ]}
                 >
-                  {formatCurrency(customer.outstandingBalance)}
+                  {(() => {
+                    const netBalance =
+                      customer.outstandingBalance -
+                      (customer.creditBalance || 0);
+                    if (netBalance > 0) {
+                      return formatCurrency(netBalance);
+                    } else if (netBalance < 0) {
+                      return `${formatCurrency(Math.abs(netBalance))} Credit`;
+                    } else {
+                      return "₦0";
+                    }
+                  })()}
                 </Text>
                 <Text
                   variant="bodySmall"
                   numberOfLines={1}
                   style={[styles.statLabel, { color: colors.neutral[600] }]}
                 >
-                  Outstanding Balance
+                  {(() => {
+                    const netBalance =
+                      customer.outstandingBalance -
+                      (customer.creditBalance || 0);
+                    if (netBalance > 0) {
+                      return "Amount Owed";
+                    } else if (netBalance < 0) {
+                      return "Credit Balance";
+                    } else {
+                      return "Account Balanced";
+                    }
+                  })()}
                 </Text>
               </Card.Content>
             </Card>
+            {/* Breakdown of debt vs credit */}
+            {(customer.outstandingBalance > 0 ||
+              (customer.creditBalance || 0) > 0) && (
+              <Card
+                style={[
+                  styles.statCard,
+                  {
+                    backgroundColor: colors.paper.surface,
+                    borderWidth: 1,
+                    borderColor: colors.warning[100],
+                  },
+                ]}
+                elevation={0}
+                mode="elevated"
+              >
+                <Card.Content style={{ padding: 0, flex: 1 }}>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: colors.neutral[600], marginBottom: 8 }}
+                  >
+                    Account Breakdown:
+                  </Text>
+                  {customer.outstandingBalance > 0 && (
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: colors.warning[600] }}
+                    >
+                      📊 Debt: {formatCurrency(customer.outstandingBalance)}
+                    </Text>
+                  )}
+                  {(customer.creditBalance || 0) > 0 && (
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: colors.success[600] }}
+                    >
+                      💳 Prepaid Credit:{" "}
+                      {formatCurrency(customer.creditBalance || 0)}
+                    </Text>
+                  )}
+                </Card.Content>
+              </Card>
+            )}
           </View>
 
           {/* Recent Transactions */}
@@ -789,7 +859,7 @@ export default function CustomerDetailScreen({
           </View>
 
           {/* Quick Debt Actions */}
-          {customer.outstandingBalance > 0 && (
+          {customer.outstandingBalance - (customer.creditBalance || 0) > 0 && (
             <View style={styles.section}>
               <Text
                 variant="headlineSmall"

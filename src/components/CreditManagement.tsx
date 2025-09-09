@@ -53,8 +53,14 @@ export const CreditManagement: React.FC<CreditManagementProps> = ({
       setLoading(true);
       const [balance, summary, history] = await Promise.all([
         databaseService.payment.getCreditBalance(customer.id),
-        databaseService.payment.getCreditSummary(customer.id),
-        databaseService.payment.getPaymentAuditHistory(customer.id),
+        // SimplePaymentService doesn't have getCreditSummary - use a simple summary
+        Promise.resolve({
+          currentBalance: customer.creditBalance || 0,
+          totalEarned: customer.creditBalance || 0, // Simplified - not tracked separately
+          totalUsed: 0, // Simplified - not tracked in SimplePaymentService
+          lastActivity: null, // Simplified - not tracked in SimplePaymentService
+        }),
+        databaseService.payment.getPaymentHistory(customer.id),
       ]);
 
       setCreditBalance(balance);
@@ -66,7 +72,7 @@ export const CreditManagement: React.FC<CreditManagementProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [databaseService, customer.id]);
+  }, [databaseService, customer.id, customer.creditBalance]);
 
   useEffect(() => {
     loadCreditData();

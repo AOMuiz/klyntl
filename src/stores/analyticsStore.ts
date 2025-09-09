@@ -1,7 +1,10 @@
 import { create } from "zustand";
-import { databaseService } from "../services/database/oldUnusedIndex";
 import { Analytics } from "../types/analytics";
 import { Transaction } from "../types/transaction";
+
+// TODO: Update to use proper dependency injection
+// For now using a placeholder - this needs to be properly initialized
+let databaseService: any = null;
 
 interface AnalyticsStore {
   analytics: Analytics | null;
