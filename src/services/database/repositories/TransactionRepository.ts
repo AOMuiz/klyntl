@@ -136,7 +136,7 @@ export class TransactionRepository implements ITransactionRepository {
         // Insert the transaction
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             transaction.id,
             transaction.customerId,
@@ -765,7 +765,7 @@ export class TransactionRepository implements ITransactionRepository {
 
           await this.db.runAsync(
             `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               transaction.id,
               transaction.customerId,
@@ -1259,7 +1259,7 @@ export class TransactionRepository implements ITransactionRepository {
 
         await this.db.runAsync(
           `INSERT INTO transactions (id, customerId, productId, amount, description, date, type, paymentMethod, paidAmount, remainingAmount, status, linkedTransactionId, appliedToDebt, dueDate, currency, exchangeRate, metadata, isDeleted) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             paymentTransaction.id,
             paymentTransaction.customerId,

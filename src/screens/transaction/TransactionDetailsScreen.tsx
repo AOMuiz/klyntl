@@ -1,6 +1,6 @@
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Alert, ScrollView, Share, TouchableOpacity, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 
@@ -10,11 +10,8 @@ import ScreenContainer, {
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomer } from "@/hooks/useCustomers";
-import { usePaymentAudit } from "@/hooks/usePaymentAudit";
+import { useTransactionDetails } from "@/hooks/useTransactionDetails";
 import { useTransaction, useTransactions } from "@/hooks/useTransactions";
-import { AuditManagementService } from "@/services/audit/AuditManagementService";
-import { TransactionCalculationService } from "@/services/calculations/TransactionCalculationService";
-import { useDatabase } from "@/services/database/hooks";
 import { formatCurrency } from "@/utils/currency";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 
@@ -22,11 +19,8 @@ export default function TransactionDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const theme = useTheme();
-  const { db } = useDatabase();
 
   const { data: transaction, isLoading, error } = useTransaction(id);
-  // Load payment audit records for this transaction (if any) — call hook unconditionally
-  const { data: auditHistory } = usePaymentAudit(transaction?.customerId);
 
   // Load customer + all transactions for running balance calculation
   const customerId = transaction?.customerId;
@@ -34,10 +28,17 @@ export default function TransactionDetailsScreen() {
   const txnsQuery = useTransactions(customerId);
   const allCustomerTxns = txnsQuery.transactions || [];
 
-  // State for enhanced calculations and audit data
-  const [paymentBreakdown, setPaymentBreakdown] = useState<any>(null);
-  const [verificationResult, setVerificationResult] = useState<any>(null);
-  const [auditSummary, setAuditSummary] = useState<any>(null);
+  // Use the transaction details hook for data access and calculations
+  const {
+    creditBalance,
+    paymentHistory,
+    isLoadingDetails,
+    computeRunningBalances,
+  } = useTransactionDetails({
+    transaction,
+    customerId,
+    allCustomerTxns,
+  });
 
   useEffect(() => {
     if (error) {
@@ -46,66 +47,7 @@ export default function TransactionDetailsScreen() {
     }
   }, [error, router]);
 
-  // Calculate enhanced payment breakdown and audit when data is available
-  useEffect(() => {
-    if (transaction && db) {
-      const calculateTransactionData = async () => {
-        try {
-          // Get proper audit history with customer_id
-          const auditManagementService = new AuditManagementService(db);
-          const transactionAudit =
-            await auditManagementService.getTransactionAuditHistory(
-              transaction.id
-            );
-          const customerAudit =
-            await auditManagementService.getCustomerAuditHistory(
-              transaction.customerId
-            );
-
-          // Convert audit data to PaymentAudit format for calculations
-          const paymentAuditData = customerAudit.map((audit) => ({
-            id: audit.id,
-            customer_id: audit.customerId,
-            transaction_id: audit.sourceTransactionId || "",
-            type: audit.type,
-            amount: audit.amount,
-            created_at: audit.createdAt,
-            metadata: audit.metadata || {},
-          }));
-
-          // Generate payment breakdown using the calculation service
-          const breakdown =
-            TransactionCalculationService.generatePaymentBreakdown(
-              transaction,
-              paymentAuditData
-            );
-          setPaymentBreakdown(breakdown);
-
-          // Verify transaction consistency
-          const verification =
-            TransactionCalculationService.verifyTransactionConsistency(
-              transaction,
-              paymentAuditData
-            );
-          setVerificationResult(verification);
-
-          // Set audit summary
-          setAuditSummary({
-            transactionAudit,
-            customerAudit,
-            hasAuditTrail:
-              transactionAudit.entries.length > 0 || customerAudit.length > 0,
-          });
-        } catch (err) {
-          console.error("Failed to calculate transaction data:", err);
-        }
-      };
-
-      calculateTransactionData();
-    }
-  }, [transaction, db]);
-
-  if (isLoading) {
+  if (isLoading || isLoadingDetails) {
     return (
       <ScreenContainer>
         <View
@@ -143,54 +85,7 @@ export default function TransactionDetailsScreen() {
     router.push(`/(modal)/transaction/edit/${id}`);
   };
 
-  // Debt impact helper (same logic used elsewhere)
-  const calculateDebtImpact = (tx: any) => {
-    const { type, paymentMethod, remainingAmount, appliedToDebt, amount } = tx;
-    switch (type) {
-      case "sale":
-        if (paymentMethod === "credit") return amount;
-        if (paymentMethod === "mixed") return remainingAmount || 0;
-        return 0;
-      case "payment":
-        if (appliedToDebt) return -amount;
-        return 0;
-      case "credit":
-        return amount;
-      case "refund":
-        return -amount;
-      default:
-        return 0;
-    }
-  };
-
   // Compute running balance before/after this transaction using all customer txns
-  const computeRunningBalances = () => {
-    if (!allCustomerTxns || allCustomerTxns.length === 0) {
-      const impact = calculateDebtImpact(transaction);
-      return { before: 0, after: impact };
-    }
-
-    // Sort ascending by date so accumulation progresses forward in time
-    const sorted = [...allCustomerTxns].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    let running = 0;
-    let before = 0;
-    for (const tx of sorted) {
-      if (tx.id === transaction.id) {
-        before = running;
-        // after will be before + impact
-        break;
-      }
-      running += calculateDebtImpact(tx);
-    }
-
-    const impact = calculateDebtImpact(transaction);
-    const after = before + impact;
-    return { before, after };
-  };
-
   const { before: balanceBefore, after: balanceAfter } =
     computeRunningBalances();
 
@@ -272,39 +167,6 @@ export default function TransactionDetailsScreen() {
       parsedMetadata = { raw: transaction.metadata };
     }
   }
-
-  // Use enhanced payment breakdown and verification from centralized services
-  const paidStored = Number(transaction.paidAmount || 0);
-  const remainingStored = Number(transaction.remainingAmount || 0);
-
-  // prefer audit-derived values when they exist, otherwise fallback to stored DB fields
-  const displayedPaid = paymentBreakdown?.totalPaid || paidStored || 0;
-  const displayedRemaining =
-    paymentBreakdown?.totalRemaining || remainingStored || 0;
-
-  const usingAudit = paymentBreakdown?.hasAuditData || false;
-
-  // Use verification result from centralized service
-  const inconsistencyDetails = verificationResult?.hasInconsistencies
-    ? {
-        storedInconsistent: verificationResult.storedAmountsInconsistent,
-        computedInconsistent: verificationResult.auditAmountsInconsistent,
-        storedTotal: verificationResult.storedTotal,
-        computedTotal: verificationResult.auditTotal,
-        totalAmount: verificationResult.originalAmount,
-        difference: verificationResult.maxDiscrepancy,
-        issues: verificationResult.issues,
-      }
-    : null;
-
-  const isInconsistent = !!inconsistencyDetails;
-
-  console.log({
-    inconsistencyDetails,
-    auditHistory,
-    parsedMetadata,
-    transaction,
-  });
 
   const safeFormat = (val: any) => {
     const n = Number(val || 0);
@@ -456,99 +318,47 @@ export default function TransactionDetailsScreen() {
             </Text>
           </View>
 
-          {(displayedPaid || displayedRemaining) && (
+          {/* Credit Balance Display */}
+          {creditBalance > 0 && (
             <View style={{ marginTop: hp(12) }}>
               <Text
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                Payment Breakdown
+                Customer Credit Balance
               </Text>
-              <View style={{ marginTop: hp(6) }}>
-                {displayedPaid ? (
-                  <Text variant="bodyMedium">
-                    💰 Amount Paid: {safeFormat(displayedPaid)}
-                    {usingAudit && displayedPaid !== paidStored
-                      ? " (calculated from history)"
-                      : ""}
-                  </Text>
-                ) : null}
-                {displayedRemaining ? (
-                  <Text variant="bodyMedium">
-                    ⏳ Amount Due: {safeFormat(displayedRemaining)}
-                    {usingAudit && displayedRemaining !== remainingStored
-                      ? " (calculated from history)"
-                      : ""}
-                  </Text>
-                ) : null}
-                {isInconsistent ? (
-                  <View style={{ marginTop: hp(8) }}>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.error, fontWeight: "600" }}
-                    >
-                      ⚠️ Data Verification Issue
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.error, marginTop: hp(4) }}
-                    >
-                      {inconsistencyDetails?.storedInconsistent
-                        ? `Database records show ${formatCurrency(
-                            inconsistencyDetails.storedTotal
-                          )} total vs ${formatCurrency(
-                            inconsistencyDetails.totalAmount
-                          )} expected`
-                        : ""}
-                      {inconsistencyDetails?.computedInconsistent
-                        ? `${
-                            inconsistencyDetails?.storedInconsistent ? "\n" : ""
-                          }Payment history shows ${formatCurrency(
-                            inconsistencyDetails.computedTotal
-                          )} total vs ${formatCurrency(
-                            inconsistencyDetails.totalAmount
-                          )} expected`
-                        : ""}
-                      {inconsistencyDetails &&
-                      inconsistencyDetails.difference > 0.01
-                        ? `\n• Difference: ${formatCurrency(
-                            inconsistencyDetails.difference
-                          )}`
-                        : ""}
-                      {inconsistencyDetails?.issues &&
-                      inconsistencyDetails.issues.length > 0
-                        ? `\n• Issues detected: ${inconsistencyDetails.issues.join(
-                            ", "
-                          )}`
-                        : ""}
-                      {"\n• This may indicate a data synchronization issue"}
-                      {
-                        "\n• Using payment history for most accurate information"
-                      }
-                    </Text>
-                  </View>
-                ) : verificationResult?.isHealthy ? (
-                  <View style={{ marginTop: hp(8) }}>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.primary, fontWeight: "600" }}
-                    >
-                      ✅ Data Verified
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{
-                        color: theme.colors.onSurfaceVariant,
-                        marginTop: hp(4),
-                      }}
-                    >
-                      Transaction amounts are consistent across all records
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+              <Text
+                variant="bodyMedium"
+                style={{ marginTop: hp(6), color: theme.colors.primary }}
+              >
+                💳 Available Credit: {formatCurrency(creditBalance)}
+              </Text>
             </View>
           )}
+
+          {/* Payment Breakdown using simplified logic */}
+          <View style={{ marginTop: hp(12) }}>
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Payment Breakdown
+            </Text>
+            <View style={{ marginTop: hp(6) }}>
+              <Text variant="bodyMedium">
+                💰 Amount Paid: {formatCurrency(transaction.paidAmount || 0)}
+              </Text>
+              <Text variant="bodyMedium">
+                ⏳ Amount Due:{" "}
+                {formatCurrency(transaction.remainingAmount || 0)}
+              </Text>
+              {transaction.paymentMethod === "mixed" && (
+                <Text variant="bodyMedium" style={{ marginTop: hp(4) }}>
+                  🔄 Mixed Payment: Cash + Credit applied
+                </Text>
+              )}
+            </View>
+          </View>
 
           <View style={{ marginTop: hp(12) }}>
             <Text
@@ -620,121 +430,25 @@ export default function TransactionDetailsScreen() {
             </View>
           )}
 
-          {/* Show enhanced audit information and payment allocations */}
-          {auditSummary?.hasAuditTrail && (
+          {/* Payment History */}
+          {paymentHistory.length > 0 && (
             <View style={{ marginTop: hp(12) }}>
               <Text
                 variant="bodySmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
-                Payment Allocations & Audit Trail
+                Recent Payment Activity
               </Text>
-
-              {/* Show payment breakdown allocations if available */}
-              {paymentBreakdown?.allocations &&
-                paymentBreakdown.allocations.length > 0 && (
-                  <View style={{ marginTop: hp(6) }}>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.primary, fontWeight: "600" }}
-                    >
-                      Payment Allocations ({paymentBreakdown.allocations.length}
-                      )
-                    </Text>
-                    {paymentBreakdown.allocations.map(
-                      (allocation: any, i: number) => (
-                        <Text
-                          key={`allocation-${i}`}
-                          variant="bodyMedium"
-                          style={{ marginTop: hp(2) }}
-                        >
-                          {allocation.type} ·{" "}
-                          {formatCurrency(allocation.amount)} ·{" "}
-                          {new Date(allocation.created_at).toLocaleString()}
-                        </Text>
-                      )
-                    )}
-                  </View>
-                )}
-
-              {/* Show transaction-specific audit entries */}
-              {auditSummary?.transactionAudit?.entries &&
-                auditSummary.transactionAudit.entries.length > 0 && (
-                  <View style={{ marginTop: hp(8) }}>
-                    <Text
-                      variant="bodySmall"
-                      style={{
-                        color: theme.colors.secondary,
-                        fontWeight: "600",
-                      }}
-                    >
-                      Transaction Audit (
-                      {auditSummary.transactionAudit.entries.length} entries)
-                    </Text>
-                    {auditSummary.transactionAudit.entries.map(
-                      (entry: any, i: number) => (
-                        <Text
-                          key={`tx-audit-${i}`}
-                          variant="bodyMedium"
-                          style={{ marginTop: hp(2) }}
-                        >
-                          {entry.type} · {formatCurrency(entry.amount)} ·{" "}
-                          {new Date(entry.createdAt).toLocaleString()}
-                        </Text>
-                      )
-                    )}
-                  </View>
-                )}
-
-              {/* Fallback to old audit history if new data not available */}
-              {(!paymentBreakdown?.allocations ||
-                paymentBreakdown.allocations.length === 0) &&
-                (!auditSummary?.transactionAudit?.entries ||
-                  auditSummary.transactionAudit.entries.length === 0) &&
-                auditHistory &&
-                auditHistory.length > 0 && (
-                  <View style={{ marginTop: hp(6) }}>
-                    {(auditHistory || []).map((a: any, i: number) => {
-                      const typeLabel =
-                        typeof a?.type === "string"
-                          ? a.type
-                          : String(
-                              a?.type ?? a?.metadata?.type ?? "allocation"
-                            );
-                      const amountNum = Number(a?.amount || 0);
-                      const dateStr = a?.created_at
-                        ? new Date(a.created_at).toLocaleString()
-                        : "";
-                      return (
-                        <Text key={a.id ?? `audit-${i}`} variant="bodyMedium">
-                          {typeLabel} · {safeFormat(amountNum)}
-                          {amountNum === 0 ? "" : ""} · {dateStr}
-                        </Text>
-                      );
-                    })}
-                  </View>
-                )}
+              <View style={{ marginTop: hp(6) }}>
+                {paymentHistory.slice(0, 5).map((record: any, i: number) => (
+                  <Text key={`payment-${i}`} variant="bodyMedium">
+                    {record.type} · {safeFormat(record.amount)} ·{" "}
+                    {new Date(record.created_at).toLocaleDateString()}
+                  </Text>
+                ))}
+              </View>
             </View>
           )}
-
-          {/* Show message when no audit trail exists */}
-          {!auditSummary?.hasAuditTrail &&
-            (!auditHistory || auditHistory.length === 0) && (
-              <View style={{ marginTop: hp(12) }}>
-                <Text
-                  variant="bodySmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  Payment Audit Trail
-                </Text>
-                <Text
-                  variant="bodyMedium"
-                  style={{ marginTop: hp(6), color: theme.colors.outline }}
-                >
-                  No payment audit records found
-                </Text>
-              </View>
-            )}
 
           <View
             style={{ marginTop: hp(12), flexDirection: "column", gap: hp(12) }}

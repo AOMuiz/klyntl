@@ -3,6 +3,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { PaymentMethod, TransactionType } from "@/types/transaction";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
+import { useMemo } from "react";
 import {
   ScrollView,
   TouchableOpacity,
@@ -247,6 +248,115 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       >
         {descriptions[value || "cash"]}
       </ThemedText>
+    </View>
+  );
+};
+
+// Simplified Payment Method Selector
+const SimplePaymentMethodSelector: React.FC<{
+  value: PaymentMethod;
+  onChange: (method: PaymentMethod) => void;
+  transactionType: TransactionType;
+  showDebtOption: boolean;
+}> = ({ value, onChange, transactionType, showDebtOption }) => {
+  const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const getMethodConfig = (method: PaymentMethod) => {
+    const configs = {
+      cash: {
+        label: "Cash",
+        icon: "banknote",
+        color: Colors[isDark ? "dark" : "light"].success,
+      },
+      bank_transfer: {
+        label: "Transfer",
+        icon: "building.2",
+        color: Colors[isDark ? "dark" : "light"].secondary,
+      },
+      pos_card: {
+        label: "Card/POS",
+        icon: "creditcard",
+        color: Colors[isDark ? "dark" : "light"].primary,
+      },
+      credit: {
+        label: "Credit (Debt)",
+        icon: "clock",
+        color: Colors[isDark ? "dark" : "light"].warning,
+      },
+      mixed: {
+        label: "Partial Payment",
+        icon: "plus.minus",
+        color: Colors[isDark ? "dark" : "light"].accent,
+      },
+    };
+    return configs[method];
+  };
+
+  // Determine available methods based on transaction type
+  const availableMethods: PaymentMethod[] = useMemo(() => {
+    if (transactionType === "payment") {
+      return ["cash", "bank_transfer", "pos_card"];
+    }
+    if (transactionType === "sale") {
+      const methods: PaymentMethod[] = ["cash", "bank_transfer", "pos_card"];
+      if (showDebtOption) methods.push("credit", "mixed");
+      return methods;
+    }
+    // For credit/refund, only cash/transfer make sense
+    return ["cash", "bank_transfer"];
+  }, [transactionType, showDebtOption]);
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {availableMethods.map((method) => {
+          const config = getMethodConfig(method);
+          const isSelected = value === method;
+
+          return (
+            <TouchableOpacity
+              key={method}
+              style={[
+                {
+                  flex: method === "credit" ? 1 : 0,
+                  minWidth: wp(80),
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: theme.colors.outline,
+                  backgroundColor: theme.colors.surface,
+                  alignItems: "center",
+                  gap: 4,
+                },
+                isSelected && {
+                  backgroundColor: config.color + "15",
+                  borderColor: config.color,
+                },
+              ]}
+              onPress={() => onChange(method)}
+            >
+              <IconSymbol
+                name={config.icon}
+                size={20}
+                color={
+                  isSelected ? config.color : theme.colors.onSurfaceVariant
+                }
+              />
+              <ThemedText
+                style={[
+                  { fontSize: 12, fontWeight: "500", textAlign: "center" },
+                  isSelected && { color: config.color, fontWeight: "600" },
+                ]}
+              >
+                {config.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };

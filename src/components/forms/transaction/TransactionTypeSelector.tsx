@@ -106,3 +106,84 @@ export const TransactionTypeSelector: React.FC<
     </View>
   );
 };
+
+// Simplified Transaction Type Selector
+export const SimpleTransactionTypeSelector: React.FC<{
+  value: TransactionType;
+  onChange: (type: TransactionType) => void;
+}> = ({ value, onChange }) => {
+  const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const types = [
+    {
+      type: "sale" as TransactionType,
+      label: "Sale",
+      icon: "cart",
+      color: Colors[isDark ? "dark" : "light"].success,
+    },
+    {
+      type: "payment" as TransactionType,
+      label: "Payment",
+      icon: "banknote",
+      color: Colors[isDark ? "dark" : "light"].secondary,
+    },
+    {
+      type: "credit" as TransactionType,
+      label: "Credit",
+      icon: "gift",
+      color: Colors[isDark ? "dark" : "light"].warning,
+    },
+    {
+      type: "refund" as TransactionType,
+      label: "Refund",
+      icon: "arrow.uturn.left",
+      color: Colors[isDark ? "dark" : "light"].error,
+    },
+  ];
+
+  return (
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      {types.map(({ type, label, icon, color }) => {
+        const isSelected = value === type;
+        return (
+          <TouchableOpacity
+            key={type}
+            style={[
+              {
+                flex: 1,
+                paddingVertical: 16,
+                borderRadius: 12,
+                borderWidth: 2,
+                borderColor: theme.colors.outline,
+                backgroundColor: theme.colors.surface,
+                alignItems: "center",
+                gap: 6,
+              },
+              isSelected && {
+                backgroundColor: color + "15",
+                borderColor: color,
+              },
+            ]}
+            onPress={() => onChange(type)}
+          >
+            <IconSymbol
+              name={icon}
+              size={24}
+              color={isSelected ? color : theme.colors.onSurfaceVariant}
+            />
+            <ThemedText
+              style={[
+                { fontSize: 12, fontWeight: "500" },
+                isSelected && { color, fontWeight: "700" },
+              ]}
+            >
+              {label}
+            </ThemedText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};

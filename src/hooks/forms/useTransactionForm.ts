@@ -1,12 +1,10 @@
 import { QUERY_KEYS } from "@/constants/queryKeys";
+import { SimpleTransactionCalculator } from "@/services/calculations/SimpleTransactionCalculator";
 import { createDatabaseService } from "@/services/database";
 import { useDatabase } from "@/services/database/hooks";
 import { Customer } from "@/types/customer";
 import { PaymentMethod, TransactionType } from "@/types/transaction";
-import {
-  calculateRemainingAmount,
-  getDefaultValuesForTransactionType,
-} from "@/utils/business/transactionCalculations";
+import { getDefaultValuesForTransactionType } from "@/utils/business/transactionCalculations";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -107,28 +105,45 @@ export const useTransactionForm = ({
     });
   }, [watchedType, watchedAmount, setValue]);
 
-  // Auto-compute remainingAmount for mixed payments
+  // Auto-compute remainingAmount for mixed payments using SimpleTransactionCalculator
   useEffect(() => {
     if (
       watchedPaymentMethod === "mixed" &&
       watchedAmount &&
       watchedPaidAmount
     ) {
-      const remaining = calculateRemainingAmount(
-        watchedAmount,
-        watchedPaidAmount
-      );
-      setValue("remainingAmount", remaining);
-    }
-  }, [watchedPaymentMethod, watchedAmount, watchedPaidAmount, setValue]);
+      const totalAmount = parseFloat(watchedAmount);
+      const paidAmount = parseFloat(watchedPaidAmount);
 
-  // PaymentService validation function
-  const validateTransactionWithPaymentService = (data: TransactionFormData) => {
-    if (!databaseService?.payment) {
-      // Fallback validation if PaymentService is not available
-      return { isValid: true, errors: [] };
+      if (!isNaN(totalAmount) && !isNaN(paidAmount)) {
+        const remaining = Math.max(0, totalAmount - paidAmount);
+        setValue("remainingAmount", remaining.toString());
+      }
+    } else if (watchedPaymentMethod !== "mixed") {
+      // Use SimpleTransactionCalculator for non-mixed payments
+      const totalAmount = parseFloat(watchedAmount || "0");
+      if (!isNaN(totalAmount) && totalAmount > 0) {
+        const calculated = SimpleTransactionCalculator.calculateInitialAmounts(
+          watchedType,
+          watchedPaymentMethod,
+          totalAmount
+        );
+        setValue("paidAmount", calculated.paidAmount.toString());
+        setValue("remainingAmount", calculated.remainingAmount.toString());
+      }
     }
+  }, [
+    watchedPaymentMethod,
+    watchedAmount,
+    watchedPaidAmount,
+    watchedType,
+    setValue,
+  ]);
 
+  // Enhanced validation function using SimpleTransactionCalculator
+  const validateTransactionWithSimpleCalculator = (
+    data: TransactionFormData
+  ) => {
     const errors: string[] = [];
     const parsedAmount = parseFloat(data.amount);
     const parsedPaidAmount = parseFloat(data.paidAmount || "0");
@@ -139,10 +154,9 @@ export const useTransactionForm = ({
       errors.push("Amount must be a positive number");
     }
 
-    // Use PaymentService to calculate expected status
-    const calculatedStatus = databaseService.payment.calculateTransactionStatus(
+    // Use SimpleTransactionCalculator to calculate expected status
+    const calculatedStatus = SimpleTransactionCalculator.calculateStatus(
       data.type,
-      data.paymentMethod,
       parsedAmount,
       parsedPaidAmount,
       parsedRemainingAmount
@@ -156,13 +170,11 @@ export const useTransactionForm = ({
       if (parsedRemainingAmount < 0) {
         errors.push("Remaining amount cannot be negative");
       }
-      if (parsedPaidAmount + parsedRemainingAmount !== parsedAmount) {
+      if (
+        Math.abs(parsedPaidAmount + parsedRemainingAmount - parsedAmount) > 0.01
+      ) {
         errors.push("Paid amount + remaining amount must equal total amount");
       }
-    } else if (data.paymentMethod === "cash") {
-      // For cash payments, no manual validation needed
-      // The system will automatically set paidAmount = amount
-      // This prevents the "paid amount should equal total amount" error
     } else if (data.paymentMethod === "credit" && data.type !== "credit") {
       if (parsedPaidAmount > 0) {
         errors.push("Credit payments should not have paid amount");
@@ -176,11 +188,11 @@ export const useTransactionForm = ({
     };
   };
 
-  // Enhanced form submission with PaymentService validation
+  // Enhanced form submission with SimpleTransactionCalculator validation
   const handleValidatedSubmit = (onSubmit: (data: any) => void) => {
     return handleSubmit((data) => {
-      // Validate with PaymentService
-      const validation = validateTransactionWithPaymentService(data);
+      // Validate with SimpleTransactionCalculator
+      const validation = validateTransactionWithSimpleCalculator(data);
 
       if (!validation.isValid) {
         // Set form errors
@@ -194,7 +206,8 @@ export const useTransactionForm = ({
       // Add calculated status to the data
       const enhancedData = {
         ...data,
-        status: validation.calculatedStatus,
+        status: validation.calculatedStatus.status,
+        percentagePaid: validation.calculatedStatus.percentagePaid,
       };
 
       onSubmit(enhancedData);
@@ -214,6 +227,53 @@ export const useTransactionForm = ({
     queryClient.invalidateQueries({
       queryKey: QUERY_KEYS.customers.all(),
     });
+  };
+
+  // Function to calculate real-time debt impact
+  const calculateRealTimeDebtImpact = (data: Partial<TransactionFormData>) => {
+    const amount = parseFloat(data.amount || "0");
+    const paidAmount = parseFloat(data.paidAmount || "0");
+    const remainingAmount = parseFloat(data.remainingAmount || "0");
+
+    // For mixed payments, calculate debt impact based on remaining amount
+    if (data.paymentMethod === "mixed") {
+      // Validate mixed payment amounts
+      const validation = SimpleTransactionCalculator.validateMixedPayment(
+        amount,
+        paidAmount,
+        remainingAmount
+      );
+
+      if (!validation.isValid) {
+        return { change: 0, isIncrease: false, isDecrease: false };
+      }
+
+      return SimpleTransactionCalculator.calculateDebtImpact(
+        data.type || "sale",
+        data.paymentMethod || "cash",
+        remainingAmount, // Use remaining amount for debt impact
+        data.appliedToDebt
+      );
+    }
+
+    return SimpleTransactionCalculator.calculateDebtImpact(
+      data.type || "sale",
+      data.paymentMethod || "cash",
+      amount,
+      data.appliedToDebt
+    );
+  };
+
+  // Function to get credit balance preview
+  const getCreditBalancePreview = async (customerId: string) => {
+    if (!databaseService?.simplePayment) return 0;
+
+    try {
+      return await databaseService.simplePayment.getCreditBalance(customerId);
+    } catch (error) {
+      console.error("Failed to get credit balance:", error);
+      return 0;
+    }
   };
 
   return {
@@ -236,6 +296,8 @@ export const useTransactionForm = ({
     showMorePaymentMethods,
     setShowMorePaymentMethods,
     refreshCustomers,
-    validateTransaction: validateTransactionWithPaymentService, // Expose validation function
+    validateTransaction: validateTransactionWithSimpleCalculator, // Expose updated validation function
+    calculateDebtImpact: calculateRealTimeDebtImpact, // Expose debt impact calculator
+    getCreditBalance: getCreditBalancePreview, // Expose credit balance getter
   };
 };

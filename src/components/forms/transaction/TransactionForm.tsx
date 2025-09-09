@@ -56,6 +56,7 @@ export default function TransactionForm({
 
   const [loading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [creditBalance, setCreditBalance] = useState(0);
 
   const {
     control,
@@ -69,6 +70,8 @@ export default function TransactionForm({
     setDatePickerVisible,
     showMorePaymentMethods,
     setShowMorePaymentMethods,
+    calculateDebtImpact,
+    getCreditBalance,
   } = useTransactionForm({
     customerId,
     customers: customers || [],
@@ -174,6 +177,32 @@ export default function TransactionForm({
     watch,
   ]);
 
+  // Fetch credit balance when customer changes
+  useEffect(() => {
+    if (watchedValues.customerId) {
+      getCreditBalance(watchedValues.customerId).then(setCreditBalance);
+    } else {
+      setCreditBalance(0);
+    }
+  }, [watchedValues.customerId, getCreditBalance]);
+
+  // Calculate real-time debt impact using SimpleTransactionCalculator
+  const realTimeDebtImpact = useMemo(() => {
+    if (!watchedValues.amount || !watchedValues.customerId) {
+      return null;
+    }
+
+    return calculateDebtImpact({
+      customerId: watchedValues.customerId,
+      amount: watchedValues.amount,
+      paidAmount: watchedValues.paidAmount,
+      remainingAmount: watch("remainingAmount") || "0",
+      type: watchedValues.type,
+      paymentMethod: watchedValues.paymentMethod,
+      appliedToDebt: watch("appliedToDebt"),
+    });
+  }, [watchedValues, watch, calculateDebtImpact]);
+
   const getSubmitButtonText = (
     type: TransactionType,
     loading: boolean
@@ -263,6 +292,33 @@ export default function TransactionForm({
                 }}
               >
                 Outstanding Debt: {formatCurrency(currentCustomerDebt)}
+              </ThemedText>
+            )}
+            {selectedCustomer && creditBalance > 0 && (
+              <ThemedText
+                style={{
+                  marginTop: hp(6),
+                  color: Colors[isDark ? "dark" : "light"].secondary,
+                }}
+              >
+                Available Credit: {formatCurrency(creditBalance)}
+              </ThemedText>
+            )}
+            {/* Real-time debt impact preview */}
+            {selectedCustomer && realTimeDebtImpact && (
+              <ThemedText
+                style={{
+                  marginTop: hp(6),
+                  color: realTimeDebtImpact.isIncrease
+                    ? Colors[isDark ? "dark" : "light"].warning
+                    : Colors[isDark ? "dark" : "light"].success,
+                  fontWeight: "600",
+                }}
+              >
+                {realTimeDebtImpact.isIncrease
+                  ? "Debt Impact"
+                  : "Credit Impact"}
+                : {formatCurrency(realTimeDebtImpact.change)}
               </ThemedText>
             )}
           </View>
@@ -484,44 +540,45 @@ export default function TransactionForm({
                             />
                           )}
                         />
-                      </FormField>
 
-                      {/* Remaining Amount Display */}
-                      {watch("remainingAmount") &&
-                        parseFloat(watch("remainingAmount") || "0") > 0 && (
-                          <View style={{ marginTop: hp(8) }}>
-                            <ThemedText
-                              style={{
-                                fontSize: wp(16),
-                                fontWeight: "600",
-                                marginBottom: 8,
-                                color: theme.colors.onSurface,
-                              }}
-                            >
-                              Remaining Amount
-                            </ThemedText>
-                            <TextInput
-                              label="Remaining Amount"
-                              mode="outlined"
-                              value={watch("remainingAmount")}
-                              editable={false}
-                              style={{
-                                backgroundColor: theme.colors.elevation.level1,
-                              }}
-                              left={<TextInput.Icon icon="currency-ngn" />}
-                            />
-                            <ThemedText
-                              style={{
-                                marginTop: hp(4),
-                                color: theme.colors.onSurfaceVariant,
-                                fontSize: 12,
-                              }}
-                            >
-                              This amount will be added to the customer&apos;s
-                              outstanding debt.
-                            </ThemedText>
-                          </View>
-                        )}
+                        {/* Remaining Amount Display */}
+                        {watch("remainingAmount") &&
+                          parseFloat(watch("remainingAmount") || "0") > 0 && (
+                            <View style={{ marginTop: hp(8) }}>
+                              <ThemedText
+                                style={{
+                                  fontSize: wp(16),
+                                  fontWeight: "600",
+                                  marginBottom: 8,
+                                  color: theme.colors.onSurface,
+                                }}
+                              >
+                                Remaining Amount
+                              </ThemedText>
+                              <TextInput
+                                label="Remaining Amount"
+                                mode="outlined"
+                                value={watch("remainingAmount")}
+                                editable={false}
+                                style={{
+                                  backgroundColor:
+                                    theme.colors.elevation.level1,
+                                }}
+                                left={<TextInput.Icon icon="currency-ngn" />}
+                              />
+                              <ThemedText
+                                style={{
+                                  marginTop: hp(4),
+                                  color: theme.colors.onSurfaceVariant,
+                                  fontSize: 12,
+                                }}
+                              >
+                                This amount will be added to the customer&apos;s
+                                outstanding debt.
+                              </ThemedText>
+                            </View>
+                          )}
+                      </FormField>
                     </View>
                   )}
 
@@ -549,6 +606,44 @@ export default function TransactionForm({
                         color={Colors[isDark ? "dark" : "light"].warning}
                         variant="remaining"
                       />
+                    )}
+
+                  {/* Credit Application Preview for Mixed Payments */}
+                  {watchedValues.paymentMethod === "mixed" &&
+                    creditBalance > 0 &&
+                    parseFloat(watchedValues.amount || "0") > 0 && (
+                      <View
+                        style={{
+                          marginTop: hp(8),
+                          padding: hp(10),
+                          borderRadius: 8,
+                          backgroundColor:
+                            theme.colors.elevation?.level1 || "#f4f4f4",
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            fontWeight: "700",
+                            marginBottom: hp(4),
+                            color: theme.colors.primary,
+                          }}
+                        >
+                          💰 Credit Available
+                        </ThemedText>
+                        <ThemedText
+                          style={{ color: theme.colors.onSurfaceVariant }}
+                        >
+                          You can apply up to{" "}
+                          {formatCurrency(
+                            Math.min(
+                              creditBalance,
+                              parseFloat(watchedValues.amount || "0")
+                            )
+                          )}{" "}
+                          from customer&apos;s available credit to reduce the
+                          cash payment amount.
+                        </ThemedText>
+                      </View>
                     )}
                 </View>
               </FormField>
