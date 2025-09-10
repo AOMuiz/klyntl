@@ -4,7 +4,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useCustomers } from "@/hooks/useCustomers";
 import { CreateCustomerInput } from "@/types/customer";
-import { validateNigerianPhone } from "@/utils/helpers";
+import { validateEmail, validatePhoneNumber } from "@/utils/contactValidation";
 import { useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -62,14 +62,13 @@ export default function AddCustomerScreen() {
   const watchedCompany = watch("company");
 
   const validatePhone = (phone: string) => {
-    const validation = validateNigerianPhone(phone);
+    const validation = validatePhoneNumber(phone, "NG");
     return validation.isValid || validation.error || "Invalid phone number";
   };
 
-  const validateEmail = (email?: string) => {
-    if (!email) return true; // Email is optional
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) || "Please enter a valid email address";
+  const validateEmailField = (email?: string) => {
+    const validation = validateEmail(email);
+    return validation.isValid || validation.error || "Invalid email address";
   };
 
   const onSubmit = async (data: CustomerFormData) => {
@@ -245,7 +244,7 @@ export default function AddCustomerScreen() {
               <Controller
                 control={control}
                 name="email"
-                rules={{ validate: validateEmail }}
+                rules={{ validate: validateEmailField }}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
                     label="Email Address"

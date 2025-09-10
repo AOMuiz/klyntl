@@ -21,7 +21,7 @@ import {
   CreateTransactionInput,
   UpdateTransactionInput,
 } from "@/types/transaction";
-import { validateNigerianPhone } from "@/utils/helpers";
+import { validateEmail, validatePhoneNumber } from "@/utils/contactValidation";
 import { SQLiteDatabase } from "expo-sqlite";
 import { ValidationError } from "./utilService";
 
@@ -46,25 +46,20 @@ export class ValidationService {
     }
 
     if ("phone" in data && data.phone) {
-      const validationResult = validateNigerianPhone(data.phone);
-      const isValid =
-        typeof validationResult === "boolean"
-          ? validationResult
-          : validationResult.isValid;
+      const validationResult = validatePhoneNumber(data.phone, "NG");
 
-      if (!isValid) {
+      if (!validationResult.isValid) {
         const errorMessage =
-          typeof validationResult === "object" && validationResult.error
-            ? validationResult.error
-            : "Invalid Nigerian phone number format";
+          validationResult.error || "Invalid Nigerian phone number format";
         throw new ValidationError(errorMessage, "phone");
       }
     }
 
     if ("email" in data && data.email?.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        throw new ValidationError("Invalid email format", "email");
+      const emailValidation = validateEmail(data.email);
+      if (!emailValidation.isValid) {
+        const errorMessage = emailValidation.error || "Invalid email format";
+        throw new ValidationError(errorMessage, "email");
       }
     }
 

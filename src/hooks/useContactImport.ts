@@ -2,7 +2,7 @@ import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useDatabase } from "@/services/database";
 import { createDatabaseService } from "@/services/database/service";
 import { Customer } from "@/types/customer";
-import { validateNigerianPhone } from "@/utils/helpers";
+import { validatePhoneNumber } from "@/utils/contactValidation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Contacts from "expo-contacts";
@@ -309,7 +309,7 @@ export function useContactImport() {
 
             // Clean phone number and check if it's Nigerian
             const cleanPhone = phoneNumber.number.replace(/\D/g, "");
-            const validation = validateNigerianPhone(cleanPhone);
+            const validation = validatePhoneNumber(cleanPhone, "NG");
             if (!validation.isValid) {
               skipped++;
               continue;

@@ -3,6 +3,10 @@
  */
 
 import { Platform } from "react-native";
+import {
+  validateEmail as validateEmailLib,
+  validatePhoneNumber as validatePhoneNumberLib,
+} from "./contactValidation";
 
 // import { CURRENCY, VALIDATION_RULES } from '@/constants/app';
 
@@ -78,7 +82,8 @@ export const formatCurrency = (amount: number): string => {
 };
 
 /**
- * Validate Nigerian phone number
+ * Validate Nigerian phone number (backward compatibility wrapper)
+ * @deprecated Use validatePhoneNumber from contactValidation.ts instead
  */
 export const validateNigerianPhone = (
   phone: string
@@ -86,58 +91,16 @@ export const validateNigerianPhone = (
   isValid: boolean;
   error?: string;
 } => {
-  if (!phone) {
-    return { isValid: false, error: "Phone number is required" };
-  }
-
-  // Remove all non-digit and plus characters
-  let normalized = phone.replace(/[^\d+]/g, "").trim();
-
-  // Check allowed characters
-  if (!VALIDATION_RULES.PHONE.ALLOWED_CHARS.test(phone)) {
-    return {
-      isValid: false,
-      error: "Phone number contains invalid characters",
-    };
-  }
-
-  // Normalize Nigerian numbers: allow +234, 234, or 0 as prefix
-  if (normalized.startsWith("+234")) {
-    normalized = normalized.replace("+234", "0");
-  } else if (normalized.startsWith("234")) {
-    normalized = normalized.replace("234", "0");
-  }
-
-  // Remove leading zeros (except the first one)
-  normalized = normalized.replace(/^0+/, "0");
-
-  // Check length
-  if (normalized.length < VALIDATION_RULES.PHONE.MIN_LENGTH) {
-    return { isValid: false, error: "Phone number is too short" };
-  }
-  if (normalized.length > VALIDATION_RULES.PHONE.MAX_LENGTH) {
-    return { isValid: false, error: "Phone number is too long" };
-  }
-
-  // Check prefix
-  const prefix = normalized.slice(0, 1);
-  if (
-    !VALIDATION_RULES.PHONE.ALLOWED_PREFIXES.includes(prefix) &&
-    !normalized.startsWith("0")
-  ) {
-    return { isValid: false, error: "Phone number must start with 0 or +234" };
-  }
-
-  // Nigerian mobile number strict regex
-  if (!VALIDATION_RULES.PHONE.NIGERIAN_REGEX.test(normalized)) {
-    return { isValid: false, error: "Invalid Nigerian phone number format" };
-  }
-
-  return { isValid: true };
+  const result = validatePhoneNumberLib(phone, "NG");
+  return {
+    isValid: result.isValid,
+    error: result.error,
+  };
 };
 
 /**
- * Validate email address
+ * Validate email address (backward compatibility wrapper)
+ * @deprecated Use validateEmail from contactValidation.ts instead
  */
 export const validateEmail = (
   email: string
@@ -145,16 +108,10 @@ export const validateEmail = (
   isValid: boolean;
   error?: string;
 } => {
-  if (!email) {
-    return { isValid: true }; // Email is optional
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const isValid = emailRegex.test(email);
-
+  const result = validateEmailLib(email);
   return {
-    isValid,
-    error: isValid ? undefined : "Invalid email address format",
+    isValid: result.isValid,
+    error: result.error,
   };
 };
 

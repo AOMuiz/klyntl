@@ -71,17 +71,17 @@ export function DatabaseReconciliationScreen() {
       const analysis = await analyzeLinkedTransactions();
 
       const message = `📊 Linked Transaction Analysis:
-• Total: ${analysis.totalTransactions}
-• Linked: ${analysis.linkedTransactions}
-• Orphaned: ${analysis.orphanedLinks}
-• Missing: ${analysis.missingLinks}
+            • Total: ${analysis.totalTransactions}
+            • Linked: ${analysis.linkedTransactions}
+            • Orphaned: ${analysis.orphanedLinks}
+            • Missing: ${analysis.missingLinks}
 
-${
-  analysis.recommendations.length > 0
-    ? "Recommendations:\n" +
-      analysis.recommendations.map((r) => `• ${r}`).join("\n")
-    : "✅ No issues found"
-}`;
+        ${
+          analysis.recommendations.length > 0
+            ? "Recommendations:\n" +
+              analysis.recommendations.map((r) => `• ${r}`).join("\n")
+            : "✅ No issues found"
+        }`;
 
       setLastResult(message);
       Alert.alert("Analysis Complete", "Check the results below.");

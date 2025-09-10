@@ -3,12 +3,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useAuth } from "@/stores/authStore";
 import useOnboardingStore from "@/stores/onboardingStore";
+import { validatePhoneNumber } from "@/utils/contactValidation";
 import { fontSize, hp, wp } from "@/utils/responsive_dimensions_system";
 import {
   validateBusinessName,
   validateEmail,
   validateFullName,
-  validateNigerianPhone,
 } from "@/utils/validations";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -87,12 +87,17 @@ export default function RegisterScreen() {
     }
 
     // Validate phone if provided
-    if (data.phone && !validateNigerianPhone(data.phone)) {
-      setError("phone", {
-        type: "manual",
-        message: "Please enter a valid Nigerian phone number",
-      });
-      return;
+    if (data.phone) {
+      const phoneValidation = validatePhoneNumber(data.phone, "NG");
+      if (!phoneValidation.isValid) {
+        setError("phone", {
+          type: "manual",
+          message:
+            phoneValidation.error ||
+            "Please enter a valid Nigerian phone number",
+        });
+        return;
+      }
     }
 
     // Validate business name if provided
@@ -264,10 +269,15 @@ export default function RegisterScreen() {
           <Controller
             control={control}
             rules={{
-              validate: (value) =>
-                !value ||
-                validateNigerianPhone(value) ||
-                "Please enter a valid Nigerian phone number",
+              validate: (value) => {
+                if (!value) return true;
+                const phoneValidation = validatePhoneNumber(value, "NG");
+                return (
+                  phoneValidation.isValid ||
+                  phoneValidation.error ||
+                  "Please enter a valid Nigerian phone number"
+                );
+              },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput

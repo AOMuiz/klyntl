@@ -1,3 +1,8 @@
+import {
+  isValidEmail as isValidEmailLib,
+  isValidNigerianPhone as isValidNigerianPhoneLib,
+} from "./contactValidation";
+
 // Solution 1: Validation helper functions
 export function validateNumber(
   value: string | number,
@@ -85,38 +90,11 @@ export function validateNumberSafe(
  */
 
 /**
- * Validates a Nigerian phone number
- * Supports formats:
- * - +234XXXXXXXXXX (international)
- * - 0XXXXXXXXXX (local)
- * - 080XXXXXXXX (common format)
- * - 090XXXXXXXX (common format)
- * - 070XXXXXXXX (common format)
- * - 081XXXXXXXX (common format)
+ * Validates a Nigerian phone number (backward compatibility)
+ * @deprecated Use validatePhoneNumber from contactValidation.ts instead
  */
 export const validateNigerianPhone = (phone: string): boolean => {
-  if (!phone) return false;
-
-  // Remove all non-digit characters except +
-  const cleanPhone = phone.replace(/[^\d+]/g, "");
-
-  // Check for international format (+234)
-  if (cleanPhone.startsWith("+234")) {
-    const numberPart = cleanPhone.substring(4);
-    return /^\d{10}$/.test(numberPart);
-  }
-
-  // Check for local format (0)
-  if (cleanPhone.startsWith("0")) {
-    return /^\d{11}$/.test(cleanPhone);
-  }
-
-  // Check for 10-digit format without leading 0
-  if (/^\d{10}$/.test(cleanPhone)) {
-    return true;
-  }
-
-  return false;
+  return isValidNigerianPhoneLib(phone);
 };
 
 /**
@@ -146,13 +124,11 @@ export const formatNigerianPhone = (phone: string): string => {
 };
 
 /**
- * Validates an email address
+ * Validates an email address (backward compatibility)
+ * @deprecated Use validateEmail from contactValidation.ts instead
  */
 export const validateEmail = (email: string): boolean => {
-  if (!email) return false;
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+  return isValidEmailLib(email);
 };
 
 /**

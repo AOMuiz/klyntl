@@ -1,7 +1,7 @@
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
 import { useCustomer, useCustomers } from "@/hooks/useCustomers";
 import { UpdateCustomerInput } from "@/types/customer";
-import { validateNigerianPhone } from "@/utils/helpers";
+import { validateEmail, validatePhoneNumber } from "@/utils/contactValidation";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -79,14 +79,13 @@ export default function EditCustomerScreen({
   }, [customer, customerLoading, customerId, router]);
 
   const validatePhone = (phone: string) => {
-    const validation = validateNigerianPhone(phone);
+    const validation = validatePhoneNumber(phone, "NG");
     return validation.isValid || validation.error || "Invalid phone number";
   };
 
-  const validateEmail = (email?: string) => {
-    if (!email) return true; // Email is optional
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) || "Please enter a valid email address";
+  const validateEmailField = (email?: string) => {
+    const validation = validateEmail(email);
+    return validation.isValid || validation.error || "Invalid email address";
   };
 
   const onSubmit = async (data: CustomerFormData) => {
@@ -329,7 +328,7 @@ export default function EditCustomerScreen({
                 <Controller
                   control={control}
                   name="email"
-                  rules={{ validate: validateEmail }}
+                  rules={{ validate: validateEmailField }}
                   render={({ field: { onChange, onBlur, value } }) => (
                     <TextInput
                       label="Email Address (Optional)"

@@ -1,6 +1,8 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 
+import { reconcileDeviceBalances } from "@/scripts/deviceBalanceReconciliation";
+import { analyzeLinkedTransactions } from "@/scripts/linkedTransactionAnalysis";
 import {
   analyzeDatabase,
   createDebugSnapshot,
@@ -20,6 +22,9 @@ export default function DatabaseDebugScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [lastExportPath, setLastExportPath] = useState<string>("");
+  const [reconciliationResult, setReconciliationResult] = useState<
+    string | null
+  >(null);
 
   const handleExportDatabase = async () => {
     setIsLoading(true);
@@ -96,6 +101,80 @@ export default function DatabaseDebugScreen() {
     }
   };
 
+  const handleReconcileBalances = async () => {
+    setIsLoading(true);
+    try {
+      console.log("🔄 Starting balance reconciliation...");
+      const result = await reconcileDeviceBalances();
+
+      if (result.success) {
+        const { corrections = [] } = result;
+
+        if (corrections.length === 0) {
+          const message = "✅ All customer balances are correct!";
+          setReconciliationResult(message);
+          Alert.alert("Balance Check Complete", "No corrections needed.");
+        } else {
+          const message = `✅ Fixed ${
+            corrections.length
+          } customer balances:\n${corrections
+            .map(
+              (c: any) =>
+                `• ${c.name}: ₦${(c.correctOutstanding / 100).toLocaleString()}`
+            )
+            .join("\n")}`;
+          setReconciliationResult(message);
+          Alert.alert(
+            "Reconciliation Complete",
+            `Fixed ${corrections.length} customers.`
+          );
+        }
+      } else {
+        const message = `❌ Reconciliation failed: ${result.error}`;
+        setReconciliationResult(message);
+        Alert.alert("Reconciliation Failed", result.error || "Unknown error");
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setReconciliationResult(`❌ Error: ${errorMessage}`);
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnalyzeLinkedTransactions = async () => {
+    setIsLoading(true);
+    try {
+      console.log("🔍 Analyzing linked transactions...");
+      const analysis = await analyzeLinkedTransactions();
+
+      const message = `📊 Linked Transaction Analysis:
+• Total: ${analysis.totalTransactions}
+• Linked: ${analysis.linkedTransactions}
+• Orphaned: ${analysis.orphanedLinks}
+• Missing: ${analysis.missingLinks}
+
+${
+  analysis.recommendations.length > 0
+    ? "Recommendations:\n" +
+      analysis.recommendations.map((r) => `• ${r}`).join("\n")
+    : "✅ No issues found"
+}`;
+
+      setReconciliationResult(message);
+      Alert.alert("Analysis Complete", "Check the results below.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setReconciliationResult(`❌ Analysis error: ${errorMessage}`);
+      Alert.alert("Analysis Failed", errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <ThemedView style={{ flex: 1, padding: 20 }}>
       <ScrollView>
@@ -159,6 +238,31 @@ export default function DatabaseDebugScreen() {
           </View>
         </Card>
 
+        <Card style={{ marginBottom: 20 }}>
+          <ThemedText type="subtitle" style={{ marginBottom: 15 }}>
+            Database Reconciliation
+          </ThemedText>
+
+          <View style={{ gap: 10 }}>
+            <Button
+              onPress={handleReconcileBalances}
+              disabled={isLoading}
+              style={{ marginBottom: 10 }}
+              mode="contained"
+            >
+              <ThemedText>Fix Customer Balances</ThemedText>
+            </Button>
+
+            <Button
+              onPress={handleAnalyzeLinkedTransactions}
+              disabled={isLoading}
+              mode="outlined"
+            >
+              <ThemedText>Analyze Linked Transactions</ThemedText>
+            </Button>
+          </View>
+        </Card>
+
         {analysisResult && (
           <Card>
             <ThemedText type="subtitle" style={{ marginBottom: 15 }}>
@@ -204,6 +308,18 @@ export default function DatabaseDebugScreen() {
                   ))}
               </View>
             )}
+          </Card>
+        )}
+
+        {reconciliationResult && (
+          <Card style={{ marginTop: 20 }}>
+            <ThemedText type="subtitle" style={{ marginBottom: 15 }}>
+              Reconciliation Results
+            </ThemedText>
+
+            <ThemedText style={{ fontFamily: "monospace", lineHeight: 20 }}>
+              {reconciliationResult}
+            </ThemedText>
           </Card>
         )}
       </ScrollView>

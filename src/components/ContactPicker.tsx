@@ -1,6 +1,6 @@
 import { ExtendedKlyntlTheme, useKlyntlColors } from "@/constants/KlyntlTheme";
+import { validatePhoneNumber } from "@/utils/contactValidation";
 import { groupContactsAlphabetically } from "@/utils/grouping";
-import { validateNigerianPhone } from "@/utils/helpers";
 import { hp, wp } from "@/utils/responsive_dimensions_system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
@@ -241,7 +241,7 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
           console.log("Clean phone:", cleanPhone);
 
           // Use proper Nigerian phone validation to match ValidationService
-          const validation = validateNigerianPhone(cleanPhone);
+          const validation = validatePhoneNumber(cleanPhone, "NG");
           const isValid = validation.isValid;
 
           console.log("Is valid:", isValid);

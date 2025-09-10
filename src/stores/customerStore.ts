@@ -15,7 +15,7 @@ import {
   SortOptions,
   getFilterDescription,
 } from "../types/filters";
-import { validateNigerianPhone } from "../utils/helpers";
+import { validatePhoneNumber } from "../utils/contactValidation";
 
 // Create database service instance
 let databaseService: DatabaseService = new DatabaseService(db);
@@ -529,7 +529,7 @@ export const useCustomerStore = create<CustomerStore>((set, get) => ({
         }
 
         // Validate Nigerian phone number format using proper validation function
-        const phoneValidation = validateNigerianPhone(formattedPhone);
+        const phoneValidation = validatePhoneNumber(formattedPhone, "NG");
         if (!phoneValidation.isValid) {
           skipped++;
           continue;
