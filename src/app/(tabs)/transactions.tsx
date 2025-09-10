@@ -178,7 +178,15 @@ export default function TransactionsScreen() {
         Track sales, payments, credits and refunds all in one place
       </ThemedText>
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: colors.primary }]}
+        style={[
+          {
+            backgroundColor: colors.primary[500],
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 8,
+            marginTop: 20,
+          },
+        ]}
         onPress={handleAddTransaction}
       >
         <ThemedText style={styles.addButtonText}>

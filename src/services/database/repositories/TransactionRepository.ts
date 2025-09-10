@@ -1339,7 +1339,7 @@ export class TransactionRepository implements ITransactionRepository {
               // If overpayment created credit, update credit balance
               if (allocationResult.creditCreated > 0) {
                 await this.db.runAsync(
-                  `UPDATE customers SET creditBalance = creditBalance + ?, updatedAt = ? WHERE id = ?`,
+                  `UPDATE customers SET credit_balance = credit_balance + ?, updatedAt = ? WHERE id = ?`,
                   [
                     allocationResult.creditCreated,
                     new Date().toISOString(),

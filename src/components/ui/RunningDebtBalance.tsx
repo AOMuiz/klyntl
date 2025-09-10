@@ -26,8 +26,7 @@ export default function RunningDebtBalance({
   return (
     <View style={styles.container}>
       <ThemedText style={[{ color: getBalanceColor() }]} type="caption">
-        Bal:{balance < 0 ? "-" : balance > 0 ? "+" : ""}
-        {getBalanceText()}
+        Bal:{getBalanceText()}
       </ThemedText>
     </View>
   );

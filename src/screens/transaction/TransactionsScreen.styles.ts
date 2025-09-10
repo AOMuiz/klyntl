@@ -44,9 +44,9 @@ export const styles = StyleSheet.create({
     elevation: 4,
   },
   addButtonText: {
-    color: "white",
     fontWeight: "600",
     fontSize: fontSize(16),
+    color: "white",
   },
   searchContainer: {
     flexDirection: "row",

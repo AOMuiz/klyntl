@@ -17,7 +17,7 @@ import {
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { Alert, StyleSheet, Text, TouchableOpacity } from "react-native";
 import "react-native-reanimated";
 
@@ -128,6 +128,18 @@ function AppLayout() {
                 title: "Customer Management",
               }}
             />
+
+            {/* Database Debug Screen - Development only */}
+            {__DEV__ && (
+              <Stack.Screen
+                name="debug/database"
+                options={{
+                  title: "Database Debug",
+                  headerShown: true,
+                  presentation: "modal",
+                }}
+              />
+            )}
           </Stack.Protected>
 
           {/* Legal pages - always accessible */}
@@ -164,6 +176,15 @@ function AppLayout() {
             >
               <Text style={styles.devButtonText}>Clear Auth</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                router.push("/debug/database");
+              }}
+              style={[styles.devButton, styles.devButtonTertiary]}
+              accessibilityLabel="Open database debug tools"
+            >
+              <Text style={styles.devButtonText}>🗄️ DB Debug</Text>
+            </TouchableOpacity>
           </>
         )}
       </ThemeProvider>
@@ -184,6 +205,9 @@ const styles = StyleSheet.create({
   },
   devButtonSecondary: {
     bottom: 80,
+  },
+  devButtonTertiary: {
+    bottom: 132,
   },
   devButtonText: {
     color: "#fff",

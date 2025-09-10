@@ -101,12 +101,12 @@ export async function createDebugSnapshot(): Promise<string> {
         c.id,
         c.name,
         c.outstandingBalance,
-        c.creditBalance,
+        c.credit_balance as creditBalance,
         COALESCE(SUM(CASE WHEN t.type IN ('sale', 'credit') THEN t.remainingAmount ELSE 0 END), 0) as computed_debt,
         COALESCE(SUM(CASE WHEN t.type = 'payment' AND t.appliedToDebt = 1 THEN t.amount ELSE 0 END), 0) as total_payments
       FROM customers c
       LEFT JOIN transactions t ON c.id = t.customerId AND t.isDeleted = 0
-      GROUP BY c.id, c.name, c.outstandingBalance, c.creditBalance
+      GROUP BY c.id, c.name, c.outstandingBalance, c.credit_balance
       HAVING c.outstandingBalance != computed_debt
       ORDER BY ABS(c.outstandingBalance - computed_debt) DESC
       LIMIT 10
